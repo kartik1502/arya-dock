@@ -15,13 +15,10 @@ let wakeLock = null;
 // Security & Role State
 const urlParams = new URLSearchParams(window.location.search);
 let pairingToken = urlParams.get('token') || localStorage.getItem('arya_pairing_token') || '';
-let editorKey = urlParams.get('editKey') || localStorage.getItem('arya_editor_key') || '';
+let editorKey = localStorage.getItem('arya_editor_key') || '';
 
 if (urlParams.get('token')) {
   localStorage.setItem('arya_pairing_token', urlParams.get('token'));
-}
-if (urlParams.get('editKey')) {
-  localStorage.setItem('arya_editor_key', urlParams.get('editKey'));
 }
 
 // Scrub sensitive token and editKey from URL bar and browser history
@@ -626,7 +623,7 @@ function connectWebSocket() {
     updateConnectionUI('connected');
     startHeartbeat();
     if (editorKey) {
-      ws.send(JSON.stringify({ type: 'AUTH_EDIT', editKey }));
+      ws.send(JSON.stringify({ type: 'AUTH_EDIT', editKey: editorKey }));
     }
   };
 

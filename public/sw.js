@@ -53,7 +53,7 @@ self.addEventListener('fetch', (event) => {
           if (cachedResponse) return cachedResponse;
           // Fallback to cached index.html or root for navigation requests
           if (event.request.mode === 'navigate') {
-            return caches.match('/index.html') || caches.match('/');
+            return caches.match('/index.html').then((res) => res || caches.match('/'));
           }
         });
       })

@@ -140,3 +140,75 @@ test('Auth: --rotate-credentials CLI flag rotates credentials and exits', () => 
     if (fs.existsSync(tmpAuth)) fs.unlinkSync(tmpAuth);
   }
 });
+
+test('Auth: --rotate-credentials --start rotates credentials and starts server', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arya-rotatestart-'));
+  const tmpAuth = path.join(tmpDir, 'auth.json');
+  const tmpConfig = path.join(tmpDir, 'profiles.json');
+  const serverScript = path.join(__dirname, '..', 'server.js');
+
+  try {
+    const creds1 = loadOrCreateAuth(tmpAuth);
+    const { spawn } = require('child_process');
+
+    const proc = spawn('node', [serverScript, '--rotate-credentials', '--start'], {
+      env: {
+        ...process.env,
+        AUTH_PATH: tmpAuth,
+        CONFIG_PATH: tmpConfig,
+        PORT: '0',
+        HOST: '127.0.0.1'
+      }
+    });
+
+    let output = '';
+    await new Promise((resolve, reject) => {
+      proc.stdout.on('data', (d) => {
+        output += d.toString();
+        if (output.includes('ARYA DOCK — VIRTUAL KEYPAD CONSOLE')) {
+          resolve();
+        }
+      });
+      proc.stderr.on('data', (d) => {
+        output += d.toString();
+      });
+      proc.on('error', reject);
+      proc.on('exit', (code) => {
+        if (!output.includes('ARYA DOCK — VIRTUAL KEYPAD CONSOLE')) {
+          reject(new Error(`Server exited prematurely with code ${code}. Output: ${output}`));
+        }
+      });
+    });
+
+    assert.ok(output.includes('Credentials rotated successfully'));
+    const creds2 = loadOrCreateAuth(tmpAuth);
+    assert.notEqual(creds2.pairingToken, creds1.pairingToken);
+    assert.notEqual(creds2.editorKey, creds1.editorKey);
+    assert.ok(output.includes(creds2.pairingToken));
+
+    proc.kill('SIGTERM');
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('Auth: ARYA_PAIRING_TOKEN and ARYA_EDITOR_KEY env overrides', () => {
+  const tmpAuth = path.join(os.tmpdir(), `arya-env-auth-test-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+  const origPairing = process.env.ARYA_PAIRING_TOKEN;
+  const origEditor = process.env.ARYA_EDITOR_KEY;
+
+  try {
+    process.env.ARYA_PAIRING_TOKEN = 'custom_pairing_token_1234567890';
+    process.env.ARYA_EDITOR_KEY = 'custom_editor_key_123456789012';
+
+    const creds = loadOrCreateAuth(tmpAuth);
+    assert.equal(creds.pairingToken, 'custom_pairing_token_1234567890');
+    assert.equal(creds.editorKey, 'custom_editor_key_123456789012');
+  } finally {
+    if (origPairing !== undefined) process.env.ARYA_PAIRING_TOKEN = origPairing;
+    else delete process.env.ARYA_PAIRING_TOKEN;
+    if (origEditor !== undefined) process.env.ARYA_EDITOR_KEY = origEditor;
+    else delete process.env.ARYA_EDITOR_KEY;
+    if (fs.existsSync(tmpAuth)) fs.unlinkSync(tmpAuth);
+  }
+});

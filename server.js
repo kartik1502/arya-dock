@@ -11,7 +11,8 @@ const {
 
 const {
   loadOrCreateAuth,
-  rotateAuthCredentials
+  rotateAuthCredentials,
+  DEFAULT_AUTH_PATH
 } = require('./lib/auth');
 
 const {
@@ -26,7 +27,7 @@ const { setupWebSocketServer } = require('./lib/ws');
 const PORT = parseInt(process.env.PORT, 10) || 3333;
 const HOST = process.env.HOST || '0.0.0.0';
 const CONFIG_PATH = process.env.CONFIG_PATH || DEFAULT_CONFIG_PATH;
-const AUTH_PATH = process.env.AUTH_PATH || path.join(__dirname, 'config', 'auth.json');
+const AUTH_PATH = process.env.AUTH_PATH || DEFAULT_AUTH_PATH;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 function createServer(options = {}) {
@@ -122,7 +123,7 @@ if (require.main === module) {
     console.log('\n========================================================');
     console.log('         🚀 ARYA DOCK — VIRTUAL KEYPAD CONSOLE          ');
     console.log('========================================================\n');
-    console.log(`  🖥️  PC Web App:            http://localhost:${PORT}/?token=${pairingToken}&editKey=${editorKey}`);
+    console.log(`  🖥️  PC Web App:            http://localhost:${PORT}/?token=${pairingToken}`);
 
     const defaultShell = getDefaultShell();
     const defaultTerminal = getDefaultTerminal();
@@ -138,7 +139,7 @@ if (require.main === module) {
     console.log(`• Pairing Token:   ${pairingToken}`);
     console.log(`• Editor Key:      ${editorKey}`);
     console.log('• Role Privileges: Localhost sessions have editor privileges. Remote sessions connect as operators.');
-    console.log('                   To unlock editing remotely, append &editKey=<key> or unlock in the console.');
+    console.log('                   To unlock editing remotely, use the in-app unlock modal or pass the X-Editor-Key header.');
 
     console.log('\n--- CONNECTION MODES ---');
     console.log('• USB CABLE: Turn on "USB Tethering" on phone and open the USB link above.');

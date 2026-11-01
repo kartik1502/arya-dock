@@ -1,4 +1,5 @@
 {
+  "schemaVersion": 1,
   "activeProfile": "developer",
   "profiles": {
     "developer": {
@@ -67,10 +68,10 @@
               "icon": "💻",
               "color": "#1c69d4",
               "actionType": "shell",
-              "command": "code . || code",
-              "terminalMode": "background",
+              "command": "echo 'Tip: Set workingDir in tile settings to open your project in VS Code.'",
+              "terminalMode": "tab",
               "workingDir": "",
-              "keepOpen": false,
+              "keepOpen": true,
               "url": ""
             },
             {
@@ -189,7 +190,7 @@
               "color": "#ef4444",
               "actionType": "media",
               "mediaAction": "mute",
-              "command": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle || pactl set-sink-mute @DEFAULT_SINK@ toggle",
+              "command": "",
               "terminalMode": "background",
               "workingDir": "",
               "keepOpen": false,
@@ -203,7 +204,7 @@
               "color": "#3b82f6",
               "actionType": "media",
               "mediaAction": "vol_down",
-              "command": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- || pactl set-sink-volume @DEFAULT_SINK@ -5%",
+              "command": "",
               "terminalMode": "background",
               "workingDir": "",
               "keepOpen": false,
@@ -217,7 +218,7 @@
               "color": "#3b82f6",
               "actionType": "media",
               "mediaAction": "vol_up",
-              "command": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ || pactl set-sink-volume @DEFAULT_SINK@ +5%",
+              "command": "",
               "terminalMode": "background",
               "workingDir": "",
               "keepOpen": false,

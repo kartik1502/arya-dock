@@ -50,7 +50,7 @@ test('HTTP: static file serving, path traversal guard, and security headers', as
     assert.equal(resRoot.headers['x-content-type-options'], 'nosniff');
     assert.equal(resRoot.headers['x-frame-options'], 'DENY');
     assert.equal(resRoot.headers['referrer-policy'], 'no-referrer');
-    assert.ok(resRoot.headers['content-security-policy'].includes("connect-src 'self' ws://127.0.0.1:"));
+    assert.ok(resRoot.headers['content-security-policy'].includes("connect-src 'self' ws: wss:;"));
     // Verify wildcard CORS is removed
     assert.equal(resRoot.headers['access-control-allow-origin'], undefined);
 
@@ -131,6 +131,10 @@ test('HTTP: directories endpoint with remote IP requires editorKey header', asyn
     const resForbidden = await makeRequest(port, `/api/directories?token=${token}`);
     assert.equal(resForbidden.statusCode, 403);
 
+    // Remote client attempting to supply editKey via query string is REJECTED (403)
+    const resQueryEditKey = await makeRequest(port, `/api/directories?token=${token}&editKey=${editorKey}`);
+    assert.equal(resQueryEditKey.statusCode, 403);
+
     // Remote client providing x-editor-key header gets 200 without query string leakage
     const resAuthorized = await makeRequest(port, '/api/directories', {
       'x-pairing-token': token,
@@ -139,6 +143,13 @@ test('HTTP: directories endpoint with remote IP requires editorKey header', asyn
     assert.equal(resAuthorized.statusCode, 200);
     const dirs = JSON.parse(resAuthorized.body);
     assert.ok(Array.isArray(dirs));
+
+    // Client static app.js is served without auth, does not read editKey from urlParams, and avoids undeclared variable bugs
+    const resApp = await makeRequest(port, '/app.js');
+    assert.equal(resApp.statusCode, 200);
+    assert.ok(!resApp.body.includes("urlParams.get('editKey')"));
+    assert.ok(!resApp.body.includes("type: 'AUTH_EDIT', editKey }"));
+    assert.ok(resApp.body.includes("type: 'AUTH_EDIT', editKey: editorKey }"));
   } finally {
     await new Promise(resolve => app.close(resolve));
     fs.rmSync(tmpDir, { recursive: true, force: true });

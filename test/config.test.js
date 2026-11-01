@@ -106,6 +106,8 @@ test('Config: validateButton schema enforcement', () => {
   assert.equal(validateButton({ keepOpen: 'yes' }).valid, false);
   assert.equal(validateButton({ workingDir: 999 }).valid, false);
   assert.equal(validateButton({ mediaAction: 'bogus_media' }).valid, false);
+  assert.equal(validateButton({ actionType: 'media' }).valid, false);
+  assert.equal(validateButton({ actionType: 'media', mediaAction: 'play_pause' }).valid, true);
 
   // Partial update merges onto existing button and preserves unedited fields
   const existingButton = {
@@ -180,8 +182,100 @@ test('Config: atomic persistence and error handling', () => {
     saveConfigAtomic(configPath, exampleData);
     const reloaded = loadConfig(configPath, examplePath);
     assert.equal(reloaded.activeProfile, 'developer');
+    assert.equal(reloaded.schemaVersion, 1);
     const remainingTemp = fs.readdirSync(tmpDir).filter(f => f.startsWith('.profiles.'));
     assert.equal(remainingTemp.length, 0);
+
+    // Hand-edited profiles.json with invalid/missing fields is safely repaired on load
+    const handEdited = {
+      schemaVersion: 1,
+      activeProfile: 'custom',
+      profiles: {
+        custom: {
+          name: 'Custom Profile',
+          pages: [
+            {
+              pageNumber: 1,
+              name: 'Page 1',
+              buttons: [
+                {
+                  id: 0,
+                  label: 'CORRUPTED COLOR',
+                  color: 'not-hex-code',
+                  actionType: 'media',
+                  mediaAction: 'mute',
+                  command: 'dead echo',
+                  keepOpen: 'not-a-boolean',
+                  url: 'javascript:alert(1)',
+                  extraneousField: 'remove-me'
+                },
+                {
+                  id: 'invalid-id-type',
+                  label: 12345
+                }
+              ]
+            }
+          ]
+        }
+      }
+    };
+    fs.writeFileSync(configPath, JSON.stringify(handEdited, null, 2));
+    const repairedConfig = loadConfig(configPath, examplePath);
+    assert.equal(repairedConfig.schemaVersion, 1);
+    assert.equal(repairedConfig.activeProfile, 'custom');
+    const pageButtons = repairedConfig.profiles.custom.pages[0].buttons;
+    assert.equal(pageButtons.length, 2);
+
+    // Button 0 has invalid color repaired to default hex, dead command cleared for mediaAction, keepOpen defaulted to true, url cleared
+    const b0 = pageButtons[0];
+    assert.equal(b0.color, '#1c69d4');
+    assert.equal(b0.command, '');
+    assert.equal(b0.mediaAction, 'mute');
+    assert.equal(b0.keepOpen, true);
+    assert.equal(b0.url, '');
+    assert.equal(b0.extraneousField, undefined);
+
+    // Button 1 with non-number ID and number label is safely repaired
+    const b1 = pageButtons[1];
+    assert.equal(typeof b1.id, 'number');
+    assert.equal(b1.label, '12345');
+
+    // Duplicate button IDs in hand-edited profiles are repaired to distinct unique IDs
+    const duplicateIdConfig = {
+      schemaVersion: 1,
+      activeProfile: 'dupes',
+      profiles: {
+        dupes: {
+          name: 'Duplicates',
+          pages: [
+            {
+              pageNumber: 1,
+              name: 'Page 1',
+              buttons: [
+                { id: 0, label: 'BTN 0' },
+                { id: 0, label: 'BTN 0 COPY' },
+                { id: 1, label: 'BTN 1' },
+                { id: 1, label: 'BTN 1 COPY' }
+              ]
+            }
+          ]
+        }
+      }
+    };
+    fs.writeFileSync(configPath, JSON.stringify(duplicateIdConfig, null, 2));
+    const dedupedConfig = loadConfig(configPath, examplePath);
+    const dedupedButtons = dedupedConfig.profiles.dupes.pages[0].buttons;
+    assert.equal(dedupedButtons.length, 4);
+    const ids = dedupedButtons.map(b => b.id);
+    const uniqueIds = new Set(ids);
+    assert.equal(uniqueIds.size, 4, 'All button IDs on a page must be distinct');
+
+    // Excessive buttons (>24) are safely capped to 24
+    const excessiveButtons = Array.from({ length: 30 }, (_, i) => ({ id: i, label: `BTN ${i}` }));
+    duplicateIdConfig.profiles.dupes.pages[0].buttons = excessiveButtons;
+    fs.writeFileSync(configPath, JSON.stringify(duplicateIdConfig, null, 2));
+    const cappedConfig = loadConfig(configPath, examplePath);
+    assert.equal(cappedConfig.profiles.dupes.pages[0].buttons.length, 24);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }

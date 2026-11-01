@@ -86,8 +86,8 @@ test('Integration: WebSocket authentication, Origin check, operator and editor r
       });
     });
 
-    // 4. Remote connection with valid token connects as operator
-    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?token=${token}`, {
+    // 4. Remote connection with valid token and query-string editKey connects as operator (query editKey is ignored)
+    const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?token=${token}&editKey=${editorKey}`, {
       headers: { Origin: `http://127.0.0.1:${port}` }
     });
 
@@ -98,7 +98,7 @@ test('Integration: WebSocket authentication, Origin check, operator and editor r
       ws.on('error', reject);
     });
 
-    // Receive INIT message
+    // Receive INIT message - role must still be operator because query-string editKey is rejected
     const initMsg = await getNextMessage();
     assert.equal(initMsg.type, 'INIT');
     assert.equal(initMsg.role, 'operator');
@@ -217,6 +217,25 @@ test('Integration: WebSocket authentication, Origin check, operator and editor r
     const countSuccess = await getNextMessage();
     assert.equal(countSuccess.type, 'STATE_UPDATE');
     assert.equal(countSuccess.buttons.length, 1);
+
+    // SET_BUTTONS_COUNT to expand tile count generates placeholders with keepOpen: true
+    ws.send(JSON.stringify({
+      type: 'SET_BUTTONS_COUNT',
+      count: 2
+    }));
+    const countExpanded = await getNextMessage();
+    assert.equal(countExpanded.type, 'STATE_UPDATE');
+    assert.equal(countExpanded.buttons.length, 2);
+    const newPlaceholder = countExpanded.buttons[1];
+    assert.equal(newPlaceholder.keepOpen, true);
+
+    // Reduce back to 1 for delete test
+    ws.send(JSON.stringify({
+      type: 'SET_BUTTONS_COUNT',
+      count: 1,
+      force: true
+    }));
+    await getNextMessage();
 
     // DELETE_BUTTON when only 1 button remains must be rejected
     ws.send(JSON.stringify({

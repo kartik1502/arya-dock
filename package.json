@@ -1,7 +1,7 @@
 {
   "name": "arya-dock",
   "version": "1.0.0",
-  "description": "Virtual Macro Keypad & Stream Deck Companion Console",
+  "description": "Virtual Macro Keypad & Cockpit Companion Console",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -9,12 +9,12 @@
     "test": "node --test"
   },
   "keywords": [
-    "stream-dock",
+    "virtual-dock",
     "macro-keypad",
     "cockpit",
     "touch-deck",
     "motorsport-cockpit",
-    "streamdeck-alternative"
+    "macro-keypad-alternative"
   ],
   "author": "Karthik Kulkarni",
   "license": "MIT",

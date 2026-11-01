@@ -1,6 +1,6 @@
-# 🏁 ARYA DOCK — Virtual Macro Keypad & Stream Controller
+# 🏁 ARYA DOCK — Virtual Macro Keypad & Cockpit Controller
 
-> A responsive, dark-cockpit digital macro keypad and companion deck that transforms your phone, tablet, or secondary display into a tactile, programmable hardware-free stream deck.
+> A responsive, dark-cockpit digital macro keypad and companion deck that transforms your phone, tablet, or secondary display into a tactile, programmable hardware-free control deck.
 
 ---
 
@@ -8,28 +8,87 @@
 
 **Arya Dock** is a web-based companion deck that eliminates the need for expensive physical macro keypads or hardware consoles. It runs as a local web service on your PC and streams an interactive, responsive control deck to any connected device (mobile browser, tablet, or desktop window).
 
-Whether you are writing code, monitoring cloud infrastructure, compiling microservices, running tests, or streaming media, Arya Dock gives you instant physical command over your workstation directly from your desk phone stand.
+Whether you are writing code, monitoring cloud infrastructure, compiling microservices, running tests, or controlling media playback, Arya Dock gives you instant physical command over your workstation directly from your desk phone stand.
 
 ---
 
-## 🔒 Security & Role Architecture
+## 🔒 Security Model & Architecture
 
-Arya Dock implements strict defense-in-depth boundaries to protect your workstation:
+Arya Dock implements strict defense-in-depth boundaries to protect your workstation from unauthorized command execution, cross-site hijacking, and network eavesdropping:
 
-* **Cryptographic Pairing Token (Issue #1):**
-  - All WebSocket upgrades and `/api/*` endpoints require a secure 32-character hexadecimal token.
-  - The token is displayed on server startup in the console and embedded inside the QR code for seamless mobile pairing.
-  - Evaluated on upgrade using constant-time comparison (`crypto.timingSafeEqual`) to prevent timing attacks.
-* **Origin Header Verification (Issue #2):**
-  - WebSocket upgrade requests verify the `Origin` header to block cross-site hijacking from malicious browser tabs.
-  - Wildcard CORS (`Access-Control-Allow-Origin: *`) is removed from all API endpoints.
-* **Role Separation: Operator vs. Editor (Issue #3):**
-  - **Operator Role (Viewer/Trigger):** Permitted to trigger button actions, switch pages, and send heartbeats. Cannot modify commands, profiles, or buttons.
-  - **Editor Role:** Permitted to update button configurations, add/remove tiles, and browse system directories.
-  - **Privilege Assignment:** Localhost sessions (`127.0.0.1`, `localhost`) receive Editor privileges automatically. Remote phone/tablet sessions connect as Operators by default and can be unlocked by providing the `editorKey` printed at server startup.
-* **Content Security Policy & XSS Elimination (Issue #6):**
-  - Strict `Content-Security-Policy` headers prevent script injection.
-  - Dynamic user-controlled strings and application metadata are rendered via safe DOM `textContent` APIs.
+### 1. Cryptographic Pairing Token (`ARYA_PAIRING_TOKEN`)
+- All WebSocket upgrade handshakes and `/api/*` endpoints require a secure 32-character hexadecimal token.
+- Tokens can be supplied via the `Authorization: Bearer <token>` header, `X-Pairing-Token` header, or URL query parameter (`?token=<token>`).
+- The pairing token is cryptographically generated on first launch (`crypto.randomBytes(16).toString('hex')`) and persisted in `config/auth.json` with strict `0600` permissions.
+- Evaluated on upgrade and API requests using constant-time comparison (`crypto.timingSafeEqual`) to prevent timing side-channel attacks.
+
+### 2. Origin Header Verification
+- Browser WebSocket upgrades verify the HTTP `Origin` header against localhost, loopback (`127.0.0.1`, `::1`), and detected host network interface IPs.
+- Requests originating from external browser tabs or malicious websites are rejected with `403 Forbidden`, neutralizing Cross-Site WebSocket Hijacking (CSWSH).
+- Wildcard CORS (`Access-Control-Allow-Origin: *`) is completely removed from all HTTP endpoints.
+
+### 3. Role Separation: Operator vs. Editor
+- **Operator Role (Viewer / Trigger):** Default role for remote phone and tablet connections. Operators are permitted to trigger buttons (`BUTTON_CLICK`), switch active pages (`PAGE_PREV`, `PAGE_NEXT`), and respond to heartbeats (`PING`/`PONG`). Operators **cannot** mutate button definitions, add or remove tiles, switch active profiles, or inspect workstation directories.
+- **Editor Role:** Full workstation configuration privilege. Editors can modify button actions (`UPDATE_BUTTON`), add/delete tiles (`ADD_BUTTON`, `DELETE_BUTTON`), resize the grid (`SET_BUTTONS_COUNT`), change active profiles (`SET_PROFILE`), and browse workstation directories (`/api/directories`).
+
+### 4. Localhost Automatic Editor Privilege & SSH Tunnel / Proxy Considerations
+- Connections originating directly from localhost (`127.0.0.1`, `::1`, `localhost`) automatically receive the **Editor** role without needing an editor key.
+- ⚠️ **Key Security Behavior:** If you expose Arya Dock via an SSH port forward (e.g. `ssh -L 3333:localhost:3333 user@server`) or behind a reverse proxy (e.g. Nginx, Caddy) that forwards connections from `127.0.0.1` without preserving remote client IPs, **every incoming connection through that tunnel or proxy will appear as localhost and receive full Editor privileges**. When exposing Arya Dock remotely across shared networks, bind directly to your LAN IP or configure reverse proxies so that client IPs are not masked as `127.0.0.1`.
+
+### 5. Remote Editor Elevation & Query-String Elimination
+- Remote devices connect as Operators by default. To unlock Editor privileges, tap the unlock button in the web interface and enter the Editor Key into the in-app modal (transmitting an `AUTH_EDIT` WebSocket message) or provide the `X-Editor-Key` HTTP header.
+- Query-string `editKey` (`?editKey=...`) is **intentionally rejected and ignored** across both HTTP and WebSocket connections to prevent editor keys from leaking into browser history, server access logs, or HTTP Referer headers.
+
+### 6. Unauthenticated Static Assets
+- Static web assets (`/`, `/index.html`, `/style.css`, `/app.js`, `/manifest.json`, `/icon.svg`) are served without requiring an authentication token.
+- This allows browsers and Progressive Web App (PWA) client shells to load the application frontend and service worker offline before pairing. All dynamic data endpoints (`/api/*`) and WebSocket control channels require authentication.
+
+### 7. Credential Rotation Lifecycle
+- Credentials (`pairingToken` and `editorKey`) are stored in `config/auth.json`.
+- Rotate credentials on disk at any time via CLI:
+  ```bash
+  node server.js --rotate-credentials
+  ```
+- **Restart Required:** Credentials are loaded into server memory at boot time, and active WebSocket connections stay connected. Rotating credentials on disk does not terminate active sessions until the server process is restarted.
+- To rotate credentials and immediately launch the server with the new credentials in a single command, run:
+  ```bash
+  node server.js --rotate-credentials --start
+  ```
+
+### 8. Content Security Policy (CSP) & Defense-in-Depth
+- Strict security headers: `default-src 'self'`, `connect-src 'self' ws: wss:`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and `Referrer-Policy: no-referrer`.
+- Dynamic user-controlled strings and application metadata are rendered via safe DOM `textContent` APIs.
+
+---
+
+## ⚙️ Configuration & Environment Variables
+
+Arya Dock is configurable via environment variables and CLI arguments:
+
+### Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `HOST` | `0.0.0.0` | Server bind IP address. Set to `127.0.0.1` for local-only workstation access. |
+| `PORT` | `3333` | HTTP and WebSocket listening port. |
+| `CONFIG_PATH` | `./config/profiles.json` | Path to the profiles JSON configuration file. |
+| `AUTH_PATH` | `./config/auth.json` | Path to the authentication credentials JSON file. |
+| `TERMINAL` | Auto-detected | Custom terminal emulator command or path to override auto-detection (e.g. `ptyxis`, `gnome-terminal`, `konsole`, `alacritty`, `kitty`, `xterm`). |
+| `ARYA_PAIRING_TOKEN` | Generated | Static pairing token override instead of generating a random 32-character token. |
+| `ARYA_EDITOR_KEY` | Generated | Static editor key override instead of generating a random 32-character key. |
+
+### CLI Flags
+
+| Flag | Description |
+|---|---|
+| `--rotate-credentials` | Generates a new random pairing token and editor key, saves them to `auth.json`, prints them to stdout, and exits. |
+| `--start` | When combined with `--rotate-credentials` (`node server.js --rotate-credentials --start`), rotates credentials on disk and boots the server immediately. |
+
+### Config Location Flexibility
+By default, profiles and authentication credentials live in `./config/profiles.json` and `./config/auth.json`. If you prefer to store configurations in a standard user configuration directory (e.g. `~/.config/arya-dock/`), specify `CONFIG_PATH` and `AUTH_PATH`:
+```bash
+CONFIG_PATH=~/.config/arya-dock/profiles.json AUTH_PATH=~/.config/arya-dock/auth.json node server.js
+```
 
 ---
 
@@ -118,7 +177,7 @@ npm start
          🚀 ARYA DOCK — VIRTUAL KEYPAD CONSOLE          
 ========================================================
 
-  🖥️  PC Web App:            http://localhost:3333/?token=...&editKey=...
+  🖥️  PC Web App:            http://localhost:3333/?token=...
   🐚  System Shell:          /usr/bin/zsh (zsh)
   ⚡  Terminal Emulator:     /usr/bin/ptyxis (ptyxis)
   🔌  USB Cable Tethering:   http://10.91.187.251:3333/?token=...
@@ -128,6 +187,7 @@ npm start
 • Pairing Token:   <random_32_char_hex>
 • Editor Key:      <random_32_char_hex>
 • Role Privileges: Localhost sessions have editor privileges. Remote sessions connect as operators.
+                   To unlock editing remotely, use the in-app unlock modal or pass the X-Editor-Key header.
 ```
 
 ---
@@ -166,12 +226,12 @@ npm start
    * **Stay Open After Exit:** Keeps your interactive shell open after the command exits so you can inspect output.
 3. Tap **`SAVE CONFIGURATION`**.
 
-### 5. Multi-Client Deck Semantics (Issue #16)
+### 5. Multi-Client Deck Semantics
 Arya Dock operates as a shared physical workstation deck. All connected client devices share a synchronized active page and profile state:
 - When any client navigates to next/previous page (`PAGE_NEXT` / `PAGE_PREV`) or switches profile (`SET_PROFILE`), all active screens (phone, tablet, desktop) update synchronously in real time.
 - Key clicks trigger immediately on the workstation and send acknowledgment feedback (`BUTTON_ACK`) to the triggering client.
 
-### 6. Data-Loss Protection on Tile Adjustments (Issue #10)
+### 6. Data-Loss Protection on Tile Adjustments
 - Decreasing the grid count or removing a configured tile requires user confirmation if the target button contains a configured command, URL, or custom label.
 - Empty placeholder keys (`KEY n` with no assigned action) are removed cleanly without confirmation prompts.
 - On the backend, `SET_BUTTONS_COUNT` protects configured buttons from accidental truncation unless explicitly confirmed with `force: true`.
