@@ -98,7 +98,12 @@
         </div>
         <div class="m-brand-text">
           <div class="m-headline">ARYA DOCK</div>
-          <div class="m-subline">VIRTUAL KEYPAD CONSOLE <span class="m-telemetry">M-COCKPIT</span></div>
+          <div class="m-subline">VIRTUAL MACRO KEYPAD &amp; CONTROL DECK</div>
+        </div>
+        <!-- Linux Companion Deck Badge -->
+        <div class="m-badge-companion">
+          <span class="m-badge-dot"></span>
+          <span class="m-badge-text">LINUX COMPANION DECK</span>
         </div>
       </div>
 
@@ -160,27 +165,34 @@
     <!-- Main Keypad Cockpit -->
     <main class="m-cockpit-frame">
       <div class="m-keypad-bezel">
+        <div class="m-deck-status-bar">
+          <div class="m-deck-status-left">
+            <span class="m-deck-status-dot"></span>
+            <span class="m-deck-status-title">ARYA CONSOLE • ONLINE</span>
+          </div>
+          <div class="m-deck-status-right" id="deckStatusPage">PAGE 1/2</div>
+        </div>
         <div class="m-keypad-grid" id="keypadGrid">
-          <!-- 9 Cockpit Keys (3x3) Generated dynamically -->
-        </div>
-      </div>
-
-      <!-- Bottom Steering Paddle Controls -->
-      <div class="m-paddle-console">
-        <button id="btnPagePrev" class="m-paddle-btn" title="Previous Page (HID 0x01a1)">
-          <span class="m-paddle-symbol">◀</span>
-          <span class="m-paddle-text">PAGE UP</span>
-        </button>
-
-        <div class="m-telemetry-cluster">
-          <div class="m-page-counter" id="pageLabel">PAGE 01 / 02</div>
-          <div class="m-page-topic" id="pageName">AI & CORE TELEMETRY</div>
+          <!-- Cockpit Keys Generated dynamically -->
         </div>
 
-        <button id="btnPageNext" class="m-paddle-btn" title="Next Page (HID 0x01a2)">
-          <span class="m-paddle-text">PAGE DOWN</span>
-          <span class="m-paddle-symbol">▶</span>
-        </button>
+        <!-- Bottom Steering Paddle Controls -->
+        <div class="m-paddle-console">
+          <button id="btnPagePrev" class="m-paddle-btn" title="Previous Page (HID 0x01a1)">
+            <span class="m-paddle-symbol">◀</span>
+            <span class="m-paddle-text">PREV</span>
+          </button>
+
+          <div class="m-telemetry-cluster">
+            <div class="m-page-counter" id="pageLabel">PAGE 01 / 02</div>
+            <div class="m-page-topic" id="pageName">AI &amp; CORE TELEMETRY</div>
+          </div>
+
+          <button id="btnPageNext" class="m-paddle-btn" title="Next Page (HID 0x01a2)">
+            <span class="m-paddle-text">NEXT</span>
+            <span class="m-paddle-symbol">▶</span>
+          </button>
+        </div>
       </div>
     </main>
 
@@ -380,13 +392,11 @@
 
   <script src="app.js"></script>
   <!-- Reticle Agent Verification Layer -->
+  <script src="/reticle.js"></script>
   <script type="module">
-    Promise.all([
-      import('https://cdn.jsdelivr.net/npm/@reticlehq/browser@3.9.0/+esm'),
-      import('/reticle.local.js').catch(() => ({}))
-    ]).then(([{ reticle }, local]) => {
-      if (local && local.token) {
-        reticle.connect({ projectId: 'arya-dock-4f274f15', token: local.token });
+    import('/reticle.local.js').then((local) => {
+      if (window.ReticleSdk && local && local.token) {
+        window.ReticleSdk.reticle.connect({ projectId: 'arya-dock-4f274f15', token: local.token });
       }
     }).catch(() => {});
   </script>

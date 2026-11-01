@@ -744,6 +744,10 @@ function updatePageInfo(pageNum, totalPages, name) {
   const tStr = String(totalPages).padStart(2, '0');
   pageLabel.textContent = `PAGE ${pStr} / ${tStr}`;
   pageName.textContent = name;
+  const deckStatusPage = document.getElementById('deckStatusPage');
+  if (deckStatusPage) {
+    deckStatusPage.textContent = `PAGE ${pageNum}/${totalPages}`;
+  }
 }
 
 function getOptimalGridDimensions(count, isLandscape) {
@@ -774,31 +778,20 @@ function updateDynamicGridSizing(totalCount) {
   const isLandscape = window.innerWidth >= window.innerHeight;
   const { cols, rows } = getOptimalGridDimensions(totalCount, isLandscape);
 
-  const ratio = cols / rows;
-  const maxAvailHeight = Math.max(240, window.innerHeight - 180);
-  const maxAvailWidth = Math.max(240, window.innerWidth - 32);
+  const bezelExtraHeight = 110; // Top status bar (~28px) + paddle console (~46px) + gaps/padding (~36px)
+  const maxAvailHeight = Math.max(260, window.innerHeight - 170);
+  const maxAvailWidth = Math.max(260, window.innerWidth - 32);
 
-  let width, height;
-  if (ratio >= 1) {
-    width = Math.min(maxAvailWidth, maxAvailHeight * ratio, 960);
-    height = width / ratio;
-    if (height > maxAvailHeight) {
-      height = maxAvailHeight;
-      width = height * ratio;
-    }
-  } else {
-    height = Math.min(maxAvailHeight, maxAvailWidth / ratio);
-    width = height * ratio;
-    if (width > maxAvailWidth) {
-      width = maxAvailWidth;
-      height = width / ratio;
-    }
-  }
+  const maxGridHeight = maxAvailHeight - bezelExtraHeight;
+  const widthByHeight = maxGridHeight * (cols / rows);
+  const width = Math.min(maxAvailWidth, widthByHeight, 820);
+  const gridHeight = width * (rows / cols);
+  const totalBezelHeight = gridHeight + bezelExtraHeight;
 
   document.documentElement.style.setProperty('--grid-cols', cols);
   document.documentElement.style.setProperty('--grid-rows', rows);
   document.documentElement.style.setProperty('--bezel-width', `${Math.round(width)}px`);
-  document.documentElement.style.setProperty('--bezel-height', `${Math.round(height)}px`);
+  document.documentElement.style.setProperty('--bezel-height', `${Math.round(totalBezelHeight)}px`);
   document.documentElement.style.setProperty('--bezel-ratio', `${cols} / ${rows}`);
 }
 

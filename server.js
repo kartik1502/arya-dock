@@ -24,7 +24,7 @@ const { getNetworkInterfaces } = require('./lib/network');
 const { createHttpHandler } = require('./lib/http');
 const { setupWebSocketServer } = require('./lib/ws');
 
-const PORT = parseInt(process.env.PORT, 10) || 3333;
+const PORT = !isNaN(parseInt(process.env.PORT, 10)) ? parseInt(process.env.PORT, 10) : 3333;
 const HOST = process.env.HOST || '0.0.0.0';
 const CONFIG_PATH = process.env.CONFIG_PATH || DEFAULT_CONFIG_PATH;
 const AUTH_PATH = process.env.AUTH_PATH || DEFAULT_AUTH_PATH;
