@@ -231,6 +231,13 @@ body {
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 1px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.m-status-pill:hover {
+  border-color: var(--m-blue-light);
 }
 
 .m-status-dot {
@@ -247,12 +254,26 @@ body {
   color: #34d399;
 }
 
+.m-status-pill.connecting .m-status-dot {
+  background-color: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+  animation: mPillPulse 0.8s infinite alternate;
+}
+.m-status-pill.connecting .m-status-text {
+  color: #fbbf24;
+}
+
 .m-status-pill.disconnected .m-status-dot {
   background-color: var(--m-red);
   box-shadow: 0 0 8px var(--m-red);
 }
 .m-status-pill.disconnected .m-status-text {
   color: #f87171;
+}
+
+@keyframes mPillPulse {
+  from { opacity: 0.3; }
+  to { opacity: 1; }
 }
 
 /* M Tricolor 3px Divider */

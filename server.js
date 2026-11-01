@@ -32,16 +32,29 @@ function getNetworkInterfaces() {
   const nets = os.networkInterfaces();
   const results = [];
   for (const name of Object.keys(nets)) {
+    if (name.startsWith('docker') || name.startsWith('br-') || name.startsWith('veth') || name.startsWith('virbr')) continue;
     for (const net of nets[name]) {
       if (net.family === 'IPv4' && !net.internal) {
-        let type = 'LAN / Wi-Fi';
-        if (name.includes('usb') || name.includes('rndis')) type = 'USB Cable Tethering';
-        else if (name.includes('bt') || name.includes('pan')) type = 'Bluetooth Network';
+        let type = 'LAN / Ethernet';
+        const lower = name.toLowerCase();
+        if (lower.startsWith('wl')) {
+          type = 'Wi-Fi';
+        } else if (lower.includes('usb') || lower.includes('rndis') || /^enp\d+s\d+f\d+u\d+/.test(lower) || lower.startsWith('enx')) {
+          type = 'USB Cable Tethering';
+        } else if (lower.includes('bt') || lower.includes('pan')) {
+          type = 'Bluetooth Network';
+        }
         results.push({ name, address: net.address, type });
       }
     }
   }
-  return results;
+  return results.sort((a, b) => {
+    if (a.type.includes('USB')) return -1;
+    if (b.type.includes('USB')) return 1;
+    if (a.type.includes('Wi-Fi')) return -1;
+    if (b.type.includes('Wi-Fi')) return 1;
+    return 0;
+  });
 }
 
 // Map system app categories and names to clean visual emojis
@@ -166,7 +179,9 @@ const server = http.createServer((req, res) => {
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
     res.writeHead(200, {
       'Content-Type': contentType,
-      'Cache-Control': 'no-cache',
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
       'Access-Control-Allow-Origin': '*'
     });
     fs.createReadStream(filePath).pipe(res);
@@ -308,6 +323,11 @@ wss.on('connection', (ws, req) => {
   const clientIp = req.socket.remoteAddress;
   console.log(`[Arya Dock] Client connected from ${clientIp}`);
 
+  ws.isAlive = true;
+  ws.on('pong', () => {
+    ws.isAlive = true;
+  });
+
   // Send initial state
   const profile = getActiveProfile();
   const page = getCurrentPage();
@@ -322,6 +342,7 @@ wss.on('connection', (ws, req) => {
   }));
 
   ws.on('message', (message) => {
+    ws.isAlive = true;
     try {
       const data = JSON.parse(message);
 
@@ -441,29 +462,45 @@ wss.on('connection', (ws, req) => {
   });
 });
 
+// Periodic ping heartbeat to prevent NAT dropouts and reap dead sockets
+const heartbeatInterval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) {
+      console.log('[Arya Dock] Terminating unresponsive client socket');
+      return ws.terminate();
+    }
+    ws.isAlive = false;
+    ws.ping();
+  });
+}, 15000);
+
+wss.on('close', () => {
+  clearInterval(heartbeatInterval);
+});
+
 // Start Server
 server.listen(PORT, '0.0.0.0', () => {
   const interfaces = getNetworkInterfaces();
   const primaryIp = interfaces.length > 0 ? interfaces[0].address : 'localhost';
-  const mobileUrl = `http://${primaryIp}:${PORT}`;
+  const qrTarget = interfaces.find(i => i.type.includes('Wi-Fi')) || interfaces[0];
+  const qrUrl = qrTarget ? `http://${qrTarget.address}:${PORT}` : `http://localhost:${PORT}`;
 
   console.log('\n========================================================');
   console.log('            🚀 ARYA DOCK - VIRTUAL KEYPAD CONSOLE           ');
   console.log('========================================================\n');
-  console.log(`  🖥️  PC Web App:       http://localhost:${PORT}`);
-  console.log(`  📱 Mobile App (Wi-Fi): ${mobileUrl}`);
+  console.log(`  🖥️  PC Web App:            http://localhost:${PORT}`);
   
-  console.log('\n--- HOW TO CONNECT VIA CABLE (USB) ---');
-  console.log('1. Connect phone via USB cable and run:');
-  console.log(`   adb reverse tcp:${PORT} tcp:${PORT}`);
-  console.log(`   Then open in mobile browser: http://localhost:${PORT}`);
-  console.log('2. OR turn on "USB Tethering" on phone and connect to host IP.\n');
-
-  console.log('--- HOW TO CONNECT VIA BLUETOOTH / WI-FI ---');
-  console.log('Scan the QR code below on your phone:');
+  interfaces.forEach(iface => {
+    const icon = iface.type.includes('USB') ? '🔌' : (iface.type.includes('Wi-Fi') ? '📱' : '🌐');
+    console.log(`  ${icon}  ${iface.type} (${iface.name}): http://${iface.address}:${PORT}`);
+  });
+  
+  console.log('\n--- CONNECTION MODES ---');
+  console.log('• USB CABLE: Turn on "USB Tethering" on your phone and open the USB link above.');
+  console.log('• WI-FI / BLUETOOTH: Connect phone to same Wi-Fi and open Wi-Fi link or scan QR code below:');
   
   try {
-    qrcode.generate(mobileUrl, { small: true });
+    qrcode.generate(qrUrl, { small: true });
   } catch (e) {
     // ignore
   }

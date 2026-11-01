@@ -58,6 +58,19 @@
               "actionType": "shell",
               "command": "\"~/.local/share/JetBrains/Toolbox/apps/intellij-idea/bin/idea\"",
               "url": ""
+            },
+            {
+              "id": 5,
+              "label": "VAULT UNSEAL",
+              "sublabel": "SHORTCUT",
+              "icon": "⚡",
+              "color": "#1c69d4",
+              "actionType": "shell",
+              "command": "vus",
+              "terminalMode": "window",
+              "workingDir": "",
+              "keepOpen": true,
+              "url": ""
             }
           ]
         },

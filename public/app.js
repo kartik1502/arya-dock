@@ -418,37 +418,134 @@ function assignAppToButton(buttonIndex, app) {
   flashButtonAck(buttonIndex);
 }
 
-// WebSocket Setup
+// WebSocket Setup & Lifecycle Management
+let pingTimer = null;
+let reconnectTimer = null;
+let reconnectAttempts = 0;
+
+function updateConnectionUI(state) {
+  if (!connectionStatus || !statusText) return;
+  if (state === 'connected') {
+    connectionStatus.className = 'm-status-pill connected';
+    statusText.textContent = '/// M ONLINE';
+  } else if (state === 'connecting') {
+    connectionStatus.className = 'm-status-pill connecting';
+    statusText.textContent = 'CONNECTING...';
+  } else {
+    connectionStatus.className = 'm-status-pill disconnected';
+    statusText.textContent = reconnectAttempts > 0 ? `RECONNECTING (${reconnectAttempts})...` : 'OFFLINE';
+  }
+}
+
+function scheduleReconnect() {
+  if (reconnectTimer) clearTimeout(reconnectTimer);
+  reconnectAttempts++;
+  const delay = Math.min(3000, 1000 + (reconnectAttempts * 500));
+  updateConnectionUI('disconnected');
+  reconnectTimer = setTimeout(() => {
+    connectWebSocket();
+  }, delay);
+}
+
+function startHeartbeat() {
+  if (pingTimer) clearInterval(pingTimer);
+  pingTimer = setInterval(() => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(JSON.stringify({ type: 'PING' }));
+      } catch (e) {}
+    } else if (!ws || ws.readyState === WebSocket.CLOSED) {
+      scheduleReconnect();
+    }
+  }, 10000);
+}
+
+function stopHeartbeat() {
+  if (pingTimer) {
+    clearInterval(pingTimer);
+    pingTimer = null;
+  }
+}
+
 function connectWebSocket() {
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+
+  if (ws) {
+    try {
+      ws.onopen = null;
+      ws.onclose = null;
+      ws.onerror = null;
+      ws.onmessage = null;
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
+        ws.close();
+      }
+    } catch (e) {}
+    ws = null;
+  }
+
+  updateConnectionUI('connecting');
+
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const wsUrl = `${protocol}//${window.location.host}`;
 
-  connectionStatus.className = 'm-status-pill disconnected';
-  statusText.textContent = 'DISCONNECTED';
-
-  ws = new WebSocket(wsUrl);
+  try {
+    ws = new WebSocket(wsUrl);
+  } catch (err) {
+    console.warn('WebSocket construct error:', err);
+    scheduleReconnect();
+    return;
+  }
 
   ws.onopen = () => {
-    connectionStatus.className = 'm-status-pill connected';
-    statusText.textContent = 'M ONLINE';
+    reconnectAttempts = 0;
+    updateConnectionUI('connected');
+    startHeartbeat();
   };
 
   ws.onclose = () => {
-    connectionStatus.className = 'm-status-pill disconnected';
-    statusText.textContent = 'OFFLINE';
-    setTimeout(connectWebSocket, 2000);
+    stopHeartbeat();
+    scheduleReconnect();
   };
 
-  ws.onerror = () => ws.close();
+  ws.onerror = (err) => {
+    console.warn('WebSocket error encountered:', err);
+    try { ws.close(); } catch (e) {}
+  };
 
   ws.onmessage = (event) => {
     try {
       const data = JSON.parse(event.data);
+      if (data.type === 'PONG') return;
       handleServerMessage(data);
     } catch (e) {
       console.error('Error handling message:', e);
     }
   };
+}
+
+// Reconnect instantly when user returns to tab / unlocks phone
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      connectWebSocket();
+    }
+  }
+});
+
+// Reconnect instantly when network returns online
+window.addEventListener('online', () => {
+  connectWebSocket();
+});
+
+// Click status pill to manually force reconnect
+if (connectionStatus) {
+  connectionStatus.addEventListener('click', () => {
+    triggerHaptic(15);
+    connectWebSocket();
+  });
 }
 
 function handleServerMessage(data) {
@@ -850,13 +947,6 @@ btnModalSave.addEventListener('click', () => {
   closeEditModal();
 });
 
-  if (ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: 'UPDATE_BUTTON', button: updatedButton }));
-  }
-
-  closeEditModal();
-});
-
 // Screen Wake Lock
 btnWakeLock.addEventListener('click', async () => {
   if ('wakeLock' in navigator) {
@@ -893,5 +983,13 @@ btnFullscreen.addEventListener('click', () => {
 });
 
 // Initialize
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then((registrations) => {
+    for (const reg of registrations) {
+      reg.update();
+    }
+  }).catch(() => {});
+}
+
 loadInstalledApplications();
 connectWebSocket();
