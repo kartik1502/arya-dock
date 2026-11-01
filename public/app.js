@@ -175,6 +175,26 @@ function triggerHaptic(duration = 18) {
   }
 }
 
+// Clean label formatter to prevent awkward word chopping
+function formatAppLabel(name) {
+  if (!name) return 'APP';
+  let clean = name.replace(/Web Browser/i, 'BROWSER')
+                  .replace(/Audio Player/i, 'MUSIC')
+                  .replace(/LibreOffice /i, '')
+                  .replace(/Text Editor/i, 'EDITOR')
+                  .trim();
+  if (clean.length > 20) {
+    clean = clean.slice(0, 20).trim();
+  }
+  return clean.toUpperCase();
+}
+
+function formatAppSublabel(cat, comment) {
+  if (cat && cat !== 'Utility') return cat.toUpperCase().slice(0, 16);
+  if (comment) return comment.split(' ')[0].toUpperCase().slice(0, 16);
+  return 'APP';
+}
+
 // Fetch Installed Applications from Server
 async function loadInstalledApplications() {
   try {
@@ -254,8 +274,8 @@ function renderAppCatalog(filterCategory = 'all', searchQuery = '') {
       if (pickerTargetButtonId !== null) {
         // Modal picker mode: populate modal fields
         editIcon.value = appPayload.icon;
-        editLabel.value = appPayload.name.toUpperCase().slice(0, 14);
-        editSublabel.value = (appPayload.category || 'APP').toUpperCase().slice(0, 16);
+        editLabel.value = formatAppLabel(appPayload.name);
+        editSublabel.value = formatAppSublabel(appPayload.category, appPayload.comment);
         editActionType.value = 'shell';
         editCommand.value = appPayload.command;
         toggleActionFields();
@@ -353,8 +373,8 @@ function assignAppToButton(buttonIndex, app) {
   const updatedButton = {
     id: buttonIndex,
     icon: app.icon || '🚀',
-    label: app.name.toUpperCase().slice(0, 14),
-    sublabel: (app.category || 'APP').toUpperCase().slice(0, 16),
+    label: formatAppLabel(app.name),
+    sublabel: formatAppSublabel(app.category, app.comment),
     color: colorPalette[buttonIndex % colorPalette.length],
     actionType: 'shell',
     command: app.command

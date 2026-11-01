@@ -1,21 +1,21 @@
 /* ==========================================================================
-   Motorsport DESIGN SYSTEM (motorsport-cockpit inspired)
-   Motorsport-engineered interface anchored on a near-black canvas with
+   Motorsport DESIGN SYSTEM — FULLSCREEN DYNAMIC DOCK
+   Motorsport-engineered interface anchored on a pure black canvas with
    confident UPPERCASE typography, 1px hairlines, and the iconic M tricolor stripe.
    ========================================================================== */
 
 :root {
   /* Motorsport Color System */
   --m-canvas: #000000;
-  --m-surface-card: #1a1a1a;
-  --m-surface-elevated: #262626;
-  --m-surface-soft: #0d0d0d;
+  --m-surface-card: #141414;
+  --m-surface-elevated: #222222;
+  --m-surface-soft: #0a0a0a;
   --m-primary: #ffffff;
   --m-body-strong: #e6e6e6;
   --m-body: #bbbbbb;
   --m-muted: #7e7e7e;
-  --m-hairline: #3c3c3c;
-  --m-hairline-strong: #262626;
+  --m-hairline: #333333;
+  --m-hairline-strong: #1f1f1f;
 
   /* Motorsport Tricolor Signature */
   --m-blue-light: #0066b1;
@@ -25,7 +25,7 @@
   /* Typography & Geometry */
   --m-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --m-letter-spacing-headline: 1.5px;
-  --m-letter-spacing-label: 1.2px;
+  --m-letter-spacing-label: 1px;
   --m-radius-none: 0px;
   --m-radius-xs: 2px;
   --m-radius-sm: 4px;
@@ -39,44 +39,52 @@
   user-select: none;
 }
 
-body {
-  font-family: var(--m-font-family);
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
   background-color: var(--m-canvas);
   color: var(--m-primary);
-  min-height: 100vh;
-  min-height: 100dvh;
+  font-family: var(--m-font-family);
+}
+
+body {
   display: flex;
   justify-content: center;
   align-items: center;
-  overflow-x: hidden;
   touch-action: manipulation;
 }
 
-/* App Container */
+/* ==========================================================================
+   Fullscreen Dynamic Container
+   ========================================================================== */
+
 .m-app-container {
-  width: 100%;
-  max-width: 480px;
+  width: 100vw;
+  width: 100dvw;
   height: 100vh;
   height: 100dvh;
   display: flex;
   flex-direction: column;
   background-color: var(--m-canvas);
-  border-left: 1px solid var(--m-hairline-strong);
-  border-right: 1px solid var(--m-hairline-strong);
   position: relative;
   overflow: hidden;
 }
 
 /* ==========================================================================
-   Header & M Tricolor Brand
+   Header & M Tricolor Brand Lockup
    ========================================================================== */
 
 .m-header {
   display: flex;
-  flex-direction: column;
-  padding: 12px 16px 8px 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: clamp(8px, 1.5vh, 14px) clamp(12px, 2vw, 24px);
   background-color: var(--m-surface-soft);
-  gap: 10px;
+  border-bottom: 1px solid var(--m-hairline-strong);
+  gap: 12px;
+  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .m-brand-lockup {
@@ -110,16 +118,16 @@ body {
 }
 
 .m-headline {
-  font-size: 15px;
-  font-weight: 800;
+  font-size: clamp(13px, 1.6vw, 17px);
+  font-weight: 900;
   letter-spacing: var(--m-letter-spacing-headline);
   color: var(--m-primary);
   text-transform: uppercase;
 }
 
 .m-subline {
-  font-size: 10px;
-  font-weight: 500;
+  font-size: clamp(9px, 1vw, 11px);
+  font-weight: 600;
   letter-spacing: 0.8px;
   color: var(--m-muted);
 }
@@ -130,13 +138,12 @@ body {
   font-weight: 700;
 }
 
-/* M Mode Selector (M1 / M2 Buttons) */
+/* M Drive Mode Selector (M1 / M2 Buttons) */
 .m-mode-selector {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
+  display: flex;
   gap: 8px;
   background-color: var(--m-canvas);
-  padding: 4px;
+  padding: 3px;
   border: 1px solid var(--m-hairline-strong);
 }
 
@@ -144,11 +151,10 @@ body {
   background: transparent;
   border: 1px solid transparent;
   color: var(--m-muted);
-  padding: 6px 10px;
+  padding: 6px 14px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 8px;
   transition: all 0.15s ease;
 }
@@ -180,7 +186,6 @@ body {
 .m-header-tools {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 6px;
 }
 
@@ -250,11 +255,12 @@ body {
   color: #f87171;
 }
 
-/* M Tricolor 4px Divider */
+/* M Tricolor 3px Divider */
 .m-divider-bar {
   display: flex;
   height: 3px;
   width: 100%;
+  flex-shrink: 0;
 }
 
 .m-divider-bar div {
@@ -267,18 +273,21 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 14px;
+  padding: 5px clamp(12px, 2vw, 24px);
   background-color: var(--m-surface-soft);
   border-bottom: 1px solid var(--m-hairline-strong);
-  font-size: 10px;
+  font-size: 11px;
+  flex-shrink: 0;
 }
 
 .m-banner-tag {
   background-color: var(--m-blue-dark);
   color: #ffffff;
-  padding: 2px 6px;
+  padding: 2px 8px;
   font-weight: 800;
   letter-spacing: 0.8px;
+  font-size: 9px;
+  flex-shrink: 0;
 }
 
 .m-banner-msg {
@@ -286,7 +295,8 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: 0 8px;
+  padding: 0 12px;
+  flex: 1;
 }
 
 .m-banner-action {
@@ -295,9 +305,10 @@ body {
   color: var(--m-primary);
   font-size: 9px;
   font-weight: 800;
-  padding: 3px 6px;
+  padding: 4px 8px;
   cursor: pointer;
   letter-spacing: 0.8px;
+  flex-shrink: 0;
 }
 
 .m-banner-action:hover {
@@ -306,39 +317,53 @@ body {
 }
 
 /* ==========================================================================
-   Cockpit Keypad Console (3x3 Matrix)
+   Dynamic Cockpit Frame (Adaptive Fullscreen Sizing)
    ========================================================================== */
 
 .m-cockpit-frame {
   flex: 1;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  padding: 12px;
-  background: radial-gradient(circle at 50% 20%, #111111 0%, #000000 100%);
-  gap: 12px;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(8px, 2vmin, 20px);
+  background: radial-gradient(circle at 50% 30%, #111111 0%, #000000 90%);
+  gap: clamp(8px, 1.5vmin, 16px);
+  overflow: hidden;
+  width: 100%;
 }
 
+/* Keypad Bezel: Maximize viewport area without scrolling */
 .m-keypad-bezel {
-  width: 100%;
+  /* Sizes proportionally to available screen area */
+  width: min(calc(100vw - 24px), calc(100dvh - 180px));
+  height: min(calc(100vw - 24px), calc(100dvh - 180px));
+  max-width: 680px;
+  max-height: 680px;
   aspect-ratio: 1 / 1;
   background-color: var(--m-surface-soft);
   border: 1px solid var(--m-hairline-strong);
-  padding: 8px;
-  box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.8);
+  padding: clamp(6px, 1.2vmin, 14px);
+  box-shadow: inset 0 0 35px rgba(0, 0, 0, 0.9), 0 8px 30px rgba(0, 0, 0, 0.5);
+  display: flex;
 }
 
 .m-keypad-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   grid-template-rows: repeat(3, 1fr);
-  gap: 8px;
+  gap: clamp(6px, 1.2vmin, 12px);
   width: 100%;
   height: 100%;
 }
 
-/* Individual M Cockpit LCD Switches */
+/* ==========================================================================
+   Container-Query Aware M Cockpit LCD Switches (No text overflow!)
+   ========================================================================== */
+
 .m-lcd-key {
+  container-type: inline-size;
   position: relative;
   background-color: var(--m-surface-card);
   border: 1px solid var(--m-hairline);
@@ -346,10 +371,12 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 6px;
+  padding: clamp(4px, 3cqw, 12px);
   cursor: pointer;
   transition: transform 0.08s ease, background-color 0.12s ease, border-color 0.12s ease;
   overflow: hidden;
+  min-width: 0;
+  min-height: 0;
 }
 
 /* M Accent Hairline Bar on top of key */
@@ -359,9 +386,9 @@ body {
   top: 0;
   left: 0;
   right: 0;
-  height: 3px;
+  height: clamp(2px, 1.5cqw, 4px);
   background-color: var(--key-accent, var(--m-blue-dark));
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
 .m-lcd-key:hover {
@@ -380,7 +407,7 @@ body {
   background-color: #1a2233 !important;
   border: 2px dashed var(--m-blue-light) !important;
   transform: scale(1.02);
-  box-shadow: 0 0 16px rgba(0, 102, 177, 0.5);
+  box-shadow: 0 0 20px rgba(0, 102, 177, 0.6);
 }
 
 .m-lcd-key.edit-mode {
@@ -393,38 +420,51 @@ body {
   100% { border-color: var(--m-hairline); }
 }
 
+/* Proportional Icon Size */
 .m-key-icon {
-  font-size: 30px;
+  font-size: clamp(20px, 25cqw, 48px);
   line-height: 1;
-  margin-bottom: 6px;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8));
+  margin-bottom: clamp(2px, 1.5cqw, 6px);
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.8));
+  flex-shrink: 0;
 }
 
+/* Primary Label: Multi-line wrapped, container-scaled, zero overflow */
 .m-key-label {
-  font-size: 11px;
+  font-size: clamp(8.5px, 8.8cqw, 15px);
   font-weight: 800;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.4px;
   color: var(--m-primary);
   text-align: center;
   text-transform: uppercase;
-  white-space: nowrap;
+  width: 100%;
+  line-height: 1.15;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  width: 92%;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  padding: 0 2px;
 }
 
+/* Sublabel / Telemetry */
 .m-key-sublabel {
-  font-size: 9px;
-  font-weight: 500;
-  letter-spacing: 0.5px;
+  font-size: clamp(7px, 6.8cqw, 11px);
+  font-weight: 600;
+  letter-spacing: 0.3px;
   color: var(--m-muted);
   text-align: center;
   text-transform: uppercase;
+  width: 100%;
+  line-height: 1.1;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  width: 88%;
-  margin-top: 2px;
+  margin-top: 1px;
+  flex-shrink: 0;
+  padding: 0 2px;
 }
 
 /* ==========================================================================
@@ -432,24 +472,27 @@ body {
    ========================================================================== */
 
 .m-paddle-console {
+  width: min(calc(100vw - 24px), calc(100dvh - 180px));
+  max-width: 680px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 10px;
+  padding: clamp(6px, 1.2vmin, 10px) clamp(10px, 2vmin, 16px);
   background-color: var(--m-surface-card);
   border: 1px solid var(--m-hairline-strong);
+  flex-shrink: 0;
 }
 
 .m-paddle-btn {
   background-color: var(--m-surface-elevated);
   border: 1px solid var(--m-hairline);
   color: var(--m-primary);
-  padding: 8px 14px;
+  padding: clamp(6px, 1.2vmin, 10px) clamp(10px, 2vmin, 18px);
   cursor: pointer;
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: clamp(10px, 1.2vmin, 12px);
   font-weight: 800;
   letter-spacing: 1px;
   transition: all 0.1s ease;
@@ -468,7 +511,7 @@ body {
 
 .m-paddle-symbol {
   color: var(--m-blue-light);
-  font-size: 13px;
+  font-size: clamp(11px, 1.4vmin, 14px);
 }
 
 .m-telemetry-cluster {
@@ -476,14 +519,14 @@ body {
 }
 
 .m-page-counter {
-  font-size: 12px;
+  font-size: clamp(11px, 1.4vmin, 14px);
   font-weight: 900;
   letter-spacing: 1.5px;
   color: var(--m-primary);
 }
 
 .m-page-topic {
-  font-size: 9px;
+  font-size: clamp(8px, 1vmin, 10px);
   font-weight: 600;
   letter-spacing: 0.8px;
   color: var(--m-muted);
@@ -498,11 +541,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 8px 12px;
+  gap: clamp(8px, 2vw, 20px);
+  padding: clamp(6px, 1vh, 10px) clamp(12px, 2vw, 24px);
   background-color: var(--m-canvas);
   border-top: 1px solid var(--m-hairline-strong);
-  font-size: 10px;
+  font-size: clamp(9px, 1vw, 11px);
+  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
 .m-footer-item {
@@ -527,7 +572,7 @@ body {
 }
 
 /* ==========================================================================
-   SLIDE-OUT APP CATALOG & LAUNCHPAD DRAWER
+   APP CATALOG DRAWER (Responsive Overlay / Side-Dock)
    ========================================================================== */
 
 .m-drawer {
@@ -541,6 +586,16 @@ body {
   animation: slide-in 0.2s ease-out;
 }
 
+@media (min-width: 900px) {
+  .m-drawer {
+    left: auto;
+    width: 440px;
+    border-left: 1px solid var(--m-hairline);
+    border-top: none;
+    box-shadow: -10px 0 30px rgba(0, 0, 0, 0.7);
+  }
+}
+
 .m-drawer.hidden {
   display: none;
 }
@@ -550,13 +605,21 @@ body {
   to { transform: translateY(0); }
 }
 
+@media (min-width: 900px) {
+  @keyframes slide-in {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+  }
+}
+
 .m-drawer-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 16px;
+  padding: 14px 18px;
   background-color: var(--m-surface-soft);
   border-bottom: 1px solid var(--m-hairline-strong);
+  flex-shrink: 0;
 }
 
 .m-drawer-title-group {
@@ -577,8 +640,8 @@ body {
 .m-tricolor-mini span:nth-child(3) { background-color: var(--m-red); }
 
 .m-drawer-title {
-  font-size: 14px;
-  font-weight: 800;
+  font-size: 13px;
+  font-weight: 900;
   letter-spacing: var(--m-letter-spacing-headline);
   color: var(--m-primary);
 }
@@ -600,7 +663,7 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  padding: 12px 16px;
+  padding: 12px 18px;
   gap: 10px;
   overflow-y: auto;
 }
@@ -612,6 +675,7 @@ body {
   background-color: var(--m-surface-card);
   border: 1px solid var(--m-hairline);
   padding: 0 12px;
+  flex-shrink: 0;
 }
 
 .m-search-box input {
@@ -640,6 +704,7 @@ body {
   gap: 6px;
   overflow-x: auto;
   padding-bottom: 4px;
+  flex-shrink: 0;
 }
 
 .m-tab {
@@ -649,7 +714,7 @@ body {
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 1px;
-  padding: 5px 10px;
+  padding: 6px 12px;
   cursor: pointer;
   white-space: nowrap;
   transition: all 0.12s ease;
@@ -665,10 +730,16 @@ body {
 /* Apps Grid */
 .m-apps-list {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 8px;
   overflow-y: auto;
   padding-right: 2px;
+}
+
+@media (min-width: 500px) and (max-width: 899px) {
+  .m-apps-list {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 .m-app-card {
@@ -677,7 +748,7 @@ body {
   gap: 10px;
   background-color: var(--m-surface-card);
   border: 1px solid var(--m-hairline-strong);
-  padding: 8px 10px;
+  padding: 10px 12px;
   cursor: grab;
   transition: all 0.12s ease;
   position: relative;
@@ -695,7 +766,7 @@ body {
 }
 
 .m-app-icon {
-  font-size: 22px;
+  font-size: 24px;
   flex-shrink: 0;
 }
 
@@ -706,7 +777,7 @@ body {
 
 .m-app-name {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--m-primary);
   white-space: nowrap;
   overflow: hidden;
@@ -724,17 +795,18 @@ body {
 }
 
 .m-drag-handle {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--m-hairline);
   flex-shrink: 0;
 }
 
 .m-drawer-footer {
-  padding: 10px 16px;
+  padding: 12px 18px;
   background-color: var(--m-surface-soft);
   border-top: 1px solid var(--m-hairline-strong);
   font-size: 11px;
   color: var(--m-body);
+  flex-shrink: 0;
 }
 
 /* ==========================================================================
@@ -759,11 +831,11 @@ body {
 
 .m-popup-card {
   width: 100%;
-  max-width: 320px;
+  max-width: 340px;
   background-color: var(--m-surface-card);
   border: 1px solid var(--m-hairline);
   border-top: 2px solid var(--m-red);
-  padding: 16px;
+  padding: 18px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -819,7 +891,7 @@ body {
 }
 
 /* ==========================================================================
-   Motorsport Modal Styling (Configure Key)
+   Key Edit Modal (Responsive)
    ========================================================================== */
 
 .m-modal-backdrop {
@@ -840,7 +912,7 @@ body {
 
 .m-modal-card {
   width: 100%;
-  max-width: 400px;
+  max-width: 440px;
   background-color: var(--m-surface-card);
   border: 1px solid var(--m-hairline);
   border-top: 3px solid var(--m-blue-light);

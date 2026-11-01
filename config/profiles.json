@@ -10,8 +10,8 @@
           "buttons": [
             {
               "id": 0,
-              "label": "AI Agent",
-              "sublabel": "Run Agent",
+              "label": "AI AGENT",
+              "sublabel": "RUN AGENT",
               "icon": "🤖",
               "color": "#6366f1",
               "actionType": "shell",
@@ -19,8 +19,8 @@
             },
             {
               "id": 1,
-              "label": "Terminal",
-              "sublabel": "New Tab",
+              "label": "TERMINAL",
+              "sublabel": "NEW TAB",
               "icon": "⚡",
               "color": "#10b981",
               "actionType": "shell",
@@ -28,8 +28,8 @@
             },
             {
               "id": 2,
-              "label": "LIBREOFFICE CA",
-              "sublabel": "OFFICE",
+              "label": "CALC",
+              "sublabel": "SPREADSHEET",
               "icon": "🧮",
               "color": "#e22718",
               "actionType": "shell",
@@ -37,8 +37,8 @@
             },
             {
               "id": 3,
-              "label": "Test Suite",
-              "sublabel": "Run Tests",
+              "label": "TEST SUITE",
+              "sublabel": "RUN TESTS",
               "icon": "🧪",
               "color": "#06b6d4",
               "actionType": "shell",
@@ -46,8 +46,8 @@
             },
             {
               "id": 4,
-              "label": "Format Code",
-              "sublabel": "Prettier/Lint",
+              "label": "FORMAT CODE",
+              "sublabel": "PRETTIER",
               "icon": "✨",
               "color": "#8b5cf6",
               "actionType": "shell",
@@ -55,8 +55,8 @@
             },
             {
               "id": 5,
-              "label": "Git Push",
-              "sublabel": "Push Origin",
+              "label": "GIT PUSH",
+              "sublabel": "ORIGIN MAIN",
               "icon": "🚀",
               "color": "#ec4899",
               "actionType": "shell",
@@ -65,7 +65,7 @@
             {
               "id": 6,
               "label": "CALENDAR",
-              "sublabel": "GNOME",
+              "sublabel": "SCHEDULE",
               "icon": "📅",
               "color": "#2b2b2b",
               "actionType": "shell",
@@ -73,8 +73,8 @@
             },
             {
               "id": 7,
-              "label": "Build",
-              "sublabel": "Compile",
+              "label": "BUILD",
+              "sublabel": "COMPILE",
               "icon": "🔨",
               "color": "#eab308",
               "actionType": "shell",
@@ -98,12 +98,12 @@
           "buttons": [
             {
               "id": 0,
-              "label": "Open Youtube",
-              "sublabel": "Cluster Info",
-              "icon": "☸️",
-              "color": "#326ce5",
+              "label": "YOUTUBE",
+              "sublabel": "VIDEO",
+              "icon": "📺",
+              "color": "#e22718",
               "actionType": "url",
-              "command": "kubectl get pods 2>/dev/null | head -n 5 | xargs -0 -I {} notify-send 'K8s Pods' '{}'",
+              "command": "xdg-open https://youtube.com",
               "url": "https://m.youtube.com/"
             },
             {
