@@ -159,6 +159,8 @@ const urlGroup = document.getElementById('urlGroup');
 const editCommand = document.getElementById('editCommand');
 const editTerminalMode = document.getElementById('editTerminalMode');
 const editWorkingDir = document.getElementById('editWorkingDir');
+const folderSuggestions = document.getElementById('folderSuggestions');
+const quickDirChips = document.getElementById('quickDirChips');
 const editKeepOpen = document.getElementById('editKeepOpen');
 const terminalModeGroup = document.getElementById('terminalModeGroup');
 const terminalOptionsRow = document.getElementById('terminalOptionsRow');
@@ -227,6 +229,39 @@ async function loadInstalledApplications() {
     installedApps = [];
   }
   renderAppCatalog('all');
+}
+
+// Fetch Suggested Project Directories
+async function loadSuggestedDirectories() {
+  if (!quickDirChips || !folderSuggestions) return;
+  try {
+    const res = await fetch('/api/directories');
+    if (!res.ok) return;
+    const dirs = await res.json();
+    folderSuggestions.innerHTML = '';
+    quickDirChips.innerHTML = '';
+    dirs.forEach(d => {
+      // Datalist option for auto-complete
+      const opt = document.createElement('option');
+      opt.value = d.path;
+      opt.label = d.label;
+      folderSuggestions.appendChild(opt);
+
+      // Quick clickable chip
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'm-dir-chip';
+      chip.textContent = `📁 ${d.label}`;
+      chip.title = d.path;
+      chip.addEventListener('click', () => {
+        triggerHaptic(15);
+        editWorkingDir.value = d.path;
+      });
+      quickDirChips.appendChild(chip);
+    });
+  } catch (e) {
+    console.warn('Could not load directory suggestions:', e);
+  }
 }
 
 // Render the App Drawer Cards (with Drag & Drop support)
@@ -992,4 +1027,5 @@ if ('serviceWorker' in navigator) {
 }
 
 loadInstalledApplications();
+loadSuggestedDirectories();
 connectWebSocket();

@@ -15,18 +15,21 @@
               "icon": "🤖",
               "color": "#6366f1",
               "actionType": "shell",
-              "command": "notify-send 'Arya Dock' 'AI Agent Invoked' -i dialog-information"
+              "command": "lzd --version",
+              "terminalMode": "background"
             },
             {
               "id": 1,
-              "label": "TERMINAL",
+              "label": "VAULT UNSEAL",
               "sublabel": "NEW TAB",
               "icon": "⚡",
               "color": "#10b981",
               "actionType": "shell",
-              "command": "zsh",
+              "command": "vus",
               "terminalMode": "tab",
-              "keepOpen": true
+              "keepOpen": true,
+              "workingDir": "",
+              "url": ""
             },
             {
               "id": 2,
@@ -61,14 +64,14 @@
             },
             {
               "id": 5,
-              "label": "LZD",
-              "sublabel": "SHORTCUT",
-              "icon": "⚡",
-              "color": "#1c69d4",
+              "label": "VAULT UNSEAL",
+              "sublabel": "BANKING INFRA",
+              "icon": "🔐",
+              "color": "#e22718",
               "actionType": "shell",
-              "command": "lzd",
+              "command": "vus",
               "terminalMode": "tab",
-              "workingDir": "",
+              "workingDir": "~/Documents/Event-Based-Banking-Application/arya-banking-infra",
               "keepOpen": true,
               "url": ""
             }

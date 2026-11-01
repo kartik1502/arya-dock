@@ -1132,6 +1132,47 @@ body {
   text-transform: uppercase;
 }
 
+.m-label-split {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.m-field-hint {
+  font-size: 9px;
+  color: #888888;
+  font-family: var(--m-font-mono);
+  letter-spacing: 0.4px;
+}
+
+.m-quick-dir-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.m-dir-chip {
+  background: var(--m-surface-card);
+  border: 1px solid var(--m-hairline);
+  color: var(--m-blue-light);
+  font-family: var(--m-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.m-dir-chip:hover {
+  border-color: var(--m-blue-light);
+  color: #ffffff;
+  background: var(--m-surface-elevated);
+}
+
 .m-field-group input,
 .m-field-group select {
   background-color: var(--m-canvas);

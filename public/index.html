@@ -246,8 +246,13 @@
 
         <div class="m-field-row" id="terminalOptionsRow">
           <div class="m-field-group">
-            <label for="editWorkingDir">WORKING DIRECTORY (OPTIONAL)</label>
-            <input type="text" id="editWorkingDir" placeholder="Default project directory">
+            <div class="m-label-split">
+              <label for="editWorkingDir">PROJECT DIRECTORY (OPTIONAL)</label>
+              <span class="m-field-hint">e.g. ~/Documents/arya-banking-infra</span>
+            </div>
+            <input type="text" id="editWorkingDir" placeholder="~/Documents/project or /path/to/folder" list="folderSuggestions" autocomplete="off">
+            <datalist id="folderSuggestions"></datalist>
+            <div class="m-quick-dir-chips" id="quickDirChips"></div>
           </div>
           <div class="m-field-group m-field-checkbox-wrap">
             <label class="m-checkbox-container" title="Keep terminal interactive after script finishes">

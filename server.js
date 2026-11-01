@@ -159,6 +159,17 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // API Route: Return list of suggested common project directories
+  if (reqPath === '/api/directories') {
+    const dirs = getSuggestedProjectDirs();
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    });
+    res.end(JSON.stringify(dirs));
+    return;
+  }
+
   if (reqPath === '/' || reqPath === '') reqPath = '/index.html';
 
   const filePath = path.join(PUBLIC_DIR, reqPath);
@@ -263,26 +274,86 @@ function getDefaultTerminal() {
   return { name: 'ptyxis', path: '/usr/bin/ptyxis' };
 }
 
+// Normalize and resolve working directory paths (e.g. ~/path or $HOME/path)
+function resolveWorkingDir(dir) {
+  if (!dir || typeof dir !== 'string') return '';
+  let resolved = dir.trim();
+  if (!resolved) return '';
+  if (resolved === '~' || resolved === '$HOME') {
+    return os.homedir();
+  }
+  if (resolved.startsWith('~/') || resolved.startsWith('~\\')) {
+    resolved = path.join(os.homedir(), resolved.slice(2));
+  } else if (resolved.startsWith('$HOME/') || resolved.startsWith('$HOME\\')) {
+    resolved = path.join(os.homedir(), resolved.slice(6));
+  }
+  return path.resolve(resolved);
+}
+
+// Discover common project and workspace directories for auto-complete suggestions
+function getSuggestedProjectDirs() {
+  const home = os.homedir();
+  const dirs = [];
+  const seen = new Set();
+
+  function addDir(label, fullPath) {
+    if (!fullPath || !fs.existsSync(fullPath)) return;
+    const resolved = path.resolve(fullPath);
+    if (seen.has(resolved)) return;
+    seen.add(resolved);
+    const displayPath = resolved.startsWith(home) ? '~' + resolved.slice(home.length) : resolved;
+    dirs.push({ label, path: displayPath, fullPath: resolved });
+  }
+
+  // High priority project repositories
+  addDir('Arya Banking Infra', path.join(home, 'Documents/Event-Based-Banking-Application/arya-banking-infra'));
+  addDir('Event Banking App', path.join(home, 'Documents/Event-Based-Banking-Application'));
+  addDir('Arya Dock', __dirname);
+  addDir('LinkedIn Skills', path.join(home, 'Documents/linkedin-skills'));
+  addDir('Documents', path.join(home, 'Documents'));
+  addDir('Home (~)', home);
+
+  // Scan subdirectories in ~/Documents (1-level deep)
+  try {
+    const docPath = path.join(home, 'Documents');
+    if (fs.existsSync(docPath)) {
+      const entries = fs.readdirSync(docPath, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory() && !entry.name.startsWith('.')) {
+          const sub = path.join(docPath, entry.name);
+          addDir(entry.name, sub);
+        }
+      }
+    }
+  } catch (e) {}
+
+  return dirs;
+}
+
 // Build command wrapper based on target terminal execution mode
 function buildTerminalCommand(command = '', mode = 'background', title = 'Arya Dock', workingDir = '', keepOpen = true) {
   const defaultShell = getDefaultShell();
   const shellName = path.basename(defaultShell);
   const detectedTerm = getDefaultTerminal();
+  const resolvedDir = resolveWorkingDir(workingDir);
 
   let cmd = (command || '').trim();
   const isPureShellLaunch = !cmd || ['bash', 'zsh', 'sh', '$shell', 'shell', 'terminal'].includes(cmd.toLowerCase());
 
   if (mode === 'background' || !mode) {
     if (isPureShellLaunch) return command;
-    const escaped = cmd.replace(/"/g, '\\"');
-    return `env DISABLE_UPDATE_PROMPT=true "${defaultShell}" -i -l -c "${escaped}"`;
+    const cdCmd = resolvedDir ? `cd "${resolvedDir}" && ` : '';
+    const escaped = (cdCmd + cmd).replace(/"/g, '\\"');
+    return `env POWERLEVEL9K_INSTANT_PROMPT=quiet DISABLE_UPDATE_PROMPT=true "${defaultShell}" -i -l -c "${escaped}"`;
   }
 
   let innerScript = '';
+  const cdPrefix = resolvedDir ? `cd "${resolvedDir}" && ` : '';
+
   if (isPureShellLaunch) {
-    innerScript = `exec "${defaultShell}" -l`;
+    innerScript = resolvedDir ? `cd "${resolvedDir}" && exec "${defaultShell}" -l` : `exec "${defaultShell}" -l`;
   } else {
-    innerScript = cmd;
+    innerScript = `${cdPrefix}${cmd}`;
     if (keepOpen) {
       innerScript += `; echo ""; echo -e "\\033[1;34m[Arya Dock]\\033[0m Command completed. Session interactive (${shellName})."; exec "${defaultShell}" -l`;
     }
@@ -290,13 +361,13 @@ function buildTerminalCommand(command = '', mode = 'background', title = 'Arya D
 
   const escapedInner = innerScript.replace(/"/g, '\\"');
   const safeTitle = (title || 'Arya Dock').replace(/"/g, '');
-  const ptyxisDir = workingDir ? `-d "${workingDir}"` : '';
-  const gnomeDir = workingDir ? `--working-directory="${workingDir}"` : '';
-  const konsoleDir = workingDir ? `--workdir "${workingDir}"` : '';
-  const genericDir = workingDir ? `--working-directory "${workingDir}"` : '';
+  const ptyxisDir = resolvedDir ? `-d "${resolvedDir}"` : '';
+  const gnomeDir = resolvedDir ? `--working-directory="${resolvedDir}"` : '';
+  const konsoleDir = resolvedDir ? `--workdir "${resolvedDir}"` : '';
+  const genericDir = resolvedDir ? `--working-directory "${resolvedDir}"` : '';
 
-  // Use interactive login shell (-i -l) with Oh My Zsh update prompt bypass so aliases (e.g. lzd, spr, vus), PATH and functions are fully loaded
-  const shellCommand = `env DISABLE_UPDATE_PROMPT=true "${defaultShell}" -i -l -c "${escapedInner}"`;
+  // Use interactive login shell (-i -l) with Oh My Zsh and Powerlevel10k quiet mode to prevent lock file conflicts
+  const shellCommand = `env POWERLEVEL9K_INSTANT_PROMPT=quiet DISABLE_UPDATE_PROMPT=true "${defaultShell}" -i -l -c "${escapedInner}"`;
 
   if (mode === 'tab') {
     // Open in terminal as a new tab
@@ -321,7 +392,7 @@ function buildTerminalCommand(command = '', mode = 'background', title = 'Arya D
     } else if (detectedTerm.name === 'alacritty') {
       return `alacritty --title "${safeTitle}" ${genericDir} -e ${shellCommand}`;
     } else if (detectedTerm.name === 'kitty') {
-      return `kitty --title "${safeTitle}" ${workingDir ? `--directory "${workingDir}"` : ''} ${shellCommand}`;
+      return `kitty --title "${safeTitle}" ${resolvedDir ? `--directory "${resolvedDir}"` : ''} ${shellCommand}`;
     } else if (detectedTerm.name === 'konsole') {
       return `konsole ${konsoleDir} -e ${shellCommand}`;
     } else {
@@ -348,7 +419,8 @@ function executeAction(button) {
 
   const defaultShell = getDefaultShell();
   const shellName = path.basename(defaultShell);
-  console.log(`[Arya Dock] Triggered Button [${button.id}] '${button.label}': ${button.actionType} (${button.terminalMode || 'background'}) via ${shellName}`);
+  const resolvedDir = resolveWorkingDir(button.workingDir);
+  console.log(`[Arya Dock] Triggered Button [${button.id}] '${button.label}': ${button.actionType} (${button.terminalMode || 'background'})${resolvedDir ? ` in ${resolvedDir}` : ''} via ${shellName}`);
 
   switch (button.actionType) {
     case 'shell': {
@@ -356,18 +428,19 @@ function executeAction(button) {
         button.command !== undefined ? button.command : '',
         button.terminalMode || 'background',
         button.label || 'Arya Dock',
-        button.workingDir || '',
+        resolvedDir,
         button.keepOpen !== false
       );
       const execOptions = {
         env: {
           ...process.env,
-          DISABLE_UPDATE_PROMPT: 'true'
+          DISABLE_UPDATE_PROMPT: 'true',
+          POWERLEVEL9K_INSTANT_PROMPT: 'quiet'
         },
         shell: defaultShell
       };
-      if (button.workingDir && fs.existsSync(button.workingDir)) {
-        execOptions.cwd = button.workingDir;
+      if (resolvedDir && fs.existsSync(resolvedDir)) {
+        execOptions.cwd = resolvedDir;
       }
       exec(finalCommand, execOptions, (error, stdout, stderr) => {
         if (error) console.error(`[Exec Error]: ${error.message}`);
