@@ -60,6 +60,8 @@ test('Terminal: buildActionCommand builds valid CLI arguments for all supported 
     ignoreDirExists: true
   });
   assert.equal(ptyxisCmd.bin, '/usr/bin/ptyxis');
+  assert.equal(ptyxisCmd.rawCommand, 'htop');
+  assert.ok(ptyxisCmd.innerScript.includes(quoteForShell(defaultShell)));
   assert.ok(ptyxisCmd.args.includes('--tab'));
   assert.ok(ptyxisCmd.args.includes('-d'));
   assert.ok(ptyxisCmd.args.includes('-T'));

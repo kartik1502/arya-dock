@@ -65,6 +65,14 @@ test('Config: validateButton schema enforcement', () => {
   assert.equal(resUpdate.valid, true);
   assert.equal(resUpdate.button.id, 5); // Must remain 5
 
+  // ID is locked to existingButton.id even if existingId option omitted
+  const resTamper = validateButton(
+    { id: 999, label: 'TAMPERED' },
+    { isUpdate: true, existingButton: { id: 7, label: 'ORIGINAL' } }
+  );
+  assert.equal(resTamper.valid, true);
+  assert.equal(resTamper.button.id, 7); // Must remain 7
+
   // URL action validates http/https scheme
   const resUrlValid = validateButton({
     id: 2,
@@ -79,6 +87,14 @@ test('Config: validateButton schema enforcement', () => {
     url: 'javascript:alert(1)'
   });
   assert.equal(resUrlInvalid.valid, false);
+
+  // URL scheme is validated regardless of actionType (prevents javascript: smuggling)
+  const resUrlShellSmuggle = validateButton({
+    id: 3,
+    actionType: 'shell',
+    url: 'javascript:alert(2)'
+  });
+  assert.equal(resUrlShellSmuggle.valid, false);
 
   // Reject garbage types with clear error
   assert.equal(validateButton({ label: 12345 }).valid, false);

@@ -6,13 +6,13 @@ const fs = require('fs');
 const os = require('os');
 const { createServer } = require('../server');
 
-function makeRequest(port, reqPath, headers = {}) {
+function makeRequest(port, reqPath, headers = {}, method = 'GET') {
   return new Promise((resolve, reject) => {
     const req = http.request({
       hostname: '127.0.0.1',
       port,
       path: reqPath,
-      method: 'GET',
+      method,
       headers
     }, (res) => {
       let data = '';
@@ -95,6 +95,49 @@ test('HTTP: static file serving, path traversal guard, and security headers', as
     const resDirs = await makeRequest(port, `/api/directories?token=${token}`);
     assert.equal(resDirs.statusCode, 200);
     const dirs = JSON.parse(resDirs.body);
+    assert.ok(Array.isArray(dirs));
+
+    // 8. HEAD request returns 200 with headers but empty body
+    const resHead = await makeRequest(port, '/index.html', {}, 'HEAD');
+    assert.equal(resHead.statusCode, 200);
+    assert.equal(resHead.body, '');
+    assert.ok(resHead.headers['content-length']);
+
+    // 9. POST to static file returns 405 Method Not Allowed
+    const resPostStatic = await makeRequest(port, '/index.html', {}, 'POST');
+    assert.equal(resPostStatic.statusCode, 405);
+    assert.equal(resPostStatic.headers['allow'], 'GET, HEAD');
+  } finally {
+    await new Promise(resolve => app.close(resolve));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('HTTP: directories endpoint with remote IP requires editorKey header', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arya-http-remote-test-'));
+  const configPath = path.join(tmpDir, 'profiles.json');
+  const authPath = path.join(tmpDir, 'auth.json');
+
+  const app = createServer({ configPath, authPath, mockClientIp: '192.168.1.180' });
+  const server = app.server;
+
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  const token = app.credentials.pairingToken;
+  const editorKey = app.credentials.editorKey;
+
+  try {
+    // Remote client with token but without editorKey gets 403
+    const resForbidden = await makeRequest(port, `/api/directories?token=${token}`);
+    assert.equal(resForbidden.statusCode, 403);
+
+    // Remote client providing x-editor-key header gets 200 without query string leakage
+    const resAuthorized = await makeRequest(port, '/api/directories', {
+      'x-pairing-token': token,
+      'x-editor-key': editorKey
+    });
+    assert.equal(resAuthorized.statusCode, 200);
+    const dirs = JSON.parse(resAuthorized.body);
     assert.ok(Array.isArray(dirs));
   } finally {
     await new Promise(resolve => app.close(resolve));

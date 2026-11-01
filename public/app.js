@@ -27,32 +27,33 @@ if (urlParams.get('editKey')) {
 // Scrub sensitive token and editKey from URL bar and browser history
 if (urlParams.has('token') || urlParams.has('editKey')) {
   try {
-    window.history.replaceState({}, document.title, window.location.pathname);
+    const cleanUrl = window.location.pathname + window.location.hash;
+    window.history.replaceState({}, document.title, cleanUrl);
   } catch (e) {}
 }
 
 let userRole = 'operator';
 let canEdit = false;
 
-// Quick Presets
+// Quick Presets (Clean, safe examples)
 const PRESETS = [
   {
     name: 'AI Agent',
-    command: 'notify-send "Arya Dock" "AI Coding Agent Dispatched" -i dialog-information',
+    command: 'echo "Tip: Configure AI coding agent command in tile settings"',
     emoji: '🤖',
     category: 'Development',
     comment: 'Launch AI autonomous coding agent'
   },
   {
     name: 'VS Code',
-    command: 'code . || code || echo "Opening Editor"',
+    command: 'code',
     emoji: '💻',
     category: 'Development',
-    comment: 'Open current folder in VS Code'
+    comment: 'Open VS Code'
   },
   {
     name: 'Terminal',
-    command: 'ptyxis --tab || ptyxis --new-window || gnome-terminal --tab || gnome-terminal || alacritty || kitty || x-terminal-emulator &',
+    command: 'ptyxis --tab || gnome-terminal --tab || alacritty || kitty || x-terminal-emulator &',
     emoji: '⚡',
     category: 'System',
     comment: 'Open new terminal tab'
@@ -66,14 +67,14 @@ const PRESETS = [
   },
   {
     name: 'Git Status',
-    command: 'notify-send "Git Telemetry" "$(git status --short 2>&1 || echo \"Clean repository\")"',
+    command: 'git status',
     emoji: '🌿',
     category: 'Development',
     comment: 'Check git repository status'
   },
   {
     name: 'Test Suite',
-    command: 'npm test || pytest || cargo test &',
+    command: 'npm test || pytest || cargo test',
     emoji: '🧪',
     category: 'Development',
     comment: 'Run project test suite'
@@ -167,6 +168,14 @@ const assignPopup = document.getElementById('assignPopup');
 const popupAppTitle = document.getElementById('popupAppTitle');
 const btnPopupClose = document.getElementById('btnPopupClose');
 const popupTargetGrid = document.getElementById('popupTargetGrid');
+
+// Unlock Modal Elements
+const unlockModal = document.getElementById('unlockModal');
+const btnUnlockModalClose = document.getElementById('btnUnlockModalClose');
+const btnUnlockCancel = document.getElementById('btnUnlockCancel');
+const btnUnlockSubmit = document.getElementById('btnUnlockSubmit');
+const inputEditorKey = document.getElementById('inputEditorKey');
+const unlockModalError = document.getElementById('unlockModalError');
 
 // Edit Modal Elements
 const editModal = document.getElementById('editModal');
@@ -271,8 +280,9 @@ function updateEditorUI() {
 // Fetch Installed Applications from Server (Issue #4)
 async function loadInstalledApplications() {
   try {
-    const url = `/api/apps?token=${encodeURIComponent(pairingToken)}`;
-    const headers = pairingToken ? { 'Authorization': `Bearer ${pairingToken}` } : {};
+    const url = pairingToken ? `/api/apps?token=${encodeURIComponent(pairingToken)}` : '/api/apps';
+    const headers = {};
+    if (pairingToken) headers['Authorization'] = `Bearer ${pairingToken}`;
     const res = await fetch(url, { headers });
     if (res.ok) {
       installedApps = await res.json();
@@ -288,9 +298,10 @@ async function loadInstalledApplications() {
 async function loadSuggestedDirectories() {
   if (!quickDirChips || !folderSuggestions || !canEdit) return;
   try {
-    let url = `/api/directories?token=${encodeURIComponent(pairingToken)}`;
-    if (editorKey) url += `&editKey=${encodeURIComponent(editorKey)}`;
-    const headers = pairingToken ? { 'Authorization': `Bearer ${pairingToken}` } : {};
+    const url = pairingToken ? `/api/directories?token=${encodeURIComponent(pairingToken)}` : '/api/directories';
+    const headers = {};
+    if (pairingToken) headers['Authorization'] = `Bearer ${pairingToken}`;
+    if (editorKey) headers['X-Editor-Key'] = editorKey;
     const res = await fetch(url, { headers });
     if (!res.ok) return;
     const dirs = await res.json();
@@ -600,10 +611,7 @@ function connectWebSocket() {
   updateConnectionUI('connecting');
 
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  let wsUrl = `${protocol}//${window.location.host}/ws?token=${encodeURIComponent(pairingToken)}`;
-  if (editorKey) {
-    wsUrl += `&editKey=${encodeURIComponent(editorKey)}`;
-  }
+  const wsUrl = `${protocol}//${window.location.host}/ws?token=${encodeURIComponent(pairingToken)}`;
 
   try {
     ws = new WebSocket(wsUrl);
@@ -617,6 +625,9 @@ function connectWebSocket() {
     reconnectAttempts = 0;
     updateConnectionUI('connected');
     startHeartbeat();
+    if (editorKey) {
+      ws.send(JSON.stringify({ type: 'AUTH_EDIT', editKey }));
+    }
   };
 
   ws.onclose = () => {
@@ -701,7 +712,14 @@ function handleServerMessage(data) {
       userRole = data.role;
       canEdit = Boolean(data.canEdit);
       updateEditorUI();
-      if (canEdit) loadSuggestedDirectories();
+      if (canEdit) {
+        if (unlockModal) unlockModal.classList.add('hidden');
+        if (unlockModalError) {
+          unlockModalError.style.display = 'none';
+          unlockModalError.textContent = '';
+        }
+        loadSuggestedDirectories();
+      }
       updateConnectionUI('connected');
       break;
 
@@ -711,6 +729,10 @@ function handleServerMessage(data) {
 
     case 'ERROR':
       console.warn('[Server Error]', data.message);
+      if (unlockModal && !unlockModal.classList.contains('hidden') && unlockModalError) {
+        unlockModalError.textContent = data.message || 'Authentication failed';
+        unlockModalError.style.display = 'block';
+      }
       break;
   }
 }
@@ -976,10 +998,17 @@ btnModeM2.addEventListener('click', () => {
   }
 });
 
-// Edit Mode Toggle & Editor Unlock
-btnEdit.addEventListener('click', () => {
-  triggerHaptic(15);
-  if (!canEdit) {
+// Unlock Editor Modal Functions
+function openUnlockModal() {
+  if (unlockModal && inputEditorKey) {
+    if (unlockModalError) {
+      unlockModalError.style.display = 'none';
+      unlockModalError.textContent = '';
+    }
+    inputEditorKey.value = editorKey || '';
+    unlockModal.classList.remove('hidden');
+    setTimeout(() => inputEditorKey.focus(), 50);
+  } else {
     const entered = window.prompt('Enter Editor Key to unlock configuration controls:');
     if (entered) {
       editorKey = entered.trim();
@@ -988,6 +1017,50 @@ btnEdit.addEventListener('click', () => {
         ws.send(JSON.stringify({ type: 'AUTH_EDIT', editKey: editorKey }));
       }
     }
+  }
+}
+
+function submitUnlockKey() {
+  if (!inputEditorKey) return;
+  const key = inputEditorKey.value.trim();
+  if (!key) {
+    if (unlockModalError) {
+      unlockModalError.textContent = 'Please enter an editor key.';
+      unlockModalError.style.display = 'block';
+    }
+    return;
+  }
+  editorKey = key;
+  localStorage.setItem('arya_editor_key', editorKey);
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'AUTH_EDIT', editKey: editorKey }));
+  }
+}
+
+if (btnUnlockSubmit) {
+  btnUnlockSubmit.addEventListener('click', submitUnlockKey);
+}
+if (inputEditorKey) {
+  inputEditorKey.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') submitUnlockKey();
+  });
+}
+if (btnUnlockModalClose) {
+  btnUnlockModalClose.addEventListener('click', () => {
+    if (unlockModal) unlockModal.classList.add('hidden');
+  });
+}
+if (btnUnlockCancel) {
+  btnUnlockCancel.addEventListener('click', () => {
+    if (unlockModal) unlockModal.classList.add('hidden');
+  });
+}
+
+// Edit Mode Toggle & Editor Unlock
+btnEdit.addEventListener('click', () => {
+  triggerHaptic(15);
+  if (!canEdit) {
+    openUnlockModal();
     return;
   }
   isEditMode = !isEditMode;

@@ -151,6 +151,28 @@ test('Integration: WebSocket authentication, Origin check, operator and editor r
     assert.equal(partialBtn.command, 'echo hello'); // Preserved!
     assert.equal(partialBtn.color, '#10b981');     // Preserved!
 
+    // Partial update using top-level buttonId without button.id
+    ws.send(JSON.stringify({
+      type: 'UPDATE_BUTTON',
+      buttonId: 0,
+      button: { label: 'VIA BUTTON_ID' }
+    }));
+    const topIdState = await getNextMessage();
+    assert.equal(topIdState.type, 'STATE_UPDATE');
+    const topIdBtn = topIdState.buttons.find(b => b.id === 0);
+    assert.equal(topIdBtn.label, 'VIA BUTTON_ID');
+    assert.equal(topIdBtn.command, 'echo hello'); // Still preserved!
+
+    // Non-object button update payload is rejected
+    ws.send(JSON.stringify({
+      type: 'UPDATE_BUTTON',
+      buttonId: 0,
+      button: 'not-an-object'
+    }));
+    const nonObjError = await getNextMessage();
+    assert.equal(nonObjError.type, 'ERROR');
+    assert.ok(nonObjError.message.includes('non-null object'));
+
     // Garbage type update (e.g. invalid color and command object) is rejected and config preserved
     ws.send(JSON.stringify({
       type: 'UPDATE_BUTTON',
@@ -161,9 +183,9 @@ test('Integration: WebSocket authentication, Origin check, operator and editor r
     assert.equal(garbageError.type, 'ERROR');
     assert.ok(garbageError.message.includes('color') || garbageError.message.includes('command'));
 
-    // Verify current button state is unchanged
+    // Verify current button state is unchanged by the rejected garbage update
     const currentBtn = app.getConfig().profiles.developer.pages[0].buttons.find(b => b.id === 0);
-    assert.equal(currentBtn.label, 'PARTIAL ONLY');
+    assert.equal(currentBtn.label, 'VIA BUTTON_ID');
     assert.equal(currentBtn.command, 'echo hello');
     assert.equal(currentBtn.color, '#10b981');
 
