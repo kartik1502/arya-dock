@@ -122,6 +122,12 @@ const btnWakeLock = document.getElementById('btnWakeLock');
 const btnFullscreen = document.getElementById('btnFullscreen');
 const transportMode = document.getElementById('transportMode');
 
+// Tile Dynamic Sizing Elements
+const tileCountNum = document.getElementById('tileCountNum');
+const btnAddTile = document.getElementById('btnAddTile');
+const btnRemoveTile = document.getElementById('btnRemoveTile');
+const btnModalDelete = document.getElementById('btnModalDelete');
+
 // Drawer & Catalog Elements
 const btnOpenDrawer = document.getElementById('btnOpenDrawer');
 const btnBannerOpenApps = document.getElementById('btnBannerOpenApps');
@@ -452,23 +458,80 @@ function updatePageInfo(pageNum, totalPages, name) {
   pageName.textContent = name;
 }
 
-// Render 9 Keypad Buttons with HTML5 Drag & Drop targets
+// Calculate optimal columns and rows for any arbitrary number of shortcuts
+function getOptimalGridDimensions(count, isLandscape) {
+  if (count <= 1) return { cols: 1, rows: 1 };
+  if (count === 2) return isLandscape ? { cols: 2, rows: 1 } : { cols: 1, rows: 2 };
+  if (count === 3) return isLandscape ? { cols: 3, rows: 1 } : { cols: 1, rows: 3 };
+  if (count === 4) return { cols: 2, rows: 2 };
+  if (count <= 6) return isLandscape ? { cols: 3, rows: 2 } : { cols: 2, rows: 3 };
+  if (count <= 8) return isLandscape ? { cols: 4, rows: 2 } : { cols: 2, rows: 4 };
+  if (count === 9) return { cols: 3, rows: 3 };
+  if (count <= 12) return isLandscape ? { cols: 4, rows: 3 } : { cols: 3, rows: 4 };
+  if (count <= 15) return isLandscape ? { cols: 5, rows: 3 } : { cols: 3, rows: 5 };
+  if (count <= 16) return { cols: 4, rows: 4 };
+  if (count <= 20) return isLandscape ? { cols: 5, rows: 4 } : { cols: 4, rows: 5 };
+
+  if (isLandscape) {
+    let cols = Math.ceil(Math.sqrt(count * 1.33));
+    let rows = Math.ceil(count / cols);
+    return { cols, rows };
+  } else {
+    let rows = Math.ceil(Math.sqrt(count * 1.33));
+    let cols = Math.ceil(count / rows);
+    return { cols, rows };
+  }
+}
+
+// Dynamically compute bezel size and CSS grid variables based on shortcut count and viewport
+function updateDynamicGridSizing(totalCount) {
+  const isLandscape = window.innerWidth >= window.innerHeight;
+  const { cols, rows } = getOptimalGridDimensions(totalCount, isLandscape);
+
+  const ratio = cols / rows;
+  const maxAvailHeight = Math.max(240, window.innerHeight - 180);
+  const maxAvailWidth = Math.max(240, window.innerWidth - 32);
+
+  let width, height;
+  if (ratio >= 1) {
+    width = Math.min(maxAvailWidth, maxAvailHeight * ratio, 960);
+    height = width / ratio;
+    if (height > maxAvailHeight) {
+      height = maxAvailHeight;
+      width = height * ratio;
+    }
+  } else {
+    height = Math.min(maxAvailHeight, maxAvailWidth / ratio);
+    width = height * ratio;
+    if (width > maxAvailWidth) {
+      width = maxAvailWidth;
+      height = width / ratio;
+    }
+  }
+
+  document.documentElement.style.setProperty('--grid-cols', cols);
+  document.documentElement.style.setProperty('--grid-rows', rows);
+  document.documentElement.style.setProperty('--bezel-width', `${Math.round(width)}px`);
+  document.documentElement.style.setProperty('--bezel-height', `${Math.round(height)}px`);
+  document.documentElement.style.setProperty('--bezel-ratio', `${cols} / ${rows}`);
+}
+
+// Render Keypad Buttons with Dynamic Resize & Drag & Drop
 function renderButtons(buttons) {
-  currentButtons = buttons;
+  currentButtons = buttons || [];
+  const displayCount = isEditMode ? currentButtons.length + 1 : currentButtons.length;
+  
+  if (tileCountNum) {
+    tileCountNum.textContent = currentButtons.length;
+  }
+
+  updateDynamicGridSizing(Math.max(1, displayCount));
   keypadGrid.innerHTML = '';
 
-  for (let i = 0; i < 9; i++) {
-    const btnData = buttons.find(b => b.id === i) || {
-      id: i,
-      label: `KEY ${i + 1}`,
-      sublabel: 'EMPTY',
-      icon: '◻️',
-      color: '#1c69d4'
-    };
-
+  currentButtons.forEach((btnData, i) => {
     const keyEl = document.createElement('div');
     keyEl.className = `m-lcd-key ${isEditMode ? 'edit-mode' : ''}`;
-    keyEl.dataset.buttonId = i;
+    keyEl.dataset.buttonId = btnData.id !== undefined ? btnData.id : i;
     keyEl.style.setProperty('--key-accent', btnData.color || '#1c69d4');
 
     keyEl.innerHTML = `
@@ -495,10 +558,7 @@ function renderButtons(buttons) {
     keyEl.addEventListener('pointercancel', removePressed);
     keyEl.addEventListener('pointerleave', removePressed);
 
-    // ======================================================================
-    // HTML5 DRAG & DROP TARGET HANDLERS
-    // Drag any app or preset directly onto this key!
-    // ======================================================================
+    // HTML5 Drag & Drop handlers
     keyEl.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'copy';
@@ -518,7 +578,7 @@ function renderButtons(buttons) {
         const raw = e.dataTransfer.getData('application/json');
         if (raw) {
           const app = JSON.parse(raw);
-          assignAppToButton(i, app);
+          assignAppToButton(btnData.id !== undefined ? btnData.id : i, app);
         }
       } catch (err) {
         console.error('Drop error:', err);
@@ -526,6 +586,58 @@ function renderButtons(buttons) {
     });
 
     keypadGrid.appendChild(keyEl);
+  });
+
+  // Render [+ ADD TILE] slot in Edit Mode
+  if (isEditMode) {
+    const addKeyEl = document.createElement('div');
+    addKeyEl.className = 'm-lcd-key add-tile-btn';
+    addKeyEl.innerHTML = `
+      <div class="m-add-tile-icon">+</div>
+      <div class="m-add-tile-text">ADD TILE</div>
+    `;
+
+    addKeyEl.addEventListener('click', () => {
+      triggerHaptic(20);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'ADD_BUTTON' }));
+      }
+    });
+
+    addKeyEl.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+      addKeyEl.classList.add('drag-over');
+    });
+
+    addKeyEl.addEventListener('dragleave', () => {
+      addKeyEl.classList.remove('drag-over');
+    });
+
+    addKeyEl.addEventListener('drop', (e) => {
+      e.preventDefault();
+      addKeyEl.classList.remove('drag-over');
+      triggerHaptic(30);
+      try {
+        const raw = e.dataTransfer.getData('application/json');
+        if (raw) {
+          const app = JSON.parse(raw);
+          const newButton = {
+            icon: app.icon || '🚀',
+            label: formatAppLabel(app.name),
+            sublabel: formatAppSublabel(app.category, app.comment),
+            color: '#1c69d4',
+            actionType: 'shell',
+            command: app.command
+          };
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'ADD_BUTTON', button: newButton }));
+          }
+        }
+      } catch (err) {}
+    });
+
+    keypadGrid.appendChild(addKeyEl);
   }
 }
 
@@ -581,8 +693,33 @@ btnModeM2.addEventListener('click', () => {
 btnEdit.addEventListener('click', () => {
   isEditMode = !isEditMode;
   btnEdit.classList.toggle('active', isEditMode);
-  const keys = keypadGrid.querySelectorAll('.m-lcd-key');
-  keys.forEach(k => k.classList.toggle('edit-mode', isEditMode));
+  renderButtons(currentButtons);
+});
+
+// Tile Count Adjust Buttons (+ / -)
+if (btnAddTile) {
+  btnAddTile.addEventListener('click', () => {
+    triggerHaptic(20);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'ADD_BUTTON' }));
+    }
+  });
+}
+
+if (btnRemoveTile) {
+  btnRemoveTile.addEventListener('click', () => {
+    triggerHaptic(20);
+    if (currentButtons.length > 1 && ws && ws.readyState === WebSocket.OPEN) {
+      const lastBtn = currentButtons[currentButtons.length - 1];
+      ws.send(JSON.stringify({ type: 'DELETE_BUTTON', buttonId: lastBtn.id }));
+    }
+  });
+}
+
+// Window resize dynamic recalculation
+window.addEventListener('resize', () => {
+  const count = isEditMode ? currentButtons.length + 1 : currentButtons.length;
+  updateDynamicGridSizing(Math.max(1, count));
 });
 
 // Key Configuration Modal
@@ -630,6 +767,16 @@ function toggleActionFields() {
 btnModalTest.addEventListener('click', () => {
   if (editingButtonId !== null) {
     sendButtonClick(editingButtonId);
+  }
+});
+
+btnModalDelete.addEventListener('click', () => {
+  if (editingButtonId !== null) {
+    triggerHaptic(25);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'DELETE_BUTTON', buttonId: editingButtonId }));
+    }
+    closeEditModal();
   }
 });
 

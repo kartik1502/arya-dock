@@ -41,6 +41,13 @@
 
       <!-- Header Controls -->
       <div class="m-header-tools">
+        <div class="m-tile-counter-badge" id="tileCountBadge" title="Current Shortcut Count">
+          <span id="tileCountNum">9</span> TILES
+        </div>
+        <div class="m-tile-controls" id="tileControls">
+          <button id="btnRemoveTile" class="m-tile-ctrl-btn" title="Remove a Tile">−</button>
+          <button id="btnAddTile" class="m-tile-ctrl-btn" title="Add a Tile">+</button>
+        </div>
         <button id="btnOpenDrawer" class="m-tool-btn m-tool-highlight" title="Open App Catalog & Presets">
           <span class="m-tool-icon">⚡</span>
           <span class="m-tool-text">APPS</span>
@@ -234,6 +241,7 @@
       </div>
 
       <div class="m-modal-footer">
+        <button id="btnModalDelete" class="m-btn m-btn-danger">DELETE TILE</button>
         <button id="btnModalTest" class="m-btn m-btn-secondary">TEST DISPATCH</button>
         <button id="btnModalSave" class="m-btn m-btn-primary">SAVE CONFIGURATION</button>
       </div>

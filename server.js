@@ -319,6 +319,61 @@ wss.on('connection', (ws, req) => {
           break;
         }
 
+        case 'ADD_BUTTON': {
+          const page = getCurrentPage();
+          const newId = page.buttons.length > 0 ? Math.max(...page.buttons.map(b => b.id)) + 1 : 0;
+          const newButton = {
+            id: newId,
+            label: data.button?.label || `KEY ${newId + 1}`,
+            sublabel: data.button?.sublabel || 'SHORTCUT',
+            icon: data.button?.icon || '⚡',
+            color: data.button?.color || '#1c69d4',
+            actionType: data.button?.actionType || 'shell',
+            command: data.button?.command || ''
+          };
+          page.buttons.push(newButton);
+          saveConfig();
+          broadcastState();
+          break;
+        }
+
+        case 'DELETE_BUTTON': {
+          const page = getCurrentPage();
+          const idx = page.buttons.findIndex(b => b.id === data.buttonId);
+          if (idx !== -1) {
+            page.buttons.splice(idx, 1);
+            saveConfig();
+            broadcastState();
+          }
+          break;
+        }
+
+        case 'SET_BUTTONS_COUNT': {
+          const page = getCurrentPage();
+          const targetCount = Math.max(1, Math.min(24, parseInt(data.count, 10) || 9));
+          const currentCount = page.buttons.length;
+          if (targetCount > currentCount) {
+            const defaultColors = ['#0066b1', '#1c69d4', '#e22718', '#2b2b2b'];
+            for (let i = currentCount; i < targetCount; i++) {
+              const newId = page.buttons.length > 0 ? Math.max(...page.buttons.map(b => b.id)) + 1 : 0;
+              page.buttons.push({
+                id: newId,
+                label: `KEY ${newId + 1}`,
+                sublabel: 'EMPTY',
+                icon: '◻️',
+                color: defaultColors[i % defaultColors.length],
+                actionType: 'shell',
+                command: ''
+              });
+            }
+          } else if (targetCount < currentCount) {
+            page.buttons = page.buttons.slice(0, targetCount);
+          }
+          saveConfig();
+          broadcastState();
+          break;
+        }
+
         case 'PING': {
           ws.send(JSON.stringify({ type: 'PONG' }));
           break;
