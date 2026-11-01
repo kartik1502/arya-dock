@@ -1,19 +1,19 @@
 {
   "name": "arya-dock",
   "version": "1.0.0",
-  "description": "Virtual Virtual Keypad Console Web Application & Controller",
+  "description": "Virtual Macro Keypad & Stream Deck Companion Console",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js"
   },
   "keywords": [
-    "virtual-keypad",
-    "mx-keypad",
     "stream-dock",
-    "hid",
-    "macro-pad",
-    "reverse-engineering"
+    "macro-keypad",
+    "cockpit",
+    "touch-deck",
+    "motorsport-cockpit",
+    "streamdeck-alternative"
   ],
   "author": "Karthik Kulkarni",
   "license": "MIT",

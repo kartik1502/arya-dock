@@ -1,100 +1,174 @@
-# 🎛️ Arya Dock — Virtual Virtual Keypad Console
+# 🏁 /// M ARYA DOCK — Virtual Macro Keypad & Stream Controller
 
-> A high-performance web application and companion controller that emulates the **Virtual Keypad Console** on your phone, tablet, or browser over **USB Cable** or **Bluetooth / Wi-Fi**, eliminating the need for a physical hardware device.
-
----
-
-## 🔍 1. Virtual Keypad Console Reverse Engineering Overview
-
-The physical **Virtual Keypad Console** (`046d:c354`) uses Virtual's **HID++ 4.5** protocol over USB HID.
-
-### Hardware Specifications & Geometry
-* **Vendor ID (VID):** `0x046d` (Virtual Inc.)
-* **Product ID (PID):** `0xc354` (Wired Keypad) / `0xbc00` (Dialpad over BLE)
-* **Display Configuration:** Single 480×480 px LCD panel behind 9 optical button caps.
-* **Per-Button Resolution:** 118×118 px active viewport with 40 px padding.
-* **Paging Controls:** 2 physical navigation buttons below the LCD matrix (`page-l` = `0x01a1`, `page-r` = `0x01a2`).
-
-### HID++ 4.5 Packet Architecture
-* **Report ID `0x11` (Feature Configuration & Diversion):** 20-byte HID++ Long Report. Diverts page buttons (`0x01a1`, `0x01a2`) to software reporting via feature index `0x0b`.
-* **Report ID `0x13` (Key Input State):** Pushed by device on key down/up events (`[0xff, 0x02, 0x00, 0x00, 0x01, key1, key2, ...]`). Key indices `1` to `9` map to the 3×3 matrix.
-* **Report ID `0x14` (LCD Image Streaming):** Host streams JPEG chunks in 4095-byte packets directly to device coordinates with ACK handshakes (`0x2b`).
-
-For complete protocol packet bytes, offsets, and technical specs, see:
-📄 [`docs/virtual-keypad-mx-keypad-protocol.md`](docs/virtual-keypad-mx-keypad-protocol.md)
+> A high-performance, Motorsport Motorsport-themed digital macro keypad and companion cockpit that transforms your phone, tablet, or secondary display into a tactile, programmable hardware-free stream deck.
 
 ---
 
-## ⚡ 2. How Mobile Communication Works (Cable vs Bluetooth)
+## 🏎️ What is Arya Dock?
 
-Browsers cannot natively act as Bluetooth HID peripherals (W3C Web Bluetooth is GATT Client only). Arya Dock solves this with a **zero-latency dual-transport architecture**:
+**Arya Dock** is a web-based, low-latency companion deck that eliminates the need for expensive physical macro keypads or hardware consoles. It runs as a local web service on your PC and streams an interactive, responsive control deck to any connected device (mobile browser, tablet, or desktop window).
 
+Whether you are writing code, monitoring cloud infrastructure, compiling microservices, running tests, or streaming media, Arya Dock gives you instant, one-touch physical command over your workstation directly from your desk phone stand.
+
+---
+
+## 🎨 Design Philosophy & UI Architecture
+
+Arya Dock is built from the ground up using the **Motorsport Motorsport Design System** (`DESIGN.md`), reflecting precision engineering, dark cockpit aesthetics, and motorsport ergonomics:
+
+* **Pure Pitch Black Canvas (`#000000`):** Designed for OLED mobile screens to achieve infinite contrast, zero backlight bleed, and minimal battery consumption.
+* **Iconic /// M Tricolor Accents:**
+  - **Light Blue (`#0066b1`):** Precision telemetry, focus indicators, and active mode highlights.
+  - **Dark Blue (`#1c69d4`):** Secondary controls, action keys, and terminal execution badges.
+  - **M Red (`#e22718`):** Danger actions, deletion buttons, and high-impact execution alerts.
+* **Fluid Dynamic Bezel & Container Queries:**
+  - Uses CSS Container Queries (`container-type: inline-size`) and viewport math to adaptively resize keycap tiles from **1 up to 24 buttons**.
+  - Dynamic aspect ratio reflow automatically computes the best column/row matrix (e.g. 1 tile, 4 tiles = 2×2, 6 tiles = 3×2, 9 tiles = 3×3, 12 tiles = 4×3, 16 tiles = 4×4) for both portrait and landscape screen orientations.
+  - Zero text clipping: Labels scale dynamically with CSS `clamp(...)` to prevent awkward word chopping.
+* **Cockpit Ergonomics & Steering Shift Paddles:**
+  - Dual steering shift paddles at the bottom of the bezel (`PAGE PREV` / `PAGE NEXT`) for rapid multi-page navigation.
+  - M Drive Mode switches (`M1 Dev Cockpit` and `M2 Media & Telemetry`).
+
+---
+
+## 💻 Languages & Tech Stack
+
+Arya Dock avoids bloated frontend frameworks, ensuring maximum performance, near-zero latency, and instant touch response:
+
+| Layer | Technologies & Tools | Purpose |
+| :--- | :--- | :--- |
+| **Backend** | **JavaScript / Node.js** (v18+) | Lightweight HTTP & WebSocket server, FreeDesktop parser, command dispatcher |
+| **Real-time Protocol** | **Native WebSockets (`ws`)** | Sub-millisecond bidirectional communication, button state sync, and heartbeats |
+| **Frontend Runtime**| **Vanilla JavaScript (ES2022+)** | Zero-framework client runtime for instant DOM rendering and minimal battery drain |
+| **Styling & Layout** | **Modern CSS3 (Container Queries, Grid, Flexbox)** | `@container` responsive scaling, CSS custom properties, smooth hardware transitions |
+| **OS & Shell Integration** | **Zsh & Bash (`/usr/bin/zsh`, `/bin/bash`)** | Interactive login shell execution (`-i -l`), expanding user aliases (`lzd`, `vus`, `spr`) |
+| **Desktop Terminals** | **Ptyxis, GNOME Terminal, Konsole, Alacritty** | Multi-terminal emulator support with tab/window dispatching |
+| **Mobile Web APIs** | **Vibration API, Screen Wake Lock, Fullscreen API** | Physical haptic feedback on touch, continuous display wakefulness, borderless HUD |
+| **PWA & Offline** | **Service Worker (`sw.js`) & Manifest** | Cache-busting updates, Add to Home Screen standalone installation |
+
+---
+
+## ⚡ Connection Modes
+
+```text
+ 📱 Phone / Tablet (PWA or Browser)
+       │
+       ├── [OPTION A: USB Cable] ────────► Sub-millisecond latency via USB Tethering
+       │                                         │
+       └── [OPTION B: Wi-Fi / Bluetooth] ────────► Instant LAN connection via QR Code
+                                                 │
+                                                 ▼
+                                    🖥️ Workstation (server.js :3333)
+                                        ├─ FreeDesktop App Parser (/usr/share/applications)
+                                        ├─ Terminal Dispatcher (Ptyxis / GNOME / Konsole)
+                                        ├─ Interactive Shell Bridge (Zsh / Bash)
+                                        └─ Project Working Directory Auto-Resolver
 ```
- 📱 Mobile Device (Web App / PWA)
-      │
-      ├── [OPTION A: USB Cable] ──────► ADB Reverse / USB Tethering (1-2ms ping)
-      │                                       │
-      └── [OPTION B: Bluetooth / Wi-Fi] ─────► Bluetooth PAN / Local Network
-                                              │
-                                              ▼
-                                 🖥️ Host PC (server.js)
-                                     ├─ WebSocket Bridge (:3333)
-                                     ├─ Action Dispatcher (Shell / Media / Apps)
-                                     └─ System Automation (Linux/Mac/Win)
-```
+
+### Option A: USB Cable (Recommended for Lowest Latency)
+1. Connect your phone to your PC using a USB cable.
+2. Turn on **USB Tethering** in your phone's network settings.
+3. The server terminal detects the USB interface and prints the USB link (e.g. `http://10.91.187.251:3333`).
+4. Open the URL in your phone browser for instant, jitter-free physical response.
+
+### Option B: Wi-Fi / Bluetooth LAN
+1. Ensure your phone and PC are connected to the same Wi-Fi or Bluetooth PAN.
+2. Scan the **QR Code** generated in your terminal at server startup.
 
 ---
 
-## 🚀 3. Quick Start
+## 🚀 Getting Started
 
-### 1. Install & Run
+### 1. Installation
 ```bash
-git clone https://github.com/karthikulkarni/arya-dock.git
+# Clone the repository
+git clone https://github.com/kartik1502/arya-dock.git
 cd arya-dock
+
+# Install dependencies
 npm install
+
+# Start the service
 npm start
 ```
 
-### 2. Connect Your Mobile Device
+### 2. Startup Banner Output
+```text
+========================================================
+         🚀 ARYA DOCK — VIRTUAL KEYPAD CONSOLE          
+========================================================
 
-#### Option A: Via USB Cable (Recommended for lowest latency)
-1. Plug your phone into your PC with a USB cable.
-2. Enable USB Debugging on your phone, then run in terminal:
-   ```bash
-   adb reverse tcp:3333 tcp:3333
-   ```
-3. Open Chrome or Safari on your phone and go to:
-   ```
-   http://localhost:3333
-   ```
-*(Alternative: Enable **USB Tethering** in phone network settings, and open your PC's IP)*.
-
-#### Option B: Via Bluetooth PAN / Wi-Fi
-1. Ensure your phone and PC are on the same Wi-Fi, hotspot, or paired via **Bluetooth Tethering (PAN)**.
-2. The terminal prints a **QR Code** on startup — simply point your phone camera at it to open instantly!
+  🖥️  PC Web App:            http://localhost:3333
+  🐚  System Shell:          /usr/bin/zsh (zsh)
+  ⚡  Terminal Emulator:     /usr/bin/ptyxis (ptyxis)
+  🔌  USB Cable Tethering:   http://10.91.187.251:3333
+  📱  Wi-Fi (wlo1):          http://192.168.1.24:3333
+```
 
 ---
 
-## 📱 4. Mobile Hardware Experience (PWA)
+## 🎛️ How to Use & Configure
 
-* **Add to Home Screen:** Tap "Add to Home Screen" in your mobile browser to run Arya Dock in standalone fullscreen mode without browser URL bars.
-* **Mechanical Haptics:** Simulates physical tactile button travel using the Vibration API (`18ms` micro-pulse on touch).
-* **Screen Wake Lock:** Tap the eye icon (👁️) to keep your phone display permanently awake while docked on your desk.
-* **Live Customizer:** Tap the pencil icon (✏️) to customize button icons, labels, accent colors, and shell commands directly from your phone.
+### 1. Navigation & Modes
+* **M1 (Dev Cockpit):** Development workflows, AI coding agents, Docker, test runners, and text editors.
+* **M2 (Media & Telemetry):** Volume up/down, mute, audio playback controls, screenshot, and workstation lock.
+* **Shift Paddles:** Tap **`◀ PREV PAGE`** or **`NEXT PAGE ▶`** at the bottom of the bezel to switch pages.
+
+### 2. Dynamic Tile Count (+ / −)
+* Use the **`+`** and **`−`** buttons in the header to add or remove shortcuts.
+* The grid dynamically computes the optimal columns and rows for any number of keys (1 to 24).
+
+### 3. Drag & Drop Application Catalog
+1. Click **`📦 APPS CATALOG`** to open the side drawer.
+2. Browse or search through your installed system applications.
+3. **Desktop:** Drag any application card directly onto any key!
+4. **Mobile (Touch):** Tap any application card to open the quick-assign popup, then tap the target keycap.
+
+### 4. Customizing Keys & Execution Modes
+1. Click **`/// EDIT TILES`** in the header to enter edit mode.
+2. Tap the keycap you want to edit to open the configuration dialog:
+   * **Label & Icon:** Customize emoji icon and primary label.
+   * **Accent Color:** Choose from Motorsport Light Blue, Dark Blue, Red, or Graphite.
+   * **Action Type:** Shell script (`shell`) or Web URL (`url`).
+   * **Terminal Mode:**
+     - ⚡ **New Tab in Terminal:** Opens in an existing terminal as a new tab (`ptyxis --tab`, `gnome-terminal --tab`, etc.).
+     - 🪟 **New Terminal Window:** Spawns an independent standalone terminal window.
+     - 🔄 **Existing Terminal:** Runs directly in the active terminal session.
+     - 🤫 **Background / Silent:** Runs in the background without opening any GUI window.
+   * **Project Directory:**
+     - Type any folder path with tilde expansion: `~/Documents/my-project`.
+     - Or tap any of the **one-click directory chips** (e.g. `📁 Arya Banking Infra`, `📁 Home (~)`, `📁 Arya Dock`) located directly beneath the input field!
+   * **Stay Open After Exit:** Keeps your interactive shell open after the command exits so you can continue working.
+3. Tap **`SAVE CONFIGURATION`**.
+
+### 5. Shell Aliases & Environment Support
+Arya Dock automatically executes terminal commands inside your system's default shell (`/usr/bin/zsh` or `/bin/bash`) using interactive login mode (`-i -l`).
+* All aliases configured in your `~/.zshrc` (such as `lzd` for `lazydocker`, `spr` for `mvn spring-boot:run`, `vus` for `make vault-unseal-linux`) work out-of-the-box.
+* Includes Powerlevel10k (`POWERLEVEL9K_INSTANT_PROMPT=quiet`) and Oh My Zsh lock mitigations to guarantee error-free terminal startup.
 
 ---
 
-## 🛠️ 5. Default Profiles
+## 📁 Repository Structure
 
-Arya Dock ships with pre-configured multi-page profiles in [`config/profiles.json`](config/profiles.json):
-
-1. **Developer & AI Workflows:**
-   - Page 1: AI Agent Runner, Terminal, Git Status, Test Suite, Prettier Formatter, Git Push, VS Code, Build, Docker status.
-   - Page 2: Kubernetes Pods, Server Logs (`journalctl`), API Reload, Localhost 3000/8080, Postman, Cache Cleaner, Top CPU stats.
-2. **Media & System Control:**
-   - Audio Mute / Unmute (`wpctl` / `pactl`), Volume Up/Down, Play/Pause/Track Navigation (`playerctl`), Mic Mute, Screenshot capture, PC Session Lock.
+```text
+arya-dock/
+├── config/
+│   └── profiles.json       # Persisted multi-page layout configurations & shortcuts
+├── docs/
+│   └── protocol-specs.md   # Low-level protocol and hardware architecture reference
+├── public/
+│   ├── index.html          # Motorsport cockpit interface, modal dialogs, and drawer
+│   ├── style.css           # Pitch black design system, container queries, and themes
+│   ├── app.js              # Client controller, WebSocket heartbeat, dynamic grid reflow
+│   ├── sw.js               # Service Worker with automatic cache-busting
+│   ├── manifest.json       # Progressive Web App (PWA) manifest
+│   └── icon.svg            # /// M branded application icon
+├── DESIGN.md               # Motorsport Motorsport design tokens and guidelines
+├── server.js               # Node.js backend: FreeDesktop parser, terminal dispatcher, WebSockets
+└── package.json            # Project manifest and minimal dependencies
+```
 
 ---
 
 ## 📄 License
-MIT
+MIT License. Created by [Karthik Kulkarni](https://github.com/kartik1502).

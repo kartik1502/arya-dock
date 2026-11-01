@@ -1,16 +1,16 @@
-# Reverse Engineering the Virtual Keypad Console
+# Hardware Keypad Protocol & Architecture Specifications
 **Protocol, HID Reports, Transport Layer & Software Emulation Guide**
 
 ---
 
 ## 1. Device Architecture & Hardware Identifiers
 
-The **Virtual Keypad Console** is part of the Virtual Creative Console family. Unlike traditional macro pads or numeric keypads, it features an active color LCD panel mapped behind 9 translucent physical push-buttons, plus 2 dedicated paging buttons below the LCD matrix.
+This specification documents the physical and protocol architecture of hardware LCD macro consoles. Unlike traditional numeric keypads, this hardware category features an active color LCD panel mapped behind 9 translucent physical push-buttons, plus 2 dedicated paging buttons below the LCD matrix.
 
-### Hardware Identification
-* **Vendor ID (VID):** `0x046d` (Vendor Hardware)
-* **Product ID (PID):** `0xc354` (MX Creative Keypad — USB-C Wired)
-* **Dialpad PID:** `0xbc00` (MX Creative Dialpad — Bluetooth Low Energy HID++)
+### Hardware Identification Reference
+* **Target VID:** `0x046d`
+* **Target Wired PID:** `0xc354` (USB-C Wired)
+* **Target Wireless PID:** `0xbc00` (Bluetooth Low Energy)
 * **USB Interface Class:** USB Human Interface Device (HID)
 * **Transport:** USB Full Speed / High Speed vendor-defined HID interface
 

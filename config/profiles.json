@@ -20,15 +20,15 @@
             },
             {
               "id": 1,
-              "label": "VAULT UNSEAL",
+              "label": "LAZY DOCKER",
               "sublabel": "NEW TAB",
               "icon": "⚡",
               "color": "#10b981",
               "actionType": "shell",
-              "command": "vus",
+              "command": "lzd",
               "terminalMode": "tab",
               "keepOpen": true,
-              "workingDir": "",
+              "workingDir": "~/Documents/Event-Based-Banking-Application/arya-banking-infra",
               "url": ""
             },
             {
@@ -72,6 +72,19 @@
               "command": "vus",
               "terminalMode": "tab",
               "workingDir": "~/Documents/Event-Based-Banking-Application/arya-banking-infra",
+              "keepOpen": true,
+              "url": ""
+            },
+            {
+              "id": 6,
+              "label": "AUTH SERVICE",
+              "sublabel": "SHORTCUT",
+              "icon": "⚡",
+              "color": "#1c69d4",
+              "actionType": "shell",
+              "command": "spr",
+              "terminalMode": "tab",
+              "workingDir": "~/Documents/Event-Based-Banking-Application/arya-banking-auth-service",
               "keepOpen": true,
               "url": ""
             }

@@ -641,7 +641,7 @@ server.listen(PORT, '0.0.0.0', () => {
   const qrUrl = qrTarget ? `http://${qrTarget.address}:${PORT}` : `http://localhost:${PORT}`;
 
   console.log('\n========================================================');
-  console.log('            🚀 ARYA DOCK - VIRTUAL KEYPAD CONSOLE           ');
+  console.log('         🚀 ARYA DOCK — VIRTUAL KEYPAD CONSOLE          ');
   console.log('========================================================\n');
   console.log(`  🖥️  PC Web App:            http://localhost:${PORT}`);
   
