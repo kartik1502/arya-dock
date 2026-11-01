@@ -3,10 +3,22 @@
   "version": "1.0.0",
   "description": "Virtual Macro Keypad & Cockpit Companion Console",
   "main": "server.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kartik1502/arya-dock.git"
+  },
+  "homepage": "https://github.com/kartik1502/arya-dock#readme",
+  "bugs": {
+    "url": "https://github.com/kartik1502/arya-dock/issues"
+  },
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "lint": "node --check server.js lib/*.js public/*.js test/*.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "keywords": [
     "virtual-dock",

@@ -1,5 +1,10 @@
 # 🏁 ARYA DOCK — Virtual Macro Keypad & Cockpit Controller
 
+[![CI](https://github.com/kartik1502/arya-dock/actions/workflows/ci.yml/badge.svg)](https://github.com/kartik1502/arya-dock/actions/workflows/ci.yml)
+[![Security Scan](https://github.com/kartik1502/arya-dock/actions/workflows/security.yml/badge.svg)](https://github.com/kartik1502/arya-dock/actions/workflows/security.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+
 > A responsive, dark-cockpit digital macro keypad and companion deck that transforms your phone, tablet, or secondary display into a tactile, programmable hardware-free control deck.
 
 ---
@@ -242,6 +247,14 @@ Arya Dock operates as a shared physical workstation deck. All connected client d
 
 ```text
 arya-dock/
+├── .github/
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── bug_report.yml    # GitHub issue form for bug reports
+│   │   └── feature_request.yml # GitHub issue form for feature requests
+│   ├── workflows/
+│   │   ├── ci.yml            # Multi-version Node matrix test CI workflow
+│   │   └── security.yml      # CodeQL static analysis and security audit
+│   └── pull_request_template.md # Clean PR checklist template
 ├── config/
 │   ├── profiles.example.json # Version-controlled clean default configurations & shortcuts
 │   ├── profiles.json         # Gitignored local profile configuration (atomic saves)
@@ -251,6 +264,8 @@ arya-dock/
 │   ├── config.js             # Atomic config persistence, schema validation, path resolution
 │   ├── terminal.js           # Cached shell/terminal detection and safe command dispatch
 │   ├── apps.js               # FreeDesktop .desktop app parser and project directories
+│   ├── http.js               # Static file serving, security headers, path traversal guard
+│   ├── ws.js                 # WebSocket connection handling, heartbeat, client sync
 │   └── network.js            # Network interface discovery (USB tethering, Wi-Fi, LAN)
 ├── docs/
 │   └── protocol-specs.md     # Reference protocol and hardware architecture guide
@@ -267,11 +282,29 @@ arya-dock/
 │   ├── terminal.test.js      # Unit tests for command quoting and terminal builder
 │   ├── http.test.js          # Tests for path traversal, malformed URLs, and security headers
 │   └── integration.test.js   # End-to-end integration tests for WebSocket auth and mutations
+├── CODE_OF_CONDUCT.md        # Contributor Covenant Code of Conduct
+├── CONTRIBUTING.md           # Contribution, development setup, and testing guidelines
+├── LICENSE                   # Standard MIT License
+├── SECURITY.md               # Security policy and vulnerability reporting
 ├── server.js                 # Modular server entry point
-└── package.json              # Project manifest and test runner
+└── package.json              # Project manifest, dependencies, and scripts
 ```
 
 ---
 
+## 🤝 Contributing
+
+Contributions, bug reports, and enhancements are warmly welcomed! Please read our [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) before submitting pull requests or proposing major architectural changes.
+
+---
+
+## 🛡️ Security
+
+To report security vulnerabilities responsibly, please consult our [Security Policy](SECURITY.md).
+
+---
+
 ## 📄 License
-MIT License. Created by [Karthik Kulkarni](https://github.com/kartik1502).
+
+This project is open-source under the [MIT License](LICENSE). Created by [Karthik Kulkarni](https://github.com/kartik1502).
+
