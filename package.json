@@ -15,7 +15,7 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "test": "node --test",
-    "lint": "node --check server.js lib/*.js public/*.js test/*.js"
+    "lint": "node scripts/lint.js"
   },
   "engines": {
     "node": ">=18.0.0"

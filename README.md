@@ -276,12 +276,15 @@ arya-dock/
 │   ├── sw.js                 # Service Worker with offline PWA caching
 │   ├── manifest.json         # Progressive Web App (PWA) manifest
 │   └── icon.svg              # Cockpit application icon
+├── scripts/
+│   └── lint.js               # Cross-platform syntax validation across all JS files
 ├── test/
 │   ├── auth.test.js          # Unit tests for security, constant-time compare, Origin checks
 │   ├── config.test.js        # Unit tests for config validation and schema enforcement
-│   ├── terminal.test.js      # Unit tests for command quoting and terminal builder
 │   ├── http.test.js          # Tests for path traversal, malformed URLs, and security headers
-│   └── integration.test.js   # End-to-end integration tests for WebSocket auth and mutations
+│   ├── integration.test.js   # End-to-end integration tests for WebSocket auth and mutations
+│   ├── lint.test.js          # Unit tests for linter syntax error detection
+│   └── terminal.test.js      # Unit tests for command quoting and terminal builder
 ├── CODE_OF_CONDUCT.md        # Contributor Covenant Code of Conduct
 ├── CONTRIBUTING.md           # Contribution, development setup, and testing guidelines
 ├── LICENSE                   # Standard MIT License

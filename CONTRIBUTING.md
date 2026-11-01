@@ -69,8 +69,11 @@ arya-dock/
 │   ├── auth.test.js       # Auth, Origin, role escalation tests
 │   ├── config.test.js     # Config schema validation, atomic write tests
 │   ├── http.test.js       # Path traversal, headers, directory endpoint tests
-│   ├── terminal.test.js   # Shell escaping, terminal builder, spawn error tests
-│   └── integration.test.js# End-to-end WebSocket auth and mutation tests
+│   ├── integration.test.js# End-to-end WebSocket auth and mutation tests
+│   ├── lint.test.js       # Syntax check and lint validation tests
+│   └── terminal.test.js   # Shell escaping, terminal builder, spawn error tests
+├── scripts/
+│   └── lint.js            # Cross-platform syntax validation across all JS files
 └── config/
     └── profiles.example.json # Default template configuration
 ```
