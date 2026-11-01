@@ -97,12 +97,13 @@
           "buttons": [
             {
               "id": 0,
-              "label": "K8s Pods",
+              "label": "Open Youtube",
               "sublabel": "Cluster Info",
               "icon": "☸️",
               "color": "#326ce5",
-              "actionType": "shell",
-              "command": "kubectl get pods 2>/dev/null | head -n 5 | xargs -0 -I {} notify-send 'K8s Pods' '{}'"
+              "actionType": "url",
+              "command": "kubectl get pods 2>/dev/null | head -n 5 | xargs -0 -I {} notify-send 'K8s Pods' '{}'",
+              "url": "https://m.youtube.com/"
             },
             {
               "id": 1,

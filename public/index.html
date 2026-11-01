@@ -3,122 +3,239 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>Arya Dock - Virtual Keypad Console</title>
+  <title>/// M ARYA DOCK — Virtual Keypad Console</title>
   <link rel="stylesheet" href="style.css">
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#0b0f19">
+  <meta name="theme-color" content="#000000">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
 </head>
 <body>
-  <div class="app-container">
-    <!-- Top Header Bar -->
-    <header class="header-bar">
-      <div class="brand">
-        <div class="brand-title">ARYA DOCK</div>
-        <div class="brand-sub">MX KEYPAD <span>(046D:C354)</span></div>
-      </div>
-      
-      <div class="profile-select-wrapper">
-        <select id="profileSelect" title="Select Profile">
-          <option value="developer">Developer & AI</option>
-          <option value="media">Media & Audio</option>
-        </select>
+  <div class="m-app-container">
+    <!-- Top Cockpit Header -->
+    <header class="m-header">
+      <div class="m-brand-lockup">
+        <!-- Iconic Motorsport Tricolor Signature -->
+        <div class="m-tricolor-stripe" aria-hidden="true">
+          <span class="m-stripe-blue-light"></span>
+          <span class="m-stripe-blue-dark"></span>
+          <span class="m-stripe-red"></span>
+        </div>
+        <div class="m-brand-text">
+          <div class="m-headline">/// M ARYA DOCK</div>
+          <div class="m-subline">VIRTUAL KEYPAD CONSOLE <span class="m-telemetry">046D:C354</span></div>
+        </div>
       </div>
 
-      <div class="header-actions">
-        <button id="btnEdit" class="icon-btn" title="Edit Keys">✏️</button>
-        <button id="btnWakeLock" class="icon-btn" title="Keep Screen Awake">👁️</button>
-        <button id="btnFullscreen" class="icon-btn" title="Fullscreen Mode">⛶</button>
-        <div id="connectionStatus" class="status-badge disconnected" title="Connection Status">
-          <span class="status-dot"></span>
-          <span class="status-text">Connecting</span>
+      <!-- M Drive Mode Selector -->
+      <div class="m-mode-selector">
+        <button id="btnModeM1" class="m-mode-btn active" data-profile="developer">
+          <span class="m-mode-label">M1</span>
+          <span class="m-mode-sub">DEV COCKPIT</span>
+        </button>
+        <button id="btnModeM2" class="m-mode-btn" data-profile="media">
+          <span class="m-mode-label">M2</span>
+          <span class="m-mode-sub">MEDIA & TELEMETRY</span>
+        </button>
+      </div>
+
+      <!-- Header Controls -->
+      <div class="m-header-tools">
+        <button id="btnOpenDrawer" class="m-tool-btn m-tool-highlight" title="Open App Catalog & Presets">
+          <span class="m-tool-icon">⚡</span>
+          <span class="m-tool-text">APPS</span>
+        </button>
+        <button id="btnEdit" class="m-tool-btn" title="Toggle Edit Mode">
+          <span class="m-tool-icon">✏️</span>
+        </button>
+        <button id="btnWakeLock" class="m-tool-btn" title="Screen Wake Lock">
+          <span class="m-tool-icon">👁️</span>
+        </button>
+        <button id="btnFullscreen" class="m-tool-btn" title="Fullscreen">
+          <span class="m-tool-icon">⛶</span>
+        </button>
+        <div id="connectionStatus" class="m-status-pill disconnected" title="Connection Status">
+          <span class="m-status-dot"></span>
+          <span class="m-status-text">DISCONNECTED</span>
         </div>
       </div>
     </header>
 
-    <!-- Main Keypad Chassis -->
-    <main class="console-body">
-      <!-- 480x480 Virtual LCD Panel -->
-      <div class="lcd-frame">
-        <div class="lcd-grid" id="keypadGrid">
-          <!-- 9 Keys (3x3) Generated dynamically -->
+    <!-- M Tricolor Divider -->
+    <div class="m-divider-bar">
+      <div class="m-stripe-blue-light"></div>
+      <div class="m-stripe-blue-dark"></div>
+      <div class="m-stripe-red"></div>
+    </div>
+
+    <!-- Drag & Drop Instruction Banner -->
+    <div class="m-drag-banner" id="dragBanner">
+      <span class="m-banner-tag">DRAG & DROP</span>
+      <span class="m-banner-msg">Drag any installed app or preset directly onto a key to assign it</span>
+      <button id="btnBannerOpenApps" class="m-banner-action">BROWSE APPS</button>
+    </div>
+
+    <!-- Main Keypad Cockpit -->
+    <main class="m-cockpit-frame">
+      <div class="m-keypad-bezel">
+        <div class="m-keypad-grid" id="keypadGrid">
+          <!-- 9 Cockpit Keys (3x3) Generated dynamically -->
         </div>
       </div>
 
-      <!-- Bottom Paging & Info Bar -->
-      <div class="bottom-bar">
-        <button id="btnPagePrev" class="page-button" title="Previous Page (HID 0x01a1)">
-          <svg viewBox="0 0 24 24" width="24" height="24">
-            <path fill="currentColor" d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
-          </svg>
+      <!-- Bottom Steering Paddle Controls -->
+      <div class="m-paddle-console">
+        <button id="btnPagePrev" class="m-paddle-btn" title="Previous Page (HID 0x01a1)">
+          <span class="m-paddle-symbol">◀</span>
+          <span class="m-paddle-text">PAGE UP</span>
         </button>
 
-        <div class="page-indicator">
-          <div class="page-numbers" id="pageLabel">PAGE 1 / 1</div>
-          <div class="page-name" id="pageName">AI & Core Tools</div>
+        <div class="m-telemetry-cluster">
+          <div class="m-page-counter" id="pageLabel">PAGE 01 / 02</div>
+          <div class="m-page-topic" id="pageName">AI & CORE TELEMETRY</div>
         </div>
 
-        <button id="btnPageNext" class="page-button" title="Next Page (HID 0x01a2)">
-          <svg viewBox="0 0 24 24" width="24" height="24">
-            <path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
-          </svg>
+        <button id="btnPageNext" class="m-paddle-btn" title="Next Page (HID 0x01a2)">
+          <span class="m-paddle-text">PAGE DOWN</span>
+          <span class="m-paddle-symbol">▶</span>
         </button>
       </div>
     </main>
 
-    <!-- Connection Info Banner -->
-    <footer class="footer-info">
-      <span id="transportMode">Mode: Detecting (Cable / Wi-Fi)</span>
-      <span class="sep">•</span>
-      <span id="hapticFeedbackLabel">Haptics: Active</span>
+    <!-- Cockpit Footer Telemetry -->
+    <footer class="m-footer">
+      <div class="m-footer-item">
+        <span class="m-footer-label">INTERFACE</span>
+        <span class="m-footer-val" id="transportMode">DETECTING...</span>
+      </div>
+      <div class="m-footer-sep">|</div>
+      <div class="m-footer-item">
+        <span class="m-footer-label">TACTILE</span>
+        <span class="m-footer-val" id="hapticFeedbackLabel">HAPTICS ACTIVE</span>
+      </div>
+      <div class="m-footer-sep">|</div>
+      <div class="m-footer-item">
+        <span class="m-footer-label">ENGINEERING</span>
+        <span class="m-footer-val">Motorsport INSPIRED</span>
+      </div>
     </footer>
   </div>
 
-  <!-- Key Edit Modal -->
-  <div id="editModal" class="modal-backdrop hidden">
-    <div class="modal-card">
-      <div class="modal-header">
-        <h3 id="modalTitle">Edit Button #0</h3>
-        <button id="btnModalClose" class="close-btn">&times;</button>
+  <!-- SLIDE-OUT APP CATALOG & LAUNCHPAD DRAWER -->
+  <aside id="appDrawer" class="m-drawer hidden">
+    <div class="m-drawer-header">
+      <div class="m-drawer-title-group">
+        <div class="m-tricolor-mini">
+          <span></span><span></span><span></span>
+        </div>
+        <h2 class="m-drawer-title">INSTALLED APPS & PRESETS</h2>
       </div>
-      <div class="modal-body">
-        <div class="form-group">
-          <label for="editIcon">Icon (Emoji or SVG text):</label>
-          <input type="text" id="editIcon" maxlength="4" placeholder="🤖">
+      <button id="btnDrawerClose" class="m-drawer-close-btn">&times;</button>
+    </div>
+
+    <div class="m-drawer-body">
+      <!-- Search & Filters -->
+      <div class="m-search-box">
+        <input type="text" id="appSearchInput" placeholder="SEARCH 45+ INSTALLED SYSTEM APPS..." autocomplete="off">
+        <button id="btnClearSearch" class="m-clear-btn">&times;</button>
+      </div>
+
+      <div class="m-category-tabs" id="categoryTabs">
+        <button class="m-tab active" data-cat="all">ALL</button>
+        <button class="m-tab" data-cat="presets">★ PRESETS</button>
+        <button class="m-tab" data-cat="Development">DEV</button>
+        <button class="m-tab" data-cat="Network">WEB</button>
+        <button class="m-tab" data-cat="AudioVideo">MEDIA</button>
+        <button class="m-tab" data-cat="System">SYSTEM</button>
+      </div>
+
+      <!-- App & Preset Grid (Draggable) -->
+      <div class="m-apps-list" id="appsList">
+        <div class="m-loading-apps">LOADING SYSTEM APPLICATIONS...</div>
+      </div>
+    </div>
+
+    <div class="m-drawer-footer">
+      <span class="m-drawer-hint">💡 <strong>DRAG</strong> any card onto a Key, or <strong>TAP</strong> to assign</span>
+    </div>
+  </aside>
+
+  <!-- QUICK KEY ASSIGN POPUP (FOR TOUCH USERS) -->
+  <div id="assignPopup" class="m-popup-backdrop hidden">
+    <div class="m-popup-card">
+      <div class="m-popup-header">
+        <h4 id="popupAppTitle">Assign App</h4>
+        <button id="btnPopupClose" class="m-popup-close">&times;</button>
+      </div>
+      <p class="m-popup-sub">Select target key in the 3×3 matrix:</p>
+      <div class="m-key-target-grid" id="popupTargetGrid">
+        <!-- 9 Key Target Buttons (Key 1 to 9) -->
+      </div>
+    </div>
+  </div>
+
+  <!-- KEY EDIT MODAL -->
+  <div id="editModal" class="m-modal-backdrop hidden">
+    <div class="m-modal-card">
+      <div class="m-modal-header">
+        <div class="m-modal-title-wrap">
+          <div class="m-tricolor-mini"><span></span><span></span><span></span></div>
+          <h3 id="modalTitle">CONFIGURE KEY 01</h3>
         </div>
-        <div class="form-group">
-          <label for="editLabel">Primary Label:</label>
-          <input type="text" id="editLabel" maxlength="14" placeholder="AI Agent">
+        <button id="btnModalClose" class="m-modal-close-btn">&times;</button>
+      </div>
+
+      <div class="m-modal-body">
+        <!-- Quick App Picker Action -->
+        <button id="btnPickFromApps" class="m-quick-pick-btn">
+          <span>⚡ CHOOSE FROM INSTALLED APPS (45+)</span>
+        </button>
+
+        <div class="m-field-row">
+          <div class="m-field-group m-field-short">
+            <label for="editIcon">ICON</label>
+            <input type="text" id="editIcon" maxlength="4" placeholder="🤖">
+          </div>
+          <div class="m-field-group">
+            <label for="editLabel">PRIMARY LABEL (UPPERCASE)</label>
+            <input type="text" id="editLabel" maxlength="14" placeholder="AI AGENT">
+          </div>
         </div>
-        <div class="form-group">
-          <label for="editSublabel">Sublabel:</label>
-          <input type="text" id="editSublabel" maxlength="16" placeholder="Run Agent">
+
+        <div class="m-field-row">
+          <div class="m-field-group">
+            <label for="editSublabel">SUBLABEL / TELEMETRY</label>
+            <input type="text" id="editSublabel" maxlength="16" placeholder="SPORT PLUS">
+          </div>
+          <div class="m-field-group m-field-short">
+            <label for="editColor">ACCENT COLOR</label>
+            <input type="color" id="editColor" value="#1c69d4">
+          </div>
         </div>
-        <div class="form-group">
-          <label for="editColor">Accent Color:</label>
-          <input type="color" id="editColor" value="#6366f1">
-        </div>
-        <div class="form-group">
-          <label for="editActionType">Action Type:</label>
+
+        <div class="m-field-group">
+          <label for="editActionType">ACTION DISPATCHER TYPE</label>
           <select id="editActionType">
-            <option value="shell">Shell Command</option>
-            <option value="url">Open URL / Web Link</option>
-            <option value="media">Media Control</option>
+            <option value="shell">Shell Command / Binary</option>
+            <option value="url">Web Link / Browser URL</option>
+            <option value="media">Media Control (Volume/Track)</option>
           </select>
         </div>
-        <div class="form-group" id="commandGroup">
-          <label for="editCommand">Shell Command / Script:</label>
-          <input type="text" id="editCommand" placeholder="notify-send 'Hello' 'Arya Dock'">
+
+        <div class="m-field-group" id="commandGroup">
+          <label for="editCommand">SHELL COMMAND / EXEC PATH</label>
+          <input type="text" id="editCommand" placeholder="google-chrome || code . || wpctl">
         </div>
-        <div class="form-group hidden" id="urlGroup">
-          <label for="editUrl">URL to Open:</label>
+
+        <div class="m-field-group hidden" id="urlGroup">
+          <label for="editUrl">BROWSER URL</label>
           <input type="text" id="editUrl" placeholder="https://github.com">
         </div>
       </div>
-      <div class="modal-footer">
-        <button id="btnModalTest" class="secondary-btn">Test Run</button>
-        <button id="btnModalSave" class="primary-btn">Save Changes</button>
+
+      <div class="m-modal-footer">
+        <button id="btnModalTest" class="m-btn m-btn-secondary">TEST DISPATCH</button>
+        <button id="btnModalSave" class="m-btn m-btn-primary">SAVE CONFIGURATION</button>
       </div>
     </div>
   </div>

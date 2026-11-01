@@ -44,6 +44,80 @@ function getNetworkInterfaces() {
   return results;
 }
 
+// Map system app categories and names to clean visual emojis
+function getAppEmoji(name, category, execCmd) {
+  const lower = (name + ' ' + (category || '') + ' ' + execCmd).toLowerCase();
+  if (lower.includes('code') || lower.includes('dev') || lower.includes('studio') || lower.includes('git')) return '💻';
+  if (lower.includes('term') || lower.includes('bash') || lower.includes('zsh') || lower.includes('shell')) return '⚡';
+  if (lower.includes('chrome') || lower.includes('brave') || lower.includes('firefox') || lower.includes('browser') || lower.includes('web')) return '🌐';
+  if (lower.includes('calc')) return '🧮';
+  if (lower.includes('file') || lower.includes('nautilus') || lower.includes('folder')) return '📁';
+  if (lower.includes('music') || lower.includes('audio') || lower.includes('sound') || lower.includes('player') || lower.includes('spotify')) return '🎵';
+  if (lower.includes('video') || lower.includes('camera') || lower.includes('photo') || lower.includes('snapshot')) return '🎥';
+  if (lower.includes('monitor') || lower.includes('top') || lower.includes('task') || lower.includes('system') || lower.includes('stats')) return '📊';
+  if (lower.includes('clock') || lower.includes('time') || lower.includes('calendar')) return '📅';
+  if (lower.includes('setting') || lower.includes('config') || lower.includes('control')) return '⚙️';
+  if (lower.includes('text') || lower.includes('note') || lower.includes('doc') || lower.includes('edit')) return '📝';
+  if (lower.includes('mail') || lower.includes('email') || lower.includes('message') || lower.includes('chat')) return '💬';
+  if (lower.includes('box') || lower.includes('vm') || lower.includes('docker') || lower.includes('virt')) return '📦';
+  return '🚀';
+}
+
+// Discover and parse installed Linux desktop applications
+function getInstalledApplications() {
+  const dirs = [
+    '/usr/share/applications',
+    path.join(process.env.HOME || '', '.local/share/applications')
+  ];
+  const apps = [];
+  const seen = new Set();
+
+  for (const dir of dirs) {
+    if (!fs.existsSync(dir)) continue;
+    try {
+      const files = fs.readdirSync(dir);
+      for (const file of files) {
+        if (!file.endsWith('.desktop')) continue;
+        try {
+          const content = fs.readFileSync(path.join(dir, file), 'utf-8');
+          if (content.includes('NoDisplay=true') || content.includes('Type=Link')) continue;
+          
+          const nameMatch = content.match(/^Name=([^\r\n]+)/m);
+          const execMatch = content.match(/^Exec=([^\r\n]+)/m);
+          const iconMatch = content.match(/^Icon=([^\r\n]+)/m);
+          const catMatch = content.match(/^Categories=([^\r\n]+)/m);
+          const commentMatch = content.match(/^Comment=([^\r\n]+)/m);
+
+          if (nameMatch && execMatch) {
+            const name = nameMatch[1].trim();
+            if (seen.has(name)) continue;
+            seen.add(name);
+
+            // Clean exec command: remove %u, %U, %f, %F, etc.
+            let execCmd = execMatch[1].replace(/%[uUfFdiDknm]/g, '').trim();
+            const category = catMatch ? catMatch[1].split(';').filter(Boolean)[0] : 'Utility';
+            const iconEmoji = getAppEmoji(name, category, execCmd);
+
+            apps.push({
+              id: file.replace('.desktop', ''),
+              name,
+              command: execCmd,
+              iconName: iconMatch ? iconMatch[1].trim() : 'application-x-executable',
+              emoji: iconEmoji,
+              category,
+              comment: commentMatch ? commentMatch[1].trim() : ''
+            });
+          }
+        } catch (e) {}
+      }
+    } catch (e) {}
+  }
+  return apps.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+// Cached installed apps
+let cachedInstalledApps = null;
+
 // Simple Static File HTTP Server
 const MIME_TYPES = {
   '.html': 'text/html',
@@ -58,6 +132,20 @@ const MIME_TYPES = {
 
 const server = http.createServer((req, res) => {
   let reqPath = req.url.split('?')[0];
+
+  // API Route: Return list of installed system applications
+  if (reqPath === '/api/apps') {
+    if (!cachedInstalledApps) {
+      cachedInstalledApps = getInstalledApplications();
+    }
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*'
+    });
+    res.end(JSON.stringify(cachedInstalledApps));
+    return;
+  }
+
   if (reqPath === '/' || reqPath === '') reqPath = '/index.html';
 
   const filePath = path.join(PUBLIC_DIR, reqPath);
