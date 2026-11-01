@@ -2,7 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { exec, spawn } = require('child_process');
+const { exec, spawn, execSync } = require('child_process');
 const WebSocket = require('ws');
 const qrcode = require('qrcode-terminal');
 
@@ -226,40 +226,114 @@ function broadcastState() {
   }
 }
 
+// Automatically detect the user's default shell (zsh, bash, etc.)
+function getDefaultShell() {
+  const envShell = process.env.SHELL;
+  if (envShell && fs.existsSync(envShell)) return envShell;
+  try {
+    const userShell = os.userInfo().shell;
+    if (userShell && fs.existsSync(userShell)) return userShell;
+  } catch (e) {}
+  if (fs.existsSync('/usr/bin/zsh')) return '/usr/bin/zsh';
+  if (fs.existsSync('/bin/zsh')) return '/bin/zsh';
+  if (fs.existsSync('/bin/bash')) return '/bin/bash';
+  return '/bin/sh';
+}
+
+// Automatically detect the system's installed default terminal emulator
+function getDefaultTerminal() {
+  const candidates = [
+    'ptyxis',
+    'gnome-terminal',
+    'konsole',
+    'xfce4-terminal',
+    'alacritty',
+    'kitty',
+    'foot',
+    'wezterm',
+    'x-terminal-emulator',
+    'xterm'
+  ];
+  for (const term of candidates) {
+    try {
+      const p = execSync(`which ${term} 2>/dev/null`, { encoding: 'utf-8' }).trim();
+      if (p) return { name: term, path: p };
+    } catch (e) {}
+  }
+  return { name: 'ptyxis', path: '/usr/bin/ptyxis' };
+}
+
 // Build command wrapper based on target terminal execution mode
-function buildTerminalCommand(command, mode = 'background', title = 'Arya Dock', workingDir = '', keepOpen = true) {
+function buildTerminalCommand(command = '', mode = 'background', title = 'Arya Dock', workingDir = '', keepOpen = true) {
   if (mode === 'background' || !mode) {
     return command;
   }
 
-  let innerScript = command.trim();
-  if (keepOpen) {
-    innerScript += '; echo ""; echo -e "\\033[1;34m[Arya Dock]\\033[0m Command completed. Session interactive."; exec bash';
+  const defaultShell = getDefaultShell();
+  const shellName = path.basename(defaultShell);
+  const detectedTerm = getDefaultTerminal();
+
+  let cmd = (command || '').trim();
+  const isPureShellLaunch = !cmd || ['bash', 'zsh', 'sh', '$shell', 'shell', 'terminal'].includes(cmd.toLowerCase());
+
+  let innerScript = '';
+  if (isPureShellLaunch) {
+    innerScript = `exec "${defaultShell}" -l`;
+  } else {
+    innerScript = cmd;
+    if (keepOpen) {
+      innerScript += `; echo ""; echo -e "\\033[1;34m[Arya Dock]\\033[0m Command completed. Session interactive (${shellName})."; exec "${defaultShell}" -l`;
+    }
   }
 
   const escapedInner = innerScript.replace(/"/g, '\\"');
   const safeTitle = (title || 'Arya Dock').replace(/"/g, '');
-  const dirFlag = workingDir ? `-d "${workingDir}"` : '';
+  const ptyxisDir = workingDir ? `-d "${workingDir}"` : '';
+  const gnomeDir = workingDir ? `--working-directory="${workingDir}"` : '';
+  const konsoleDir = workingDir ? `--workdir "${workingDir}"` : '';
+  const genericDir = workingDir ? `--working-directory "${workingDir}"` : '';
+
+  const shellCommand = `"${defaultShell}" -c "${escapedInner}"`;
 
   if (mode === 'tab') {
-    // Open in existing terminal as a new tab
-    return `ptyxis --tab ${dirFlag} -T "${safeTitle}" -- bash -c "${escapedInner}" || ` +
-           `gnome-terminal --tab --title="${safeTitle}" -- bash -c "${escapedInner}" || ` +
-           `konsole --new-tab -e bash -c "${escapedInner}" || ` +
-           `ptyxis ${dirFlag} -T "${safeTitle}" -- bash -c "${escapedInner}"`;
+    // Open in terminal as a new tab
+    if (detectedTerm.name === 'ptyxis') {
+      return `ptyxis --tab ${ptyxisDir} -T "${safeTitle}" -- ${shellCommand} || ptyxis ${ptyxisDir} -T "${safeTitle}" -- ${shellCommand}`;
+    } else if (detectedTerm.name === 'gnome-terminal') {
+      return `gnome-terminal --tab --title="${safeTitle}" ${gnomeDir} -- ${shellCommand}`;
+    } else if (detectedTerm.name === 'konsole') {
+      return `konsole --new-tab ${konsoleDir} -e ${defaultShell} -c "${escapedInner}"`;
+    } else {
+      return `ptyxis --tab ${ptyxisDir} -T "${safeTitle}" -- ${shellCommand} || ` +
+             `gnome-terminal --tab --title="${safeTitle}" ${gnomeDir} -- ${shellCommand} || ` +
+             `konsole --new-tab ${konsoleDir} -e ${defaultShell} -c "${escapedInner}" || ` +
+             `ptyxis ${ptyxisDir} -T "${safeTitle}" -- ${shellCommand}`;
+    }
   } else if (mode === 'window') {
     // Open in new standalone terminal window
-    return `ptyxis --new-window ${dirFlag} -T "${safeTitle}" -- bash -c "${escapedInner}" || ` +
-           `gnome-terminal --title="${safeTitle}" -- bash -c "${escapedInner}" || ` +
-           `alacritty --title "${safeTitle}" -e bash -c "${escapedInner}" || ` +
-           `kitty --title "${safeTitle}" bash -c "${escapedInner}" || ` +
-           `konsole -e bash -c "${escapedInner}" || ` +
-           `xterm -title "${safeTitle}" -e bash -c "${escapedInner}"`;
+    if (detectedTerm.name === 'ptyxis') {
+      return `ptyxis --new-window ${ptyxisDir} -T "${safeTitle}" -- ${shellCommand}`;
+    } else if (detectedTerm.name === 'gnome-terminal') {
+      return `gnome-terminal --title="${safeTitle}" ${gnomeDir} -- ${shellCommand}`;
+    } else if (detectedTerm.name === 'alacritty') {
+      return `alacritty --title "${safeTitle}" ${genericDir} -e ${defaultShell} -c "${escapedInner}"`;
+    } else if (detectedTerm.name === 'kitty') {
+      return `kitty --title "${safeTitle}" ${workingDir ? `--directory "${workingDir}"` : ''} ${defaultShell} -c "${escapedInner}"`;
+    } else if (detectedTerm.name === 'konsole') {
+      return `konsole ${konsoleDir} -e ${defaultShell} -c "${escapedInner}"`;
+    } else {
+      return `ptyxis --new-window ${ptyxisDir} -T "${safeTitle}" -- ${shellCommand} || ` +
+             `gnome-terminal --title="${safeTitle}" ${gnomeDir} -- ${shellCommand} || ` +
+             `alacritty --title "${safeTitle}" ${genericDir} -e ${defaultShell} -c "${escapedInner}" || ` +
+             `kitty --title "${safeTitle}" ${defaultShell} -c "${escapedInner}" || ` +
+             `konsole ${konsoleDir} -e ${defaultShell} -c "${escapedInner}" || ` +
+             `xterm -title "${safeTitle}" -e ${defaultShell} -c "${escapedInner}"`;
+    }
   } else if (mode === 'existing') {
     // Run in active / existing terminal
-    return `ptyxis ${dirFlag} -T "${safeTitle}" -- bash -c "${escapedInner}" || ` +
-           `ptyxis --tab ${dirFlag} -T "${safeTitle}" -- bash -c "${escapedInner}" || ` +
-           `gnome-terminal --title="${safeTitle}" -- bash -c "${escapedInner}"`;
+    return `ptyxis ${ptyxisDir} -T "${safeTitle}" -- ${shellCommand} || ` +
+           `ptyxis --tab ${ptyxisDir} -T "${safeTitle}" -- ${shellCommand} || ` +
+           `gnome-terminal --title="${safeTitle}" ${gnomeDir} -- ${shellCommand}`;
   }
 
   return command;
@@ -269,30 +343,32 @@ function buildTerminalCommand(command, mode = 'background', title = 'Arya Dock',
 function executeAction(button) {
   if (!button || !button.actionType) return;
 
-  console.log(`[Arya Dock] Triggered Button [${button.id}] '${button.label}': ${button.actionType} (${button.terminalMode || 'background'})`);
+  const defaultShell = getDefaultShell();
+  const shellName = path.basename(defaultShell);
+  console.log(`[Arya Dock] Triggered Button [${button.id}] '${button.label}': ${button.actionType} (${button.terminalMode || 'background'}) via ${shellName}`);
 
   switch (button.actionType) {
-    case 'shell':
-      if (button.command) {
-        const finalCommand = buildTerminalCommand(
-          button.command,
-          button.terminalMode || 'background',
-          button.label || 'Arya Dock',
-          button.workingDir || '',
-          button.keepOpen !== false
-        );
-        const execOptions = {
-          env: process.env
-        };
-        if (button.workingDir && fs.existsSync(button.workingDir)) {
-          execOptions.cwd = button.workingDir;
-        }
-        exec(finalCommand, execOptions, (error, stdout, stderr) => {
-          if (error) console.error(`[Exec Error]: ${error.message}`);
-          if (stdout) console.log(`[Exec Output]: ${stdout.trim()}`);
-        });
+    case 'shell': {
+      const finalCommand = buildTerminalCommand(
+        button.command !== undefined ? button.command : '',
+        button.terminalMode || 'background',
+        button.label || 'Arya Dock',
+        button.workingDir || '',
+        button.keepOpen !== false
+      );
+      const execOptions = {
+        env: process.env,
+        shell: defaultShell
+      };
+      if (button.workingDir && fs.existsSync(button.workingDir)) {
+        execOptions.cwd = button.workingDir;
       }
+      exec(finalCommand, execOptions, (error, stdout, stderr) => {
+        if (error) console.error(`[Exec Error]: ${error.message}`);
+        if (stdout) console.log(`[Exec Output]: ${stdout.trim()}`);
+      });
       break;
+    }
 
     case 'media':
       // Media actions via wpctl / pactl / playerctl
@@ -489,6 +565,11 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log('            🚀 ARYA DOCK - VIRTUAL KEYPAD CONSOLE           ');
   console.log('========================================================\n');
   console.log(`  🖥️  PC Web App:            http://localhost:${PORT}`);
+  
+  const defaultShell = getDefaultShell();
+  const defaultTerminal = getDefaultTerminal();
+  console.log(`  🐚  System Shell:          ${defaultShell} (${path.basename(defaultShell)})`);
+  console.log(`  ⚡  Terminal Emulator:     ${defaultTerminal.path} (${defaultTerminal.name})`);
   
   interfaces.forEach(iface => {
     const icon = iface.type.includes('USB') ? '🔌' : (iface.type.includes('Wi-Fi') ? '📱' : '🌐');

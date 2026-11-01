@@ -209,7 +209,7 @@ function formatAppSublabel(cat, comment) {
 function isTerminalCommand(cmd, cat) {
   const lower = ((cmd || '') + ' ' + (cat || '')).toLowerCase();
   return lower.includes('btop') || lower.includes('top') || lower.includes('journalctl') ||
-         lower.includes('git') || lower.includes('bash') || lower.includes('sh') ||
+         lower.includes('git') || lower.includes('zsh') || lower.includes('bash') || lower.includes('sh') ||
          lower.includes('python') || lower.includes('npm') || lower.includes('test') ||
          lower.includes('docker') || lower.includes('kubectl') || lower.includes('claude') ||
          lower.includes('term') || lower.includes('ptyxis');

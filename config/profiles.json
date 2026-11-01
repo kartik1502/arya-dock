@@ -24,7 +24,7 @@
               "icon": "⚡",
               "color": "#10b981",
               "actionType": "shell",
-              "command": "bash",
+              "command": "zsh",
               "terminalMode": "tab",
               "keepOpen": true
             },
@@ -61,13 +61,13 @@
             },
             {
               "id": 5,
-              "label": "VAULT UNSEAL",
+              "label": "LZD",
               "sublabel": "SHORTCUT",
               "icon": "⚡",
               "color": "#1c69d4",
               "actionType": "shell",
-              "command": "vus",
-              "terminalMode": "window",
+              "command": "lazydocker",
+              "terminalMode": "tab",
               "workingDir": "",
               "keepOpen": true,
               "url": ""
