@@ -1,0 +1,60 @@
+{
+  "version": 2,
+  "name": "app-catalog-drawer",
+  "projectId": "arya-dock-4f274f15",
+  "createdAt": 1793560603000,
+  "steps": [
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "button",
+        "name": "⚡ APPS"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "text",
+        "contains": "INSTALLED APPS & PRESETS"
+      },
+      "page": "/"
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "button",
+        "name": "×"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "not",
+        "predicate": {
+          "kind": "text",
+          "contains": "SEARCH 45+ INSTALLED"
+        }
+      },
+      "page": "/"
+    }
+  ],
+  "startPath": "/",
+  "intent": "Opening and closing the slide-out app catalog & launchpad drawer",
+  "intentDerived": true,
+  "requires": [
+    {
+      "kind": "route",
+      "pathname": "/"
+    }
+  ],
+  "ensures": [
+    {
+      "kind": "route",
+      "pathname": "/"
+    }
+  ],
+  "author": {
+    "agent": "gemini",
+    "person": "kartikkulkarni1411@gmail.com"
+  }
+}

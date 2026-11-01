@@ -15,6 +15,7 @@
     "start": "node server.js",
     "dev": "node --watch server.js",
     "test": "node --test",
+    "test:reticle": "node --test test/reticle.test.js",
     "lint": "node scripts/lint.js"
   },
   "engines": {

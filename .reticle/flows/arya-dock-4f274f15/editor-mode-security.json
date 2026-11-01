@@ -1,0 +1,60 @@
+{
+  "version": 2,
+  "name": "editor-mode-security",
+  "projectId": "arya-dock-4f274f15",
+  "createdAt": 1793560604000,
+  "steps": [
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "button",
+        "name": "✏️"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "text",
+        "contains": "UNLOCK EDITOR MODE"
+      },
+      "page": "/"
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "button",
+        "name": "CANCEL"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "not",
+        "predicate": {
+          "kind": "text",
+          "contains": "Enter the editor key"
+        }
+      },
+      "page": "/"
+    }
+  ],
+  "startPath": "/",
+  "intent": "Locked client prompts for editor credentials when attempting to edit deck",
+  "intentDerived": true,
+  "requires": [
+    {
+      "kind": "route",
+      "pathname": "/"
+    }
+  ],
+  "ensures": [
+    {
+      "kind": "route",
+      "pathname": "/"
+    }
+  ],
+  "author": {
+    "agent": "gemini",
+    "person": "kartikkulkarni1411@gmail.com"
+  }
+}

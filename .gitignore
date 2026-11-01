@@ -6,4 +6,7 @@ config/auth.json
 *.tmp
 reticle.local.js
 public/reticle.local.js
-.reticle/
+.reticle/*
+!.reticle/.gitignore
+!.reticle/flows/
+!.reticle/flows/**

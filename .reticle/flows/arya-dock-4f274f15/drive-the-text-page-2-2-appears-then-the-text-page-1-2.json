@@ -1,0 +1,103 @@
+{
+  "version": 2,
+  "name": "drive-the-text-page-2-2-appears-then-the-text-page-1-2",
+  "projectId": "arya-dock-4f274f15",
+  "createdAt": 1793561485133,
+  "steps": [
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "button",
+        "name": "NEXT ▶"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "text",
+        "contains": "PAGE",
+        "satisfies": {
+          "property": "matchesPattern",
+          "pattern": "PAGE \\d[\\d,.]*/\\d[\\d,.]*"
+        }
+      },
+      "page": "/"
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "button",
+        "name": "◀ PREV"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "text",
+        "contains": "PAGE",
+        "satisfies": {
+          "property": "matchesPattern",
+          "pattern": "PAGE \\d[\\d,.]*/\\d[\\d,.]*"
+        }
+      },
+      "page": "/"
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "button",
+        "name": "NEXT ▶"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "text",
+        "contains": "PAGE",
+        "satisfies": {
+          "property": "matchesPattern",
+          "pattern": "PAGE \\d[\\d,.]*/\\d[\\d,.]*"
+        }
+      },
+      "page": "/"
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "button",
+        "name": "◀ PREV"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "text",
+        "contains": "PAGE",
+        "satisfies": {
+          "property": "matchesPattern",
+          "pattern": "PAGE \\d[\\d,.]*/\\d[\\d,.]*"
+        }
+      },
+      "page": "/"
+    }
+  ],
+  "startPath": "/",
+  "intent": "The text \"PAGE 2/2\" appears, then the text \"PAGE 1/2\" appears",
+  "intentDerived": true,
+  "requires": [
+    {
+      "kind": "route",
+      "pathname": "/"
+    }
+  ],
+  "ensures": [
+    {
+      "kind": "route",
+      "pathname": "/"
+    }
+  ],
+  "author": {
+    "agent": "opencode",
+    "person": "kartikkulkarni1411@gmail.com"
+  }
+}
