@@ -66,7 +66,7 @@
               "icon": "⚡",
               "color": "#1c69d4",
               "actionType": "shell",
-              "command": "lazydocker",
+              "command": "lzd",
               "terminalMode": "tab",
               "workingDir": "",
               "keepOpen": true,

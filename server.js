@@ -265,16 +265,18 @@ function getDefaultTerminal() {
 
 // Build command wrapper based on target terminal execution mode
 function buildTerminalCommand(command = '', mode = 'background', title = 'Arya Dock', workingDir = '', keepOpen = true) {
-  if (mode === 'background' || !mode) {
-    return command;
-  }
-
   const defaultShell = getDefaultShell();
   const shellName = path.basename(defaultShell);
   const detectedTerm = getDefaultTerminal();
 
   let cmd = (command || '').trim();
   const isPureShellLaunch = !cmd || ['bash', 'zsh', 'sh', '$shell', 'shell', 'terminal'].includes(cmd.toLowerCase());
+
+  if (mode === 'background' || !mode) {
+    if (isPureShellLaunch) return command;
+    const escaped = cmd.replace(/"/g, '\\"');
+    return `env DISABLE_UPDATE_PROMPT=true "${defaultShell}" -i -l -c "${escaped}"`;
+  }
 
   let innerScript = '';
   if (isPureShellLaunch) {
@@ -293,7 +295,8 @@ function buildTerminalCommand(command = '', mode = 'background', title = 'Arya D
   const konsoleDir = workingDir ? `--workdir "${workingDir}"` : '';
   const genericDir = workingDir ? `--working-directory "${workingDir}"` : '';
 
-  const shellCommand = `"${defaultShell}" -c "${escapedInner}"`;
+  // Use interactive login shell (-i -l) with Oh My Zsh update prompt bypass so aliases (e.g. lzd, spr, vus), PATH and functions are fully loaded
+  const shellCommand = `env DISABLE_UPDATE_PROMPT=true "${defaultShell}" -i -l -c "${escapedInner}"`;
 
   if (mode === 'tab') {
     // Open in terminal as a new tab
@@ -302,11 +305,11 @@ function buildTerminalCommand(command = '', mode = 'background', title = 'Arya D
     } else if (detectedTerm.name === 'gnome-terminal') {
       return `gnome-terminal --tab --title="${safeTitle}" ${gnomeDir} -- ${shellCommand}`;
     } else if (detectedTerm.name === 'konsole') {
-      return `konsole --new-tab ${konsoleDir} -e ${defaultShell} -c "${escapedInner}"`;
+      return `konsole --new-tab ${konsoleDir} -e ${shellCommand}`;
     } else {
       return `ptyxis --tab ${ptyxisDir} -T "${safeTitle}" -- ${shellCommand} || ` +
              `gnome-terminal --tab --title="${safeTitle}" ${gnomeDir} -- ${shellCommand} || ` +
-             `konsole --new-tab ${konsoleDir} -e ${defaultShell} -c "${escapedInner}" || ` +
+             `konsole --new-tab ${konsoleDir} -e ${shellCommand} || ` +
              `ptyxis ${ptyxisDir} -T "${safeTitle}" -- ${shellCommand}`;
     }
   } else if (mode === 'window') {
@@ -316,18 +319,18 @@ function buildTerminalCommand(command = '', mode = 'background', title = 'Arya D
     } else if (detectedTerm.name === 'gnome-terminal') {
       return `gnome-terminal --title="${safeTitle}" ${gnomeDir} -- ${shellCommand}`;
     } else if (detectedTerm.name === 'alacritty') {
-      return `alacritty --title "${safeTitle}" ${genericDir} -e ${defaultShell} -c "${escapedInner}"`;
+      return `alacritty --title "${safeTitle}" ${genericDir} -e ${shellCommand}`;
     } else if (detectedTerm.name === 'kitty') {
-      return `kitty --title "${safeTitle}" ${workingDir ? `--directory "${workingDir}"` : ''} ${defaultShell} -c "${escapedInner}"`;
+      return `kitty --title "${safeTitle}" ${workingDir ? `--directory "${workingDir}"` : ''} ${shellCommand}`;
     } else if (detectedTerm.name === 'konsole') {
-      return `konsole ${konsoleDir} -e ${defaultShell} -c "${escapedInner}"`;
+      return `konsole ${konsoleDir} -e ${shellCommand}`;
     } else {
       return `ptyxis --new-window ${ptyxisDir} -T "${safeTitle}" -- ${shellCommand} || ` +
              `gnome-terminal --title="${safeTitle}" ${gnomeDir} -- ${shellCommand} || ` +
-             `alacritty --title "${safeTitle}" ${genericDir} -e ${defaultShell} -c "${escapedInner}" || ` +
-             `kitty --title "${safeTitle}" ${defaultShell} -c "${escapedInner}" || ` +
-             `konsole ${konsoleDir} -e ${defaultShell} -c "${escapedInner}" || ` +
-             `xterm -title "${safeTitle}" -e ${defaultShell} -c "${escapedInner}"`;
+             `alacritty --title "${safeTitle}" ${genericDir} -e ${shellCommand} || ` +
+             `kitty --title "${safeTitle}" ${shellCommand} || ` +
+             `konsole ${konsoleDir} -e ${shellCommand} || ` +
+             `xterm -title "${safeTitle}" -e ${shellCommand}`;
     }
   } else if (mode === 'existing') {
     // Run in active / existing terminal
@@ -357,7 +360,10 @@ function executeAction(button) {
         button.keepOpen !== false
       );
       const execOptions = {
-        env: process.env,
+        env: {
+          ...process.env,
+          DISABLE_UPDATE_PROMPT: 'true'
+        },
         shell: defaultShell
       };
       if (button.workingDir && fs.existsSync(button.workingDir)) {
