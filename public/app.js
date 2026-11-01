@@ -1,6 +1,6 @@
 // ==========================================================================
 // ARYA DOCK — CLIENT CONTROLLER
-// Drag-and-drop app assignment, system application catalog, and M telemetry.
+// Drag-and-drop app assignment, system application catalog, and telemetry.
 // ==========================================================================
 
 let ws = null;
@@ -12,8 +12,23 @@ let pickerTargetButtonId = null;
 let selectedAppForPopup = null;
 let wakeLock = null;
 
-// Built-in Motorsport Quick Presets
-const MOTORSPORT_PRESETS = [
+// Security & Role State
+const urlParams = new URLSearchParams(window.location.search);
+let pairingToken = urlParams.get('token') || localStorage.getItem('arya_pairing_token') || '';
+let editorKey = urlParams.get('editKey') || localStorage.getItem('arya_editor_key') || '';
+
+if (urlParams.get('token')) {
+  localStorage.setItem('arya_pairing_token', urlParams.get('token'));
+}
+if (urlParams.get('editKey')) {
+  localStorage.setItem('arya_editor_key', urlParams.get('editKey'));
+}
+
+let userRole = 'operator';
+let canEdit = false;
+
+// Quick Presets
+const PRESETS = [
   {
     name: 'AI Agent',
     command: 'notify-send "Arya Dock" "AI Coding Agent Dispatched" -i dialog-information',
@@ -127,6 +142,8 @@ const tileCountNum = document.getElementById('tileCountNum');
 const btnAddTile = document.getElementById('btnAddTile');
 const btnRemoveTile = document.getElementById('btnRemoveTile');
 const btnModalDelete = document.getElementById('btnModalDelete');
+const tileControls = document.getElementById('tileControls');
+const dragBanner = document.getElementById('dragBanner');
 
 // Drawer & Catalog Elements
 const btnOpenDrawer = document.getElementById('btnOpenDrawer');
@@ -217,10 +234,33 @@ function isTerminalCommand(cmd, cat) {
          lower.includes('term') || lower.includes('ptyxis');
 }
 
-// Fetch Installed Applications from Server
+// Update Editor UI based on role privilege (Issue #3)
+function updateEditorUI() {
+  if (!canEdit) {
+    if (isEditMode) {
+      isEditMode = false;
+    }
+    if (btnEdit) {
+      btnEdit.classList.remove('active');
+      btnEdit.style.display = 'none';
+    }
+    if (tileControls) tileControls.style.display = 'none';
+    if (btnOpenDrawer) btnOpenDrawer.style.display = 'none';
+    if (dragBanner) dragBanner.style.display = 'none';
+  } else {
+    if (btnEdit) btnEdit.style.display = '';
+    if (tileControls) tileControls.style.display = '';
+    if (btnOpenDrawer) btnOpenDrawer.style.display = '';
+    if (dragBanner) dragBanner.style.display = '';
+  }
+}
+
+// Fetch Installed Applications from Server (Issue #4)
 async function loadInstalledApplications() {
   try {
-    const res = await fetch('/api/apps');
+    const url = `/api/apps?token=${encodeURIComponent(pairingToken)}`;
+    const headers = pairingToken ? { 'Authorization': `Bearer ${pairingToken}` } : {};
+    const res = await fetch(url, { headers });
     if (res.ok) {
       installedApps = await res.json();
     }
@@ -231,23 +271,24 @@ async function loadInstalledApplications() {
   renderAppCatalog('all');
 }
 
-// Fetch Suggested Project Directories
+// Fetch Suggested Project Directories (Issue #4)
 async function loadSuggestedDirectories() {
-  if (!quickDirChips || !folderSuggestions) return;
+  if (!quickDirChips || !folderSuggestions || !canEdit) return;
   try {
-    const res = await fetch('/api/directories');
+    let url = `/api/directories?token=${encodeURIComponent(pairingToken)}`;
+    if (editorKey) url += `&editKey=${encodeURIComponent(editorKey)}`;
+    const headers = pairingToken ? { 'Authorization': `Bearer ${pairingToken}` } : {};
+    const res = await fetch(url, { headers });
     if (!res.ok) return;
     const dirs = await res.json();
-    folderSuggestions.innerHTML = '';
-    quickDirChips.innerHTML = '';
+    folderSuggestions.textContent = '';
+    quickDirChips.textContent = '';
     dirs.forEach(d => {
-      // Datalist option for auto-complete
       const opt = document.createElement('option');
       opt.value = d.path;
       opt.label = d.label;
       folderSuggestions.appendChild(opt);
 
-      // Quick clickable chip
       const chip = document.createElement('button');
       chip.type = 'button';
       chip.className = 'm-dir-chip';
@@ -264,16 +305,15 @@ async function loadSuggestedDirectories() {
   }
 }
 
-// Render the App Drawer Cards (with Drag & Drop support)
+// Render the App Drawer Cards (Safe DOM creation to prevent XSS - Issue #6)
 function renderAppCatalog(filterCategory = 'all', searchQuery = '') {
-  appsList.innerHTML = '';
+  appsList.textContent = '';
 
   let list = [];
   if (filterCategory === 'presets') {
-    list = MOTORSPORT_PRESETS;
+    list = PRESETS;
   } else {
-    // Merge presets and installed apps
-    const combined = [...MOTORSPORT_PRESETS, ...installedApps];
+    const combined = [...PRESETS, ...installedApps];
     const seen = new Set();
     list = combined.filter(app => {
       if (seen.has(app.name)) return false;
@@ -296,7 +336,10 @@ function renderAppCatalog(filterCategory = 'all', searchQuery = '') {
   }
 
   if (list.length === 0) {
-    appsList.innerHTML = '<div class="m-loading-apps">NO MATCHING APPLICATIONS FOUND</div>';
+    const emptyMsg = document.createElement('div');
+    emptyMsg.className = 'm-loading-apps';
+    emptyMsg.textContent = 'NO MATCHING APPLICATIONS FOUND';
+    appsList.appendChild(emptyMsg);
     return;
   }
 
@@ -312,7 +355,6 @@ function renderAppCatalog(filterCategory = 'all', searchQuery = '') {
       category: app.category || 'Utility'
     };
 
-    // HTML5 Drag & Drop start
     card.addEventListener('dragstart', (e) => {
       e.dataTransfer.setData('application/json', JSON.stringify(appPayload));
       e.dataTransfer.effectAllowed = 'copy';
@@ -323,11 +365,9 @@ function renderAppCatalog(filterCategory = 'all', searchQuery = '') {
       card.style.opacity = '1';
     });
 
-    // Touch / Tap support: Open Quick Assign popup or modal picker
     card.addEventListener('click', () => {
       triggerHaptic(15);
       if (pickerTargetButtonId !== null) {
-        // Modal picker mode: populate modal fields
         editIcon.value = appPayload.icon;
         editLabel.value = formatAppLabel(appPayload.name);
         editSublabel.value = formatAppSublabel(appPayload.category, appPayload.comment);
@@ -340,19 +380,37 @@ function renderAppCatalog(filterCategory = 'all', searchQuery = '') {
         pickerTargetButtonId = null;
         editLabel.focus();
       } else {
-        // Direct tap-to-assign on key
         openAssignPopup(appPayload);
       }
     });
 
-    card.innerHTML = `
-      <div class="m-app-icon">${app.emoji || '🚀'}</div>
-      <div class="m-app-info">
-        <div class="m-app-name">${app.name}</div>
-        <div class="m-app-meta">${app.comment || app.command}</div>
-      </div>
-      <div class="m-drag-handle" title="Drag onto Key">⠿</div>
-    `;
+    // Safe DOM construction (Issue #6)
+    const iconDiv = document.createElement('div');
+    iconDiv.className = 'm-app-icon';
+    iconDiv.textContent = app.emoji || '🚀';
+
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'm-app-info';
+
+    const nameDiv = document.createElement('div');
+    nameDiv.className = 'm-app-name';
+    nameDiv.textContent = app.name || '';
+
+    const metaDiv = document.createElement('div');
+    metaDiv.className = 'm-app-meta';
+    metaDiv.textContent = app.comment || app.command || '';
+
+    infoDiv.appendChild(nameDiv);
+    infoDiv.appendChild(metaDiv);
+
+    const handleDiv = document.createElement('div');
+    handleDiv.className = 'm-drag-handle';
+    handleDiv.title = 'Drag onto Key';
+    handleDiv.textContent = '⠿';
+
+    card.appendChild(iconDiv);
+    card.appendChild(infoDiv);
+    card.appendChild(handleDiv);
 
     appsList.appendChild(card);
   });
@@ -383,6 +441,7 @@ btnClearSearch.addEventListener('click', () => {
 
 // Drawer Open / Close
 function openDrawer() {
+  if (!canEdit) return;
   appDrawer.classList.remove('hidden');
   appSearchInput.focus();
 }
@@ -392,8 +451,6 @@ function closeDrawer() {
   appDrawer.classList.remove('picker-mode');
   const drawerTitle = appDrawer.querySelector('.m-drawer-title');
   if (drawerTitle) drawerTitle.textContent = 'INSTALLED APPS & PRESETS';
-  const drawerHint = appDrawer.querySelector('.m-drawer-hint');
-  if (drawerHint) drawerHint.innerHTML = '💡 <strong>DRAG</strong> any card onto a Key, or <strong>TAP</strong> to assign';
   pickerTargetButtonId = null;
 }
 
@@ -401,16 +458,17 @@ btnOpenDrawer.addEventListener('click', openDrawer);
 btnBannerOpenApps.addEventListener('click', openDrawer);
 btnDrawerClose.addEventListener('click', closeDrawer);
 
-// Quick Assign Popup (Tap-to-Assign for Touch / Mobile)
+// Quick Assign Popup (Safe DOM creation - Issue #6)
 function openAssignPopup(appPayload) {
+  if (!canEdit) return;
   selectedAppForPopup = appPayload;
-  popupAppTitle.textContent = `ASSIGN "${appPayload.name.toUpperCase()}"`;
-  popupTargetGrid.innerHTML = '';
+  popupAppTitle.textContent = `ASSIGN "${(appPayload.name || '').toUpperCase()}"`;
+  popupTargetGrid.textContent = '';
 
   currentButtons.forEach((btnData, i) => {
     const btn = document.createElement('button');
     btn.className = 'm-target-btn';
-    btn.innerHTML = `${btnData.label || `KEY ${i + 1}`}`;
+    btn.textContent = btnData.label || `KEY ${i + 1}`;
     btn.addEventListener('click', () => {
       triggerHaptic(25);
       assignAppToButton(btnData.id !== undefined ? btnData.id : i, selectedAppForPopup);
@@ -432,6 +490,7 @@ btnPopupClose.addEventListener('click', closeAssignPopup);
 
 // Assign App to Key & Push to Server
 function assignAppToButton(buttonIndex, app) {
+  if (!canEdit) return;
   const colorPalette = ['#0066b1', '#1c69d4', '#e22718', '#0066b1', '#1c69d4', '#e22718', '#2b2b2b', '#1c69d4', '#0066b1'];
   const isCli = isTerminalCommand(app.command, app.category);
   const updatedButton = {
@@ -462,13 +521,17 @@ function updateConnectionUI(state) {
   if (!connectionStatus || !statusText) return;
   if (state === 'connected') {
     connectionStatus.className = 'm-status-pill connected';
-    statusText.textContent = '/// M ONLINE';
+    statusText.textContent = canEdit ? 'ONLINE (EDITOR)' : 'ONLINE (OPERATOR)';
   } else if (state === 'connecting') {
     connectionStatus.className = 'm-status-pill connecting';
     statusText.textContent = 'CONNECTING...';
   } else {
     connectionStatus.className = 'm-status-pill disconnected';
-    statusText.textContent = reconnectAttempts > 0 ? `RECONNECTING (${reconnectAttempts})...` : 'OFFLINE';
+    if (!pairingToken) {
+      statusText.textContent = 'PAIRING TOKEN REQUIRED (TAP)';
+    } else {
+      statusText.textContent = reconnectAttempts > 0 ? `RECONNECTING (${reconnectAttempts})...` : 'OFFLINE';
+    }
   }
 }
 
@@ -524,7 +587,10 @@ function connectWebSocket() {
   updateConnectionUI('connecting');
 
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = `${protocol}//${window.location.host}`;
+  let wsUrl = `${protocol}//${window.location.host}/ws?token=${encodeURIComponent(pairingToken)}`;
+  if (editorKey) {
+    wsUrl += `&editKey=${encodeURIComponent(editorKey)}`;
+  }
 
   try {
     ws = new WebSocket(wsUrl);
@@ -570,35 +636,68 @@ document.addEventListener('visibilitychange', () => {
   }
 });
 
-// Reconnect instantly when network returns online
 window.addEventListener('online', () => {
   connectWebSocket();
 });
 
-// Click status pill to manually force reconnect
 if (connectionStatus) {
   connectionStatus.addEventListener('click', () => {
     triggerHaptic(15);
-    connectWebSocket();
+    if (!pairingToken) {
+      const enteredToken = window.prompt('Enter Pairing Token from PC startup terminal:');
+      if (enteredToken) {
+        pairingToken = enteredToken.trim();
+        localStorage.setItem('arya_pairing_token', pairingToken);
+        loadInstalledApplications();
+        connectWebSocket();
+      }
+      return;
+    }
+    if (!canEdit) {
+      const entered = window.prompt('Enter Editor Key to unlock configuration controls:');
+      if (entered) {
+        editorKey = entered.trim();
+        localStorage.setItem('arya_editor_key', editorKey);
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'AUTH_EDIT', editKey: editorKey }));
+        }
+      }
+    } else {
+      connectWebSocket();
+    }
   });
 }
 
 function handleServerMessage(data) {
   switch (data.type) {
     case 'INIT':
+    case 'STATE_UPDATE':
+      if (data.role !== undefined) userRole = data.role;
+      if (data.canEdit !== undefined) {
+        canEdit = Boolean(data.canEdit);
+        updateEditorUI();
+        if (canEdit) loadSuggestedDirectories();
+      }
       updateActiveModeButtons(data.activeProfileId);
       updatePageInfo(data.pageNumber, data.totalPages, data.pageName);
       renderButtons(data.buttons);
+      updateConnectionUI('connected');
       break;
 
-    case 'STATE_UPDATE':
-      updateActiveModeButtons(data.activeProfileId);
-      updatePageInfo(data.pageNumber, data.totalPages, data.pageName);
-      renderButtons(data.buttons);
+    case 'ROLE_UPDATE':
+      userRole = data.role;
+      canEdit = Boolean(data.canEdit);
+      updateEditorUI();
+      if (canEdit) loadSuggestedDirectories();
+      updateConnectionUI('connected');
       break;
 
     case 'BUTTON_ACK':
       flashButtonAck(data.buttonId);
+      break;
+
+    case 'ERROR':
+      console.warn('[Server Error]', data.message);
       break;
   }
 }
@@ -615,7 +714,6 @@ function updatePageInfo(pageNum, totalPages, name) {
   pageName.textContent = name;
 }
 
-// Calculate optimal columns and rows for any arbitrary number of shortcuts
 function getOptimalGridDimensions(count, isLandscape) {
   if (count <= 1) return { cols: 1, rows: 1 };
   if (count === 2) return isLandscape ? { cols: 2, rows: 1 } : { cols: 1, rows: 2 };
@@ -640,7 +738,6 @@ function getOptimalGridDimensions(count, isLandscape) {
   }
 }
 
-// Dynamically compute bezel size and CSS grid variables based on shortcut count and viewport
 function updateDynamicGridSizing(totalCount) {
   const isLandscape = window.innerWidth >= window.innerHeight;
   const { cols, rows } = getOptimalGridDimensions(totalCount, isLandscape);
@@ -673,29 +770,40 @@ function updateDynamicGridSizing(totalCount) {
   document.documentElement.style.setProperty('--bezel-ratio', `${cols} / ${rows}`);
 }
 
-// Render Keypad Buttons with Dynamic Resize & Drag & Drop
+// Render Keypad Buttons (Safe DOM creation to prevent XSS - Issue #6)
 function renderButtons(buttons) {
   currentButtons = buttons || [];
-  const displayCount = isEditMode ? currentButtons.length + 1 : currentButtons.length;
-  
+  const displayCount = (isEditMode && canEdit) ? currentButtons.length + 1 : currentButtons.length;
+
   if (tileCountNum) {
     tileCountNum.textContent = currentButtons.length;
   }
 
   updateDynamicGridSizing(Math.max(1, displayCount));
-  keypadGrid.innerHTML = '';
+  keypadGrid.textContent = '';
 
   currentButtons.forEach((btnData, i) => {
     const keyEl = document.createElement('div');
-    keyEl.className = `m-lcd-key ${isEditMode ? 'edit-mode' : ''}`;
+    keyEl.className = `m-lcd-key ${(isEditMode && canEdit) ? 'edit-mode' : ''}`;
     keyEl.dataset.buttonId = btnData.id !== undefined ? btnData.id : i;
     keyEl.style.setProperty('--key-accent', btnData.color || '#1c69d4');
 
-    keyEl.innerHTML = `
-      <div class="m-key-icon">${btnData.icon || '⚡'}</div>
-      <div class="m-key-label">${btnData.label || ''}</div>
-      <div class="m-key-sublabel">${btnData.sublabel || ''}</div>
-    `;
+    // Safe DOM construction (Issue #6)
+    const iconEl = document.createElement('div');
+    iconEl.className = 'm-key-icon';
+    iconEl.textContent = btnData.icon || '⚡';
+
+    const labelEl = document.createElement('div');
+    labelEl.className = 'm-key-label';
+    labelEl.textContent = btnData.label || '';
+
+    const sublabelEl = document.createElement('div');
+    sublabelEl.className = 'm-key-sublabel';
+    sublabelEl.textContent = btnData.sublabel || '';
+
+    keyEl.appendChild(iconEl);
+    keyEl.appendChild(labelEl);
+    keyEl.appendChild(sublabelEl);
 
     // Pointer events for instant low latency clicks
     keyEl.addEventListener('pointerdown', (e) => {
@@ -703,7 +811,7 @@ function renderButtons(buttons) {
       triggerHaptic(20);
       keyEl.classList.add('pressed');
 
-      if (isEditMode) {
+      if (isEditMode && canEdit) {
         openEditModal(btnData);
       } else {
         sendButtonClick(btnData.id);
@@ -715,44 +823,53 @@ function renderButtons(buttons) {
     keyEl.addEventListener('pointercancel', removePressed);
     keyEl.addEventListener('pointerleave', removePressed);
 
-    // HTML5 Drag & Drop handlers
-    keyEl.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'copy';
-      keyEl.classList.add('drag-over');
-    });
+    // HTML5 Drag & Drop handlers (active only for editors)
+    if (canEdit) {
+      keyEl.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+        keyEl.classList.add('drag-over');
+      });
 
-    keyEl.addEventListener('dragleave', () => {
-      keyEl.classList.remove('drag-over');
-    });
+      keyEl.addEventListener('dragleave', () => {
+        keyEl.classList.remove('drag-over');
+      });
 
-    keyEl.addEventListener('drop', (e) => {
-      e.preventDefault();
-      keyEl.classList.remove('drag-over');
-      triggerHaptic(30);
+      keyEl.addEventListener('drop', (e) => {
+        e.preventDefault();
+        keyEl.classList.remove('drag-over');
+        triggerHaptic(30);
 
-      try {
-        const raw = e.dataTransfer.getData('application/json');
-        if (raw) {
-          const app = JSON.parse(raw);
-          assignAppToButton(btnData.id !== undefined ? btnData.id : i, app);
+        try {
+          const raw = e.dataTransfer.getData('application/json');
+          if (raw) {
+            const app = JSON.parse(raw);
+            assignAppToButton(btnData.id !== undefined ? btnData.id : i, app);
+          }
+        } catch (err) {
+          console.error('Drop error:', err);
         }
-      } catch (err) {
-        console.error('Drop error:', err);
-      }
-    });
+      });
+    }
 
     keypadGrid.appendChild(keyEl);
   });
 
-  // Render [+ ADD TILE] slot in Edit Mode
-  if (isEditMode) {
+  // Render [+ ADD TILE] slot in Edit Mode (if editor)
+  if (isEditMode && canEdit) {
     const addKeyEl = document.createElement('div');
     addKeyEl.className = 'm-lcd-key add-tile-btn';
-    addKeyEl.innerHTML = `
-      <div class="m-add-tile-icon">+</div>
-      <div class="m-add-tile-text">ADD TILE</div>
-    `;
+
+    const addIcon = document.createElement('div');
+    addIcon.className = 'm-add-tile-icon';
+    addIcon.textContent = '+';
+
+    const addText = document.createElement('div');
+    addText.className = 'm-add-tile-text';
+    addText.textContent = 'ADD TILE';
+
+    addKeyEl.appendChild(addIcon);
+    addKeyEl.appendChild(addText);
 
     addKeyEl.addEventListener('click', () => {
       triggerHaptic(20);
@@ -816,7 +933,7 @@ function flashButtonAck(buttonId) {
   }
 }
 
-// Steering Shift Paddles (HID 0x01a1 & 0x01a2)
+// Steering Shift Paddles
 btnPagePrev.addEventListener('click', () => {
   triggerHaptic(15);
   if (ws && ws.readyState === WebSocket.OPEN) {
@@ -831,31 +948,33 @@ btnPageNext.addEventListener('click', () => {
   }
 });
 
-// M Drive Mode buttons (M1 / M2)
+// Mode buttons (M1 / M2)
 btnModeM1.addEventListener('click', () => {
   triggerHaptic(20);
-  if (ws && ws.readyState === WebSocket.OPEN) {
+  if (canEdit && ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'SET_PROFILE', profileId: 'developer' }));
   }
 });
 
 btnModeM2.addEventListener('click', () => {
   triggerHaptic(20);
-  if (ws && ws.readyState === WebSocket.OPEN) {
+  if (canEdit && ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'SET_PROFILE', profileId: 'media' }));
   }
 });
 
 // Edit Mode Toggle
 btnEdit.addEventListener('click', () => {
+  if (!canEdit) return;
   isEditMode = !isEditMode;
   btnEdit.classList.toggle('active', isEditMode);
   renderButtons(currentButtons);
 });
 
-// Tile Count Adjust Buttons (+ / -)
+// Tile Count Adjust Buttons (+ / -) with Data-loss Protection (Issue #10)
 if (btnAddTile) {
   btnAddTile.addEventListener('click', () => {
+    if (!canEdit) return;
     triggerHaptic(20);
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'ADD_BUTTON' }));
@@ -865,22 +984,34 @@ if (btnAddTile) {
 
 if (btnRemoveTile) {
   btnRemoveTile.addEventListener('click', () => {
+    if (!canEdit) return;
     triggerHaptic(20);
     if (currentButtons.length > 1 && ws && ws.readyState === WebSocket.OPEN) {
       const lastBtn = currentButtons[currentButtons.length - 1];
+      const isConfigured = Boolean(
+        (lastBtn.command && lastBtn.command.trim()) ||
+        (lastBtn.url && lastBtn.url.trim()) ||
+        (lastBtn.label && !/^KEY\s*\d+$/i.test(lastBtn.label.trim()))
+      );
+
+      if (isConfigured) {
+        const confirmed = window.confirm(`Remove configured key "${lastBtn.label || 'KEY'}"?`);
+        if (!confirmed) return;
+      }
+
       ws.send(JSON.stringify({ type: 'DELETE_BUTTON', buttonId: lastBtn.id }));
     }
   });
 }
 
-// Window resize dynamic recalculation
 window.addEventListener('resize', () => {
-  const count = isEditMode ? currentButtons.length + 1 : currentButtons.length;
+  const count = (isEditMode && canEdit) ? currentButtons.length + 1 : currentButtons.length;
   updateDynamicGridSizing(Math.max(1, count));
 });
 
 // Key Configuration Modal
 function openEditModal(button) {
+  if (!canEdit) return;
   editingButtonId = button.id;
   modalTitle.textContent = `CONFIGURE KEY ${String(button.id + 1).padStart(2, '0')}`;
   editIcon.value = button.icon || '⚡';
@@ -905,17 +1036,13 @@ function closeEditModal() {
 
 btnModalClose.addEventListener('click', closeEditModal);
 
-// Modal "Choose from Installed Apps" button
 btnPickFromApps.addEventListener('click', () => {
+  if (!canEdit) return;
   pickerTargetButtonId = editingButtonId;
   appDrawer.classList.add('picker-mode');
   const drawerTitle = appDrawer.querySelector('.m-drawer-title');
   if (drawerTitle) {
     drawerTitle.textContent = `SELECT APP FOR KEY ${String(editingButtonId + 1).padStart(2, '0')}`;
-  }
-  const drawerHint = appDrawer.querySelector('.m-drawer-hint');
-  if (drawerHint) {
-    drawerHint.innerHTML = '💡 <strong>TAP</strong> any app to configure this key';
   }
   openDrawer();
 });
@@ -949,17 +1076,16 @@ btnModalTest.addEventListener('click', () => {
 });
 
 btnModalDelete.addEventListener('click', () => {
-  if (editingButtonId !== null) {
-    triggerHaptic(25);
-    if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: 'DELETE_BUTTON', buttonId: editingButtonId }));
-    }
-    closeEditModal();
+  if (!canEdit || editingButtonId === null) return;
+  triggerHaptic(25);
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'DELETE_BUTTON', buttonId: editingButtonId }));
   }
+  closeEditModal();
 });
 
 btnModalSave.addEventListener('click', () => {
-  if (editingButtonId === null) return;
+  if (!canEdit || editingButtonId === null) return;
 
   const updatedButton = {
     id: editingButtonId,
@@ -1019,13 +1145,9 @@ btnFullscreen.addEventListener('click', () => {
 
 // Initialize
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.getRegistrations().then((registrations) => {
-    for (const reg of registrations) {
-      reg.update();
-    }
-  }).catch(() => {});
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
 loadInstalledApplications();
-loadSuggestedDirectories();
+updateEditorUI();
 connectWebSocket();

@@ -1,6 +1,8 @@
 # Hardware Keypad Protocol & Architecture Specifications
 **Protocol, HID Reports, Transport Layer & Software Emulation Guide**
 
+> **Project Scope Note**: This document provides low-level protocol and HID specifications as an engineering reference for optional hardware console integration. The primary Arya Dock platform is a standalone, web-based virtual companion deck.
+
 ---
 
 ## 1. Device Architecture & Hardware Identifiers
@@ -53,8 +55,8 @@ SUBSYSTEM=="hidraw", ATTRS{idVendor}=="046d", ATTRS{idProduct}=="c354", MODE="06
 │  └─────────┘   └─────────┘   └─────────┘  │
 └───────────────────────────────────────┘
    ┌─────────┐   ┌─────────┐   ┌─────────┐
-   │ Page <  │   │ Page >  │   │ LOGI    │
-   │ (0x01a1)│   │ (0x01a2)│   │ LOGO    │
+   │ Page <  │   │ Page >  │   │ CONSOLE │
+   │ (0x01a1)│   │ (0x01a2)│   │ BADGE   │
    └─────────┘   └─────────┘   └─────────┘
 ```
 

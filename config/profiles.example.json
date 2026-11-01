@@ -1,0 +1,312 @@
+{
+  "activeProfile": "developer",
+  "profiles": {
+    "developer": {
+      "name": "Developer & AI Workflows",
+      "pages": [
+        {
+          "pageNumber": 1,
+          "name": "AI & Core Tools",
+          "buttons": [
+            {
+              "id": 0,
+              "label": "AI AGENT",
+              "sublabel": "DISPATCH",
+              "icon": "🤖",
+              "color": "#6366f1",
+              "actionType": "shell",
+              "command": "notify-send 'Arya Dock' 'AI Coding Agent Dispatched' -i dialog-information",
+              "terminalMode": "background",
+              "workingDir": "",
+              "keepOpen": false,
+              "url": ""
+            },
+            {
+              "id": 1,
+              "label": "LAZY DOCKER",
+              "sublabel": "CONTAINERS",
+              "icon": "⚡",
+              "color": "#10b981",
+              "actionType": "shell",
+              "command": "lzd || echo 'lazydocker not installed'",
+              "terminalMode": "tab",
+              "workingDir": "",
+              "keepOpen": true,
+              "url": ""
+            },
+            {
+              "id": 2,
+              "label": "CALC",
+              "sublabel": "UTILITY",
+              "icon": "🧮",
+              "color": "#e22718",
+              "actionType": "shell",
+              "command": "gnome-calculator || kcalc || xcalc",
+              "terminalMode": "background",
+              "workingDir": "",
+              "keepOpen": false,
+              "url": ""
+            },
+            {
+              "id": 3,
+              "label": "TEST SUITE",
+              "sublabel": "NPM TEST",
+              "icon": "🧪",
+              "color": "#06b6d4",
+              "actionType": "shell",
+              "command": "npm test",
+              "terminalMode": "tab",
+              "workingDir": "",
+              "keepOpen": true,
+              "url": ""
+            },
+            {
+              "id": 4,
+              "label": "VS CODE",
+              "sublabel": "EDITOR",
+              "icon": "💻",
+              "color": "#1c69d4",
+              "actionType": "shell",
+              "command": "code . || code || echo 'Opening editor'",
+              "terminalMode": "background",
+              "workingDir": "",
+              "keepOpen": false,
+              "url": ""
+            },
+            {
+              "id": 5,
+              "label": "GIT STATUS",
+              "sublabel": "TERMINAL",
+              "icon": "🌿",
+              "color": "#10b981",
+              "actionType": "shell",
+              "command": "git status",
+              "terminalMode": "tab",
+              "workingDir": "",
+              "keepOpen": true,
+              "url": ""
+            },
+            {
+              "id": 6,
+              "label": "SYSTEM STATS",
+              "sublabel": "MONITOR",
+              "icon": "📊",
+              "color": "#8b5cf6",
+              "actionType": "shell",
+              "command": "btop || htop || top",
+              "terminalMode": "tab",
+              "workingDir": "",
+              "keepOpen": true,
+              "url": ""
+            }
+          ]
+        },
+        {
+          "pageNumber": 2,
+          "name": "DevOps & Cloud",
+          "buttons": [
+            {
+              "id": 0,
+              "label": "GITHUB",
+              "sublabel": "BROWSER",
+              "icon": "🌐",
+              "color": "#1c69d4",
+              "actionType": "url",
+              "command": "",
+              "terminalMode": "background",
+              "workingDir": "",
+              "keepOpen": false,
+              "url": "https://github.com"
+            },
+            {
+              "id": 1,
+              "label": "SYSTEM LOGS",
+              "sublabel": "JOURNALCTL",
+              "icon": "📜",
+              "color": "#64748b",
+              "actionType": "shell",
+              "command": "journalctl -n 25 --no-pager",
+              "terminalMode": "tab",
+              "workingDir": "",
+              "keepOpen": true,
+              "url": ""
+            },
+            {
+              "id": 2,
+              "label": "LOCALHOST 3000",
+              "sublabel": "DEV SERVER",
+              "icon": "🌐",
+              "color": "#14b8a6",
+              "actionType": "url",
+              "command": "",
+              "terminalMode": "background",
+              "workingDir": "",
+              "keepOpen": false,
+              "url": "http://localhost:3000"
+            },
+            {
+              "id": 3,
+              "label": "LOCALHOST 8080",
+              "sublabel": "API SERVICE",
+              "icon": "🚀",
+              "color": "#a855f7",
+              "actionType": "url",
+              "command": "",
+              "terminalMode": "background",
+              "workingDir": "",
+              "keepOpen": false,
+              "url": "http://localhost:8080"
+            },
+            {
+              "id": 4,
+              "label": "FILES",
+              "sublabel": "FILE MANAGER",
+              "icon": "📁",
+              "color": "#1c69d4",
+              "actionType": "shell",
+              "command": "nautilus ~ || xdg-open ~",
+              "terminalMode": "background",
+              "workingDir": "",
+              "keepOpen": false,
+              "url": ""
+            }
+          ]
+        }
+      ]
+    },
+    "media": {
+      "name": "Media & Audio Controls",
+      "pages": [
+        {
+          "pageNumber": 1,
+          "name": "Sound & Media",
+          "buttons": [
+            {
+              "id": 0,
+              "label": "MUTE AUDIO",
+              "sublabel": "TOGGLE",
+              "icon": "🔇",
+              "color": "#ef4444",
+              "actionType": "media",
+              "mediaAction": "mute",
+              "command": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle || pactl set-sink-mute @DEFAULT_SINK@ toggle",
+              "terminalMode": "background",
+              "workingDir": "",
+              "keepOpen": false,
+              "url": ""
+            },
+            {
+              "id": 1,
+              "label": "VOL DOWN",
+              "sublabel": "5% DOWN",
+              "icon": "🔉",
+              "color": "#3b82f6",
+              "actionType": "media",
+              "mediaAction": "vol_down",
+              "command": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- || pactl set-sink-volume @DEFAULT_SINK@ -5%",
+              "terminalMode": "background",
+              "workingDir": "",
+              "keepOpen": false,
+              "url": ""
+            },
+            {
+              "id": 2,
+              "label": "VOL UP",
+              "sublabel": "5% UP",
+              "icon": "🔊",
+              "color": "#3b82f6",
+              "actionType": "media",
+              "mediaAction": "vol_up",
+              "command": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ || pactl set-sink-volume @DEFAULT_SINK@ +5%",
+              "terminalMode": "background",
+              "workingDir": "",
+              "keepOpen": false,
+              "url": ""
+            },
+            {
+              "id": 3,
+              "label": "PREV TRACK",
+              "sublabel": "MEDIA",
+              "icon": "⏮️",
+              "color": "#8b5cf6",
+              "actionType": "media",
+              "mediaAction": "prev",
+              "command": "playerctl previous 2>/dev/null || echo 'Previous'",
+              "terminalMode": "background",
+              "workingDir": "",
+              "keepOpen": false,
+              "url": ""
+            },
+            {
+              "id": 4,
+              "label": "PLAY / PAUSE",
+              "sublabel": "MEDIA",
+              "icon": "⏯️",
+              "color": "#10b981",
+              "actionType": "media",
+              "mediaAction": "play_pause",
+              "command": "playerctl play-pause 2>/dev/null || echo 'Play/Pause'",
+              "terminalMode": "background",
+              "workingDir": "",
+              "keepOpen": false,
+              "url": ""
+            },
+            {
+              "id": 5,
+              "label": "NEXT TRACK",
+              "sublabel": "MEDIA",
+              "icon": "⏭️",
+              "color": "#8b5cf6",
+              "actionType": "media",
+              "mediaAction": "next",
+              "command": "playerctl next 2>/dev/null || echo 'Next'",
+              "terminalMode": "background",
+              "workingDir": "",
+              "keepOpen": false,
+              "url": ""
+            },
+            {
+              "id": 6,
+              "label": "SCREENSHOT",
+              "sublabel": "INTERACTIVE",
+              "icon": "📸",
+              "color": "#f97316",
+              "actionType": "shell",
+              "command": "gnome-screenshot -i 2>/dev/null || grim 2>/dev/null || echo 'Screenshot'",
+              "terminalMode": "background",
+              "workingDir": "",
+              "keepOpen": false,
+              "url": ""
+            },
+            {
+              "id": 7,
+              "label": "LOCK PC",
+              "sublabel": "WORKSTATION",
+              "icon": "🔒",
+              "color": "#ef4444",
+              "actionType": "shell",
+              "command": "loginctl lock-session || gnome-screensaver-command -l",
+              "terminalMode": "background",
+              "workingDir": "",
+              "keepOpen": false,
+              "url": ""
+            },
+            {
+              "id": 8,
+              "label": "FILE MANAGER",
+              "sublabel": "HOME",
+              "icon": "📁",
+              "color": "#0066b1",
+              "actionType": "shell",
+              "command": "nautilus ~ || xdg-open ~",
+              "terminalMode": "background",
+              "workingDir": "",
+              "keepOpen": false,
+              "url": ""
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

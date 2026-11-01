@@ -1,669 +1,590 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
-const { exec, spawn, execSync } = require('child_process');
 const WebSocket = require('ws');
 const qrcode = require('qrcode-terminal');
 
-const PORT = process.env.PORT || 3333;
-const CONFIG_PATH = path.join(__dirname, 'config', 'profiles.json');
+const {
+  loadConfig,
+  saveConfigAtomic,
+  validateButton,
+  DEFAULT_CONFIG_PATH,
+  DEFAULT_EXAMPLE_PATH
+} = require('./lib/config');
+
+const {
+  safeEqual,
+  loadOrCreateAuth,
+  isAllowedOrigin,
+  isLocalAddress,
+  getRole
+} = require('./lib/auth');
+
+const {
+  getDefaultShell,
+  getDefaultTerminal,
+  executeAction
+} = require('./lib/terminal');
+
+const {
+  getInstalledApplications,
+  getSuggestedProjectDirs
+} = require('./lib/apps');
+
+const { getNetworkInterfaces } = require('./lib/network');
+
+const PORT = parseInt(process.env.PORT, 10) || 3333;
+const HOST = process.env.HOST || '0.0.0.0';
+const CONFIG_PATH = process.env.CONFIG_PATH || DEFAULT_CONFIG_PATH;
+const AUTH_PATH = process.env.AUTH_PATH || path.join(__dirname, 'config', 'auth.json');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
-// Load configurations
-let appConfig = {};
-try {
-  const raw = fs.readFileSync(CONFIG_PATH, 'utf-8');
-  appConfig = JSON.parse(raw);
-} catch (err) {
-  console.error('Failed to load profiles.json, using defaults:', err.message);
-}
-
-function saveConfig() {
-  try {
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(appConfig, null, 2), 'utf-8');
-  } catch (err) {
-    console.error('Failed to save profiles.json:', err.message);
-  }
-}
-
-// Find local IPv4 addresses (Wi-Fi, USB Tethering, Ethernet)
-function getNetworkInterfaces() {
-  const nets = os.networkInterfaces();
-  const results = [];
-  for (const name of Object.keys(nets)) {
-    if (name.startsWith('docker') || name.startsWith('br-') || name.startsWith('veth') || name.startsWith('virbr')) continue;
-    for (const net of nets[name]) {
-      if (net.family === 'IPv4' && !net.internal) {
-        let type = 'LAN / Ethernet';
-        const lower = name.toLowerCase();
-        if (lower.startsWith('wl')) {
-          type = 'Wi-Fi';
-        } else if (lower.includes('usb') || lower.includes('rndis') || /^enp\d+s\d+f\d+u\d+/.test(lower) || lower.startsWith('enx')) {
-          type = 'USB Cable Tethering';
-        } else if (lower.includes('bt') || lower.includes('pan')) {
-          type = 'Bluetooth Network';
-        }
-        results.push({ name, address: net.address, type });
-      }
-    }
-  }
-  return results.sort((a, b) => {
-    if (a.type.includes('USB')) return -1;
-    if (b.type.includes('USB')) return 1;
-    if (a.type.includes('Wi-Fi')) return -1;
-    if (b.type.includes('Wi-Fi')) return 1;
-    return 0;
-  });
-}
-
-// Map system app categories and names to clean visual emojis
-function getAppEmoji(name, category, execCmd) {
-  const lower = (name + ' ' + (category || '') + ' ' + execCmd).toLowerCase();
-  if (lower.includes('code') || lower.includes('dev') || lower.includes('studio') || lower.includes('git')) return '💻';
-  if (lower.includes('term') || lower.includes('bash') || lower.includes('zsh') || lower.includes('shell') || lower.includes('ptyxis')) return '⚡';
-  if (lower.includes('chrome') || lower.includes('brave') || lower.includes('firefox') || lower.includes('browser') || lower.includes('web')) return '🌐';
-  if (lower.includes('calc')) return '🧮';
-  if (lower.includes('file') || lower.includes('nautilus') || lower.includes('folder')) return '📁';
-  if (lower.includes('music') || lower.includes('audio') || lower.includes('sound') || lower.includes('player') || lower.includes('spotify')) return '🎵';
-  if (lower.includes('video') || lower.includes('camera') || lower.includes('photo') || lower.includes('snapshot')) return '🎥';
-  if (lower.includes('monitor') || lower.includes('top') || lower.includes('task') || lower.includes('system') || lower.includes('stats')) return '📊';
-  if (lower.includes('clock') || lower.includes('time') || lower.includes('calendar')) return '📅';
-  if (lower.includes('setting') || lower.includes('config') || lower.includes('control')) return '⚙️';
-  if (lower.includes('text') || lower.includes('note') || lower.includes('doc') || lower.includes('edit')) return '📝';
-  if (lower.includes('mail') || lower.includes('email') || lower.includes('message') || lower.includes('chat')) return '💬';
-  if (lower.includes('box') || lower.includes('vm') || lower.includes('docker') || lower.includes('virt')) return '📦';
-  return '🚀';
-}
-
-// Discover and parse installed Linux desktop applications
-function getInstalledApplications() {
-  const dirs = [
-    '/usr/share/applications',
-    path.join(process.env.HOME || '', '.local/share/applications')
-  ];
-  const apps = [];
-  const seen = new Set();
-
-  for (const dir of dirs) {
-    if (!fs.existsSync(dir)) continue;
-    try {
-      const files = fs.readdirSync(dir);
-      for (const file of files) {
-        if (!file.endsWith('.desktop')) continue;
-        try {
-          const content = fs.readFileSync(path.join(dir, file), 'utf-8');
-          if (content.includes('NoDisplay=true') || content.includes('Type=Link')) continue;
-          
-          const nameMatch = content.match(/^Name=([^\r\n]+)/m);
-          const execMatch = content.match(/^Exec=([^\r\n]+)/m);
-          const iconMatch = content.match(/^Icon=([^\r\n]+)/m);
-          const catMatch = content.match(/^Categories=([^\r\n]+)/m);
-          const commentMatch = content.match(/^Comment=([^\r\n]+)/m);
-
-          if (nameMatch && execMatch) {
-            const name = nameMatch[1].trim();
-            if (seen.has(name)) continue;
-            seen.add(name);
-
-            // Clean exec command: remove %u, %U, %f, %F, etc.
-            let execCmd = execMatch[1].replace(/%[uUfFdiDknm]/g, '').trim();
-            const category = catMatch ? catMatch[1].split(';').filter(Boolean)[0] : 'Utility';
-            const iconEmoji = getAppEmoji(name, category, execCmd);
-
-            apps.push({
-              id: file.replace('.desktop', ''),
-              name,
-              command: execCmd,
-              iconName: iconMatch ? iconMatch[1].trim() : 'application-x-executable',
-              emoji: iconEmoji,
-              category,
-              comment: commentMatch ? commentMatch[1].trim() : ''
-            });
-          }
-        } catch (e) {}
-      }
-    } catch (e) {}
-  }
-  return apps.sort((a, b) => a.name.localeCompare(b.name));
-}
-
-// Cached installed apps
-let cachedInstalledApps = null;
-
-// Simple Static File HTTP Server
 const MIME_TYPES = {
-  '.html': 'text/html',
-  '.css': 'text/css',
-  '.js': 'text/javascript',
-  '.json': 'application/json',
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon'
 };
 
-const server = http.createServer((req, res) => {
-  let reqPath = req.url.split('?')[0];
+function createServer(options = {}) {
+  const configPath = options.configPath || CONFIG_PATH;
+  const authPath = options.authPath || AUTH_PATH;
+  const publicDir = options.publicDir || PUBLIC_DIR;
 
-  // API Route: Return list of installed system applications
-  if (reqPath === '/api/apps') {
-    if (!cachedInstalledApps) {
-      cachedInstalledApps = getInstalledApplications();
+  const credentials = loadOrCreateAuth(authPath);
+  let appConfig = loadConfig(configPath, DEFAULT_EXAMPLE_PATH);
+  let currentPageIndex = 0;
+
+  function saveConfig() {
+    try {
+      saveConfigAtomic(configPath, appConfig);
+    } catch (err) {
+      console.error('[Arya Dock] Failed to save config:', err.message);
     }
-    res.writeHead(200, {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*'
-    });
-    res.end(JSON.stringify(cachedInstalledApps));
-    return;
   }
 
-  // API Route: Return list of suggested common project directories
-  if (reqPath === '/api/directories') {
-    const dirs = getSuggestedProjectDirs();
-    res.writeHead(200, {
-      'Content-Type': 'application/json',
-      'Access-Control-Allow-Origin': '*'
-    });
-    res.end(JSON.stringify(dirs));
-    return;
+  function getActiveProfile() {
+    const pId = appConfig.activeProfile || 'developer';
+    return appConfig.profiles[pId] || Object.values(appConfig.profiles)[0];
   }
 
-  if (reqPath === '/' || reqPath === '') reqPath = '/index.html';
-
-  const filePath = path.join(PUBLIC_DIR, reqPath);
-  if (!filePath.startsWith(PUBLIC_DIR)) {
-    res.writeHead(403);
-    res.end('Access Denied');
-    return;
+  function getCurrentPage() {
+    const profile = getActiveProfile();
+    if (!profile.pages || profile.pages.length === 0) return { buttons: [] };
+    if (currentPageIndex >= profile.pages.length) currentPageIndex = 0;
+    if (currentPageIndex < 0) currentPageIndex = profile.pages.length - 1;
+    return profile.pages[currentPageIndex];
   }
 
-  fs.stat(filePath, (err, stats) => {
-    if (err || !stats.isFile()) {
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('Not Found');
+  function broadcastState(wssInstance) {
+    const profile = getActiveProfile();
+    const page = getCurrentPage();
+    const basePayload = {
+      type: 'STATE_UPDATE',
+      activeProfileId: appConfig.activeProfile,
+      profileName: profile.name,
+      pageNumber: currentPageIndex + 1,
+      totalPages: profile.pages ? profile.pages.length : 1,
+      pageName: page.name || `Page ${currentPageIndex + 1}`,
+      buttons: page.buttons || []
+    };
+
+    for (const client of wssInstance.clients) {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(JSON.stringify({
+          ...basePayload,
+          role: client.role,
+          canEdit: client.canEdit
+        }));
+      }
+    }
+  }
+
+  // HTTP Request Handler
+  const server = http.createServer((req, res) => {
+    // Check raw path (before query string) for traversal attacks
+    const rawPath = (req.url || '').split('?')[0];
+    let decodedRawPath = '';
+    try {
+      decodedRawPath = decodeURIComponent(rawPath);
+    } catch (e) {
+      res.writeHead(400, { 'Content-Type': 'text/plain' });
+      res.end('Bad Request');
       return;
     }
 
-    const ext = path.extname(filePath).toLowerCase();
-    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-    res.writeHead(200, {
-      'Content-Type': contentType,
-      'Cache-Control': 'no-cache, no-store, must-revalidate',
-      'Pragma': 'no-cache',
-      'Expires': '0',
-      'Access-Control-Allow-Origin': '*'
-    });
-    fs.createReadStream(filePath).pipe(res);
-  });
-});
-
-// WebSocket Server
-const wss = new WebSocket.Server({ server });
-
-let currentPageIndex = 0;
-
-function getActiveProfile() {
-  const pId = appConfig.activeProfile || 'developer';
-  return appConfig.profiles[pId] || Object.values(appConfig.profiles)[0];
-}
-
-function getCurrentPage() {
-  const profile = getActiveProfile();
-  if (!profile.pages || profile.pages.length === 0) return { buttons: [] };
-  if (currentPageIndex >= profile.pages.length) currentPageIndex = 0;
-  if (currentPageIndex < 0) currentPageIndex = profile.pages.length - 1;
-  return profile.pages[currentPageIndex];
-}
-
-function broadcastState() {
-  const profile = getActiveProfile();
-  const page = getCurrentPage();
-  const payload = JSON.stringify({
-    type: 'STATE_UPDATE',
-    activeProfileId: appConfig.activeProfile,
-    profileName: profile.name,
-    pageNumber: currentPageIndex + 1,
-    totalPages: profile.pages ? profile.pages.length : 1,
-    pageName: page.name || `Page ${currentPageIndex + 1}`,
-    buttons: page.buttons || []
-  });
-
-  for (const client of wss.clients) {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(payload);
+    if (rawPath.includes('..') || rawPath.includes('%2e') || rawPath.includes('%2E') || decodedRawPath.includes('..')) {
+      res.writeHead(403, { 'Content-Type': 'text/plain' });
+      res.end('Access Denied');
+      return;
     }
-  }
-}
 
-// Automatically detect the user's default shell (zsh, bash, etc.)
-function getDefaultShell() {
-  const envShell = process.env.SHELL;
-  if (envShell && fs.existsSync(envShell)) return envShell;
-  try {
-    const userShell = os.userInfo().shell;
-    if (userShell && fs.existsSync(userShell)) return userShell;
-  } catch (e) {}
-  if (fs.existsSync('/usr/bin/zsh')) return '/usr/bin/zsh';
-  if (fs.existsSync('/bin/zsh')) return '/bin/zsh';
-  if (fs.existsSync('/bin/bash')) return '/bin/bash';
-  return '/bin/sh';
-}
-
-// Automatically detect the system's installed default terminal emulator
-function getDefaultTerminal() {
-  const candidates = [
-    'ptyxis',
-    'gnome-terminal',
-    'konsole',
-    'xfce4-terminal',
-    'alacritty',
-    'kitty',
-    'foot',
-    'wezterm',
-    'x-terminal-emulator',
-    'xterm'
-  ];
-  for (const term of candidates) {
+    let parsedUrl;
     try {
-      const p = execSync(`which ${term} 2>/dev/null`, { encoding: 'utf-8' }).trim();
-      if (p) return { name: term, path: p };
-    } catch (e) {}
-  }
-  return { name: 'ptyxis', path: '/usr/bin/ptyxis' };
-}
-
-// Normalize and resolve working directory paths (e.g. ~/path or $HOME/path)
-function resolveWorkingDir(dir) {
-  if (!dir || typeof dir !== 'string') return '';
-  let resolved = dir.trim();
-  if (!resolved) return '';
-  if (resolved === '~' || resolved === '$HOME') {
-    return os.homedir();
-  }
-  if (resolved.startsWith('~/') || resolved.startsWith('~\\')) {
-    resolved = path.join(os.homedir(), resolved.slice(2));
-  } else if (resolved.startsWith('$HOME/') || resolved.startsWith('$HOME\\')) {
-    resolved = path.join(os.homedir(), resolved.slice(6));
-  }
-  return path.resolve(resolved);
-}
-
-// Discover common project and workspace directories for auto-complete suggestions
-function getSuggestedProjectDirs() {
-  const home = os.homedir();
-  const dirs = [];
-  const seen = new Set();
-
-  function addDir(label, fullPath) {
-    if (!fullPath || !fs.existsSync(fullPath)) return;
-    const resolved = path.resolve(fullPath);
-    if (seen.has(resolved)) return;
-    seen.add(resolved);
-    const displayPath = resolved.startsWith(home) ? '~' + resolved.slice(home.length) : resolved;
-    dirs.push({ label, path: displayPath, fullPath: resolved });
-  }
-
-  // High priority project repositories
-  addDir('Arya Banking Infra', path.join(home, 'Documents/Event-Based-Banking-Application/arya-banking-infra'));
-  addDir('Event Banking App', path.join(home, 'Documents/Event-Based-Banking-Application'));
-  addDir('Arya Dock', __dirname);
-  addDir('LinkedIn Skills', path.join(home, 'Documents/linkedin-skills'));
-  addDir('Documents', path.join(home, 'Documents'));
-  addDir('Home (~)', home);
-
-  // Scan subdirectories in ~/Documents (1-level deep)
-  try {
-    const docPath = path.join(home, 'Documents');
-    if (fs.existsSync(docPath)) {
-      const entries = fs.readdirSync(docPath, { withFileTypes: true });
-      for (const entry of entries) {
-        if (entry.isDirectory() && !entry.name.startsWith('.')) {
-          const sub = path.join(docPath, entry.name);
-          addDir(entry.name, sub);
-        }
-      }
-    }
-  } catch (e) {}
-
-  return dirs;
-}
-
-// Build command wrapper based on target terminal execution mode
-function buildTerminalCommand(command = '', mode = 'background', title = 'Arya Dock', workingDir = '', keepOpen = true) {
-  const defaultShell = getDefaultShell();
-  const shellName = path.basename(defaultShell);
-  const detectedTerm = getDefaultTerminal();
-  const resolvedDir = resolveWorkingDir(workingDir);
-
-  let cmd = (command || '').trim();
-  const isPureShellLaunch = !cmd || ['bash', 'zsh', 'sh', '$shell', 'shell', 'terminal'].includes(cmd.toLowerCase());
-
-  if (mode === 'background' || !mode) {
-    if (isPureShellLaunch) return command;
-    const cdCmd = resolvedDir ? `cd "${resolvedDir}" && ` : '';
-    const escaped = (cdCmd + cmd).replace(/"/g, '\\"');
-    return `env POWERLEVEL9K_INSTANT_PROMPT=quiet DISABLE_UPDATE_PROMPT=true "${defaultShell}" -i -l -c "${escaped}"`;
-  }
-
-  let innerScript = '';
-  const cdPrefix = resolvedDir ? `cd "${resolvedDir}" && ` : '';
-
-  if (isPureShellLaunch) {
-    innerScript = resolvedDir ? `cd "${resolvedDir}" && exec "${defaultShell}" -l` : `exec "${defaultShell}" -l`;
-  } else {
-    innerScript = `${cdPrefix}${cmd}`;
-    if (keepOpen) {
-      innerScript += `; echo ""; echo -e "\\033[1;34m[Arya Dock]\\033[0m Command completed. Session interactive (${shellName})."; exec "${defaultShell}" -l`;
-    }
-  }
-
-  const escapedInner = innerScript.replace(/"/g, '\\"');
-  const safeTitle = (title || 'Arya Dock').replace(/"/g, '');
-  const ptyxisDir = resolvedDir ? `-d "${resolvedDir}"` : '';
-  const gnomeDir = resolvedDir ? `--working-directory="${resolvedDir}"` : '';
-  const konsoleDir = resolvedDir ? `--workdir "${resolvedDir}"` : '';
-  const genericDir = resolvedDir ? `--working-directory "${resolvedDir}"` : '';
-
-  // Use interactive login shell (-i -l) with Oh My Zsh and Powerlevel10k quiet mode to prevent lock file conflicts
-  const shellCommand = `env POWERLEVEL9K_INSTANT_PROMPT=quiet DISABLE_UPDATE_PROMPT=true "${defaultShell}" -i -l -c "${escapedInner}"`;
-
-  if (mode === 'tab') {
-    // Open in terminal as a new tab
-    if (detectedTerm.name === 'ptyxis') {
-      return `ptyxis --tab ${ptyxisDir} -T "${safeTitle}" -- ${shellCommand} || ptyxis ${ptyxisDir} -T "${safeTitle}" -- ${shellCommand}`;
-    } else if (detectedTerm.name === 'gnome-terminal') {
-      return `gnome-terminal --tab --title="${safeTitle}" ${gnomeDir} -- ${shellCommand}`;
-    } else if (detectedTerm.name === 'konsole') {
-      return `konsole --new-tab ${konsoleDir} -e ${shellCommand}`;
-    } else {
-      return `ptyxis --tab ${ptyxisDir} -T "${safeTitle}" -- ${shellCommand} || ` +
-             `gnome-terminal --tab --title="${safeTitle}" ${gnomeDir} -- ${shellCommand} || ` +
-             `konsole --new-tab ${konsoleDir} -e ${shellCommand} || ` +
-             `ptyxis ${ptyxisDir} -T "${safeTitle}" -- ${shellCommand}`;
-    }
-  } else if (mode === 'window') {
-    // Open in new standalone terminal window
-    if (detectedTerm.name === 'ptyxis') {
-      return `ptyxis --new-window ${ptyxisDir} -T "${safeTitle}" -- ${shellCommand}`;
-    } else if (detectedTerm.name === 'gnome-terminal') {
-      return `gnome-terminal --title="${safeTitle}" ${gnomeDir} -- ${shellCommand}`;
-    } else if (detectedTerm.name === 'alacritty') {
-      return `alacritty --title "${safeTitle}" ${genericDir} -e ${shellCommand}`;
-    } else if (detectedTerm.name === 'kitty') {
-      return `kitty --title "${safeTitle}" ${resolvedDir ? `--directory "${resolvedDir}"` : ''} ${shellCommand}`;
-    } else if (detectedTerm.name === 'konsole') {
-      return `konsole ${konsoleDir} -e ${shellCommand}`;
-    } else {
-      return `ptyxis --new-window ${ptyxisDir} -T "${safeTitle}" -- ${shellCommand} || ` +
-             `gnome-terminal --title="${safeTitle}" ${gnomeDir} -- ${shellCommand} || ` +
-             `alacritty --title "${safeTitle}" ${genericDir} -e ${shellCommand} || ` +
-             `kitty --title "${safeTitle}" ${shellCommand} || ` +
-             `konsole ${konsoleDir} -e ${shellCommand} || ` +
-             `xterm -title "${safeTitle}" -e ${shellCommand}`;
-    }
-  } else if (mode === 'existing') {
-    // Run in active / existing terminal
-    return `ptyxis ${ptyxisDir} -T "${safeTitle}" -- ${shellCommand} || ` +
-           `ptyxis --tab ${ptyxisDir} -T "${safeTitle}" -- ${shellCommand} || ` +
-           `gnome-terminal --title="${safeTitle}" ${gnomeDir} -- ${shellCommand}`;
-  }
-
-  return command;
-}
-
-// Action Dispatcher
-function executeAction(button) {
-  if (!button || !button.actionType) return;
-
-  const defaultShell = getDefaultShell();
-  const shellName = path.basename(defaultShell);
-  const resolvedDir = resolveWorkingDir(button.workingDir);
-  console.log(`[Arya Dock] Triggered Button [${button.id}] '${button.label}': ${button.actionType} (${button.terminalMode || 'background'})${resolvedDir ? ` in ${resolvedDir}` : ''} via ${shellName}`);
-
-  switch (button.actionType) {
-    case 'shell': {
-      const finalCommand = buildTerminalCommand(
-        button.command !== undefined ? button.command : '',
-        button.terminalMode || 'background',
-        button.label || 'Arya Dock',
-        resolvedDir,
-        button.keepOpen !== false
-      );
-      const execOptions = {
-        env: {
-          ...process.env,
-          DISABLE_UPDATE_PROMPT: 'true',
-          POWERLEVEL9K_INSTANT_PROMPT: 'quiet'
-        },
-        shell: defaultShell
-      };
-      if (resolvedDir && fs.existsSync(resolvedDir)) {
-        execOptions.cwd = resolvedDir;
-      }
-      exec(finalCommand, execOptions, (error, stdout, stderr) => {
-        if (error) console.error(`[Exec Error]: ${error.message}`);
-        if (stdout) console.log(`[Exec Output]: ${stdout.trim()}`);
-      });
-      break;
-    }
-
-    case 'media':
-      // Media actions via wpctl / pactl / playerctl
-      const mediaMap = {
-        'play_pause': 'playerctl play-pause || echo "play-pause"',
-        'next': 'playerctl next || echo "next"',
-        'prev': 'playerctl previous || echo "prev"',
-        'vol_up': 'wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ || pactl set-sink-volume @DEFAULT_SINK@ +5%',
-        'vol_down': 'wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- || pactl set-sink-volume @DEFAULT_SINK@ -5%',
-        'mute': 'wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle || pactl set-sink-mute @DEFAULT_SINK@ toggle'
-      };
-      const cmd = mediaMap[button.mediaAction] || button.command;
-      if (cmd) exec(cmd);
-      break;
-
-    case 'url':
-      if (button.url) {
-        exec(`xdg-open "${button.url}" || open "${button.url}"`);
-      }
-      break;
-
-    default:
-      console.log(`Unhandled action type: ${button.actionType}`);
-  }
-}
-
-wss.on('connection', (ws, req) => {
-  const clientIp = req.socket.remoteAddress;
-  console.log(`[Arya Dock] Client connected from ${clientIp}`);
-
-  ws.isAlive = true;
-  ws.on('pong', () => {
-    ws.isAlive = true;
-  });
-
-  // Send initial state
-  const profile = getActiveProfile();
-  const page = getCurrentPage();
-  ws.send(JSON.stringify({
-    type: 'INIT',
-    profiles: Object.entries(appConfig.profiles).map(([id, p]) => ({ id, name: p.name })),
-    activeProfileId: appConfig.activeProfile,
-    pageNumber: currentPageIndex + 1,
-    totalPages: profile.pages ? profile.pages.length : 1,
-    pageName: page.name || `Page ${currentPageIndex + 1}`,
-    buttons: page.buttons || []
-  }));
-
-  ws.on('message', (message) => {
-    ws.isAlive = true;
-    try {
-      const data = JSON.parse(message);
-
-      switch (data.type) {
-        case 'BUTTON_CLICK': {
-          const page = getCurrentPage();
-          const button = page.buttons.find(b => b.id === data.buttonId);
-          if (button) {
-            executeAction(button);
-            ws.send(JSON.stringify({ type: 'BUTTON_ACK', buttonId: data.buttonId, status: 'ok' }));
-          }
-          break;
-        }
-
-        case 'PAGE_PREV': {
-          const profile = getActiveProfile();
-          currentPageIndex = (currentPageIndex - 1 + profile.pages.length) % profile.pages.length;
-          broadcastState();
-          break;
-        }
-
-        case 'PAGE_NEXT': {
-          const profile = getActiveProfile();
-          currentPageIndex = (currentPageIndex + 1) % profile.pages.length;
-          broadcastState();
-          break;
-        }
-
-        case 'SET_PROFILE': {
-          if (appConfig.profiles[data.profileId]) {
-            appConfig.activeProfile = data.profileId;
-            currentPageIndex = 0;
-            saveConfig();
-            broadcastState();
-          }
-          break;
-        }
-
-        case 'UPDATE_BUTTON': {
-          const page = getCurrentPage();
-          const idx = page.buttons.findIndex(b => b.id === data.button.id);
-          if (idx !== -1) {
-            page.buttons[idx] = { ...page.buttons[idx], ...data.button };
-            saveConfig();
-            broadcastState();
-          }
-          break;
-        }
-
-        case 'ADD_BUTTON': {
-          const page = getCurrentPage();
-          const newId = page.buttons.length > 0 ? Math.max(...page.buttons.map(b => b.id)) + 1 : 0;
-          const newButton = {
-            id: newId,
-            label: data.button?.label || `KEY ${newId + 1}`,
-            sublabel: data.button?.sublabel || 'SHORTCUT',
-            icon: data.button?.icon || '⚡',
-            color: data.button?.color || '#1c69d4',
-            actionType: data.button?.actionType || 'shell',
-            command: data.button?.command || ''
-          };
-          page.buttons.push(newButton);
-          saveConfig();
-          broadcastState();
-          break;
-        }
-
-        case 'DELETE_BUTTON': {
-          const page = getCurrentPage();
-          const idx = page.buttons.findIndex(b => b.id === data.buttonId);
-          if (idx !== -1) {
-            page.buttons.splice(idx, 1);
-            saveConfig();
-            broadcastState();
-          }
-          break;
-        }
-
-        case 'SET_BUTTONS_COUNT': {
-          const page = getCurrentPage();
-          const targetCount = Math.max(1, Math.min(24, parseInt(data.count, 10) || 9));
-          const currentCount = page.buttons.length;
-          if (targetCount > currentCount) {
-            const defaultColors = ['#0066b1', '#1c69d4', '#e22718', '#2b2b2b'];
-            for (let i = currentCount; i < targetCount; i++) {
-              const newId = page.buttons.length > 0 ? Math.max(...page.buttons.map(b => b.id)) + 1 : 0;
-              page.buttons.push({
-                id: newId,
-                label: `KEY ${newId + 1}`,
-                sublabel: 'EMPTY',
-                icon: '◻️',
-                color: defaultColors[i % defaultColors.length],
-                actionType: 'shell',
-                command: ''
-              });
-            }
-          } else if (targetCount < currentCount) {
-            page.buttons = page.buttons.slice(0, targetCount);
-          }
-          saveConfig();
-          broadcastState();
-          break;
-        }
-
-        case 'PING': {
-          ws.send(JSON.stringify({ type: 'PONG' }));
-          break;
-        }
-      }
+      parsedUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     } catch (e) {
-      console.error('WebSocket message parsing error:', e.message);
+      res.writeHead(400, { 'Content-Type': 'text/plain' });
+      res.end('Bad Request');
+      return;
     }
-  });
 
-  ws.on('close', () => {
-    console.log(`[Arya Dock] Client disconnected (${clientIp})`);
-  });
-});
+    let reqPath = parsedUrl.pathname;
+    const clientIp = options.mockClientIp || req.socket.remoteAddress;
 
-// Periodic ping heartbeat to prevent NAT dropouts and reap dead sockets
-const heartbeatInterval = setInterval(() => {
-  wss.clients.forEach((ws) => {
-    if (ws.isAlive === false) {
-      console.log('[Arya Dock] Terminating unresponsive client socket');
-      return ws.terminate();
+    // Helper: authenticate HTTP request
+    function checkHttpAuth() {
+      const authHeader = req.headers['authorization'];
+      let token = null;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.slice(7).trim();
+      } else if (req.headers['x-pairing-token']) {
+        token = req.headers['x-pairing-token'];
+      } else {
+        token = parsedUrl.searchParams.get('token');
+      }
+      return token && safeEqual(token, credentials.pairingToken);
     }
-    ws.isAlive = false;
-    ws.ping();
+
+    // Security Headers
+    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' ws: wss:; font-src 'self';");
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+
+    // API Route: Installed system applications (requires valid pairing token)
+    if (reqPath === '/api/apps') {
+      if (!checkHttpAuth()) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unauthorized: pairing token required' }));
+        return;
+      }
+      const apps = getInstalledApplications();
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(apps));
+      return;
+    }
+
+    // API Route: Suggested project directories (requires pairing token AND editor role)
+    if (reqPath === '/api/directories') {
+      if (!checkHttpAuth()) {
+        res.writeHead(401, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Unauthorized: pairing token required' }));
+        return;
+      }
+
+      const editKey = parsedUrl.searchParams.get('editKey');
+      const isEditor = isLocalAddress(clientIp) || (editKey && safeEqual(editKey, credentials.editorKey));
+      if (!isEditor) {
+        res.writeHead(403, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Forbidden: editor privilege required for directory suggestions' }));
+        return;
+      }
+
+      const dirs = getSuggestedProjectDirs(appConfig.suggestedDirs);
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(dirs));
+      return;
+    }
+
+    // Static Files Serving
+    if (reqPath === '/' || reqPath === '') reqPath = '/index.html';
+
+    const safePath = path.normalize(reqPath).replace(/^(\.\.[\/\\])+/, '');
+    const filePath = path.resolve(publicDir, '.' + safePath);
+
+    // Path traversal check
+    const relative = path.relative(publicDir, filePath);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+      res.writeHead(403, { 'Content-Type': 'text/plain' });
+      res.end('Access Denied');
+      return;
+    }
+
+    fs.stat(filePath, (err, stats) => {
+      if (err || !stats.isFile()) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not Found');
+        return;
+      }
+
+      const ext = path.extname(filePath).toLowerCase();
+      const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+      res.writeHead(200, {
+        'Content-Type': contentType,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
+      fs.createReadStream(filePath).pipe(res);
+    });
   });
-}, 15000);
 
-wss.on('close', () => {
-  clearInterval(heartbeatInterval);
-});
+  // WebSocket Server with manual upgrade handling
+  const wss = new WebSocket.Server({ noServer: true });
 
-// Start Server
-server.listen(PORT, '0.0.0.0', () => {
-  const interfaces = getNetworkInterfaces();
-  const primaryIp = interfaces.length > 0 ? interfaces[0].address : 'localhost';
-  const qrTarget = interfaces.find(i => i.type.includes('Wi-Fi')) || interfaces[0];
-  const qrUrl = qrTarget ? `http://${qrTarget.address}:${PORT}` : `http://localhost:${PORT}`;
+  server.on('upgrade', (req, socket, head) => {
+    let reqUrl;
+    try {
+      reqUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    } catch (e) {
+      socket.write('HTTP/1.1 400 Bad Request\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nBad Request\r\n');
+      socket.destroy();
+      return;
+    }
 
-  console.log('\n========================================================');
-  console.log('         🚀 ARYA DOCK — VIRTUAL KEYPAD CONSOLE          ');
-  console.log('========================================================\n');
-  console.log(`  🖥️  PC Web App:            http://localhost:${PORT}`);
-  
-  const defaultShell = getDefaultShell();
-  const defaultTerminal = getDefaultTerminal();
-  console.log(`  🐚  System Shell:          ${defaultShell} (${path.basename(defaultShell)})`);
-  console.log(`  ⚡  Terminal Emulator:     ${defaultTerminal.path} (${defaultTerminal.name})`);
-  
-  interfaces.forEach(iface => {
-    const icon = iface.type.includes('USB') ? '🔌' : (iface.type.includes('Wi-Fi') ? '📱' : '🌐');
-    console.log(`  ${icon}  ${iface.type} (${iface.name}): http://${iface.address}:${PORT}`);
+    const pathname = reqUrl.pathname;
+    if (pathname !== '/' && pathname !== '/ws') {
+      socket.write('HTTP/1.1 404 Not Found\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nNot Found\r\n');
+      socket.destroy();
+      return;
+    }
+
+    // Check Origin Header (Issue #2)
+    const interfaces = getNetworkInterfaces();
+    const allowedIps = interfaces.map(i => i.address);
+    if (HOST && HOST !== '0.0.0.0') {
+      allowedIps.push(HOST);
+    }
+    if (!isAllowedOrigin(req.headers.origin, req.headers.host, allowedIps)) {
+      console.warn(`[Arya Dock] Rejected WebSocket upgrade with disallowed Origin: ${req.headers.origin}`);
+      socket.write('HTTP/1.1 403 Forbidden\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nForbidden Origin\r\n');
+      socket.destroy();
+      return;
+    }
+
+    // Check Pairing Secret / Token (Issue #1)
+    const token = reqUrl.searchParams.get('token') || req.headers['x-pairing-token'];
+    if (!token || !safeEqual(token, credentials.pairingToken)) {
+      console.warn(`[Arya Dock] Rejected unauthenticated WebSocket connection attempt from ${socket.remoteAddress}`);
+      socket.write('HTTP/1.1 401 Unauthorized\r\nContent-Type: text/plain\r\nConnection: close\r\n\r\nUnauthorized\r\n');
+      socket.destroy();
+      return;
+    }
+
+    // Determine Role (Issue #3)
+    const clientIp = options.mockClientIp || socket.remoteAddress;
+    const editKey = reqUrl.searchParams.get('editKey');
+    const role = getRole(clientIp, editKey, credentials.editorKey);
+
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit('connection', ws, req, { role });
+    });
   });
-  
-  console.log('\n--- CONNECTION MODES ---');
-  console.log('• USB CABLE: Turn on "USB Tethering" on your phone and open the USB link above.');
-  console.log('• WI-FI / BLUETOOTH: Connect phone to same Wi-Fi and open Wi-Fi link or scan QR code below:');
-  
-  try {
-    qrcode.generate(qrUrl, { small: true });
-  } catch (e) {
-    // ignore
-  }
 
-  console.log('========================================================\n');
-});
+  wss.on('connection', (ws, req, extra = {}) => {
+    const clientIp = options.mockClientIp || req.socket.remoteAddress;
+    ws.role = extra.role || 'operator';
+    ws.canEdit = ws.role === 'editor';
+    ws.isAlive = true;
+
+    console.log(`[Arya Dock] Client connected from ${clientIp} (Role: ${ws.role})`);
+
+    ws.on('pong', () => {
+      ws.isAlive = true;
+    });
+
+    // Send initial state with role and permission
+    const profile = getActiveProfile();
+    const page = getCurrentPage();
+    ws.send(JSON.stringify({
+      type: 'INIT',
+      profiles: Object.entries(appConfig.profiles).map(([id, p]) => ({ id, name: p.name })),
+      activeProfileId: appConfig.activeProfile,
+      pageNumber: currentPageIndex + 1,
+      totalPages: profile.pages ? profile.pages.length : 1,
+      pageName: page.name || `Page ${currentPageIndex + 1}`,
+      buttons: page.buttons || [],
+      role: ws.role,
+      canEdit: ws.canEdit
+    }));
+
+    ws.on('message', (message) => {
+      ws.isAlive = true;
+      try {
+        const data = JSON.parse(message);
+
+        switch (data.type) {
+          case 'BUTTON_CLICK': {
+            const page = getCurrentPage();
+            const button = page.buttons.find(b => b.id === data.buttonId);
+            if (button) {
+              executeAction(button);
+              ws.send(JSON.stringify({ type: 'BUTTON_ACK', buttonId: data.buttonId, status: 'ok' }));
+            }
+            break;
+          }
+
+          case 'PAGE_PREV': {
+            const profile = getActiveProfile();
+            currentPageIndex = (currentPageIndex - 1 + profile.pages.length) % profile.pages.length;
+            broadcastState(wss);
+            break;
+          }
+
+          case 'PAGE_NEXT': {
+            const profile = getActiveProfile();
+            currentPageIndex = (currentPageIndex + 1) % profile.pages.length;
+            broadcastState(wss);
+            break;
+          }
+
+          case 'AUTH_EDIT': {
+            if (data.editKey && safeEqual(data.editKey, credentials.editorKey)) {
+              ws.role = 'editor';
+              ws.canEdit = true;
+              console.log(`[Arya Dock] Client from ${clientIp} elevated to editor role`);
+              ws.send(JSON.stringify({ type: 'ROLE_UPDATE', role: 'editor', canEdit: true }));
+            } else {
+              ws.send(JSON.stringify({ type: 'ERROR', message: 'Invalid editor key' }));
+            }
+            break;
+          }
+
+          case 'SET_PROFILE': {
+            if (!ws.canEdit) {
+              console.warn(`[Arya Dock] [MUTATION REJECTED] Client ${clientIp} (${ws.role}) attempted SET_PROFILE`);
+              ws.send(JSON.stringify({ type: 'ERROR', message: 'Unauthorized: editor privilege required' }));
+              return;
+            }
+            if (appConfig.profiles[data.profileId]) {
+              console.log(`[Arya Dock] [MUTATION] Client from ${clientIp} changed profile to ${data.profileId}`);
+              appConfig.activeProfile = data.profileId;
+              currentPageIndex = 0;
+              saveConfig();
+              broadcastState(wss);
+            }
+            break;
+          }
+
+          case 'UPDATE_BUTTON': {
+            if (!ws.canEdit) {
+              console.warn(`[Arya Dock] [MUTATION REJECTED] Client ${clientIp} (${ws.role}) attempted UPDATE_BUTTON`);
+              ws.send(JSON.stringify({ type: 'ERROR', message: 'Unauthorized: editor privilege required' }));
+              return;
+            }
+            const page = getCurrentPage();
+            const idx = page.buttons.findIndex(b => b.id === data.button?.id);
+            if (idx === -1) {
+              ws.send(JSON.stringify({ type: 'ERROR', message: 'Button not found' }));
+              return;
+            }
+
+            const validation = validateButton(data.button, { isUpdate: true, existingId: page.buttons[idx].id });
+            if (!validation.valid) {
+              ws.send(JSON.stringify({ type: 'ERROR', message: validation.error }));
+              return;
+            }
+
+            console.log(`[Arya Dock] [MUTATION] Client ${clientIp} updated button ${validation.button.id} ('${validation.button.label}')`);
+            const updated = { ...page.buttons[idx], ...validation.button };
+            if (validation.button.actionType !== 'media') {
+              delete updated.mediaAction;
+            }
+            page.buttons[idx] = updated;
+            saveConfig();
+            broadcastState(wss);
+            break;
+          }
+
+          case 'ADD_BUTTON': {
+            if (!ws.canEdit) {
+              console.warn(`[Arya Dock] [MUTATION REJECTED] Client ${clientIp} (${ws.role}) attempted ADD_BUTTON`);
+              ws.send(JSON.stringify({ type: 'ERROR', message: 'Unauthorized: editor privilege required' }));
+              return;
+            }
+            const page = getCurrentPage();
+            if (page.buttons.length >= 24) {
+              ws.send(JSON.stringify({ type: 'ERROR', message: 'Maximum tile limit (24) reached' }));
+              return;
+            }
+            const newId = page.buttons.length > 0 ? Math.max(...page.buttons.map(b => b.id)) + 1 : 0;
+            const validation = validateButton(data.button || {
+              id: newId,
+              label: `KEY ${newId + 1}`,
+              sublabel: 'SHORTCUT',
+              icon: '⚡',
+              color: '#1c69d4',
+              actionType: 'shell',
+              command: ''
+            });
+
+            if (!validation.valid) {
+              ws.send(JSON.stringify({ type: 'ERROR', message: validation.error }));
+              return;
+            }
+
+            validation.button.id = newId;
+            console.log(`[Arya Dock] [MUTATION] Client ${clientIp} added button ${newId} ('${validation.button.label}')`);
+            page.buttons.push(validation.button);
+            saveConfig();
+            broadcastState(wss);
+            break;
+          }
+
+          case 'DELETE_BUTTON': {
+            if (!ws.canEdit) {
+              console.warn(`[Arya Dock] [MUTATION REJECTED] Client ${clientIp} (${ws.role}) attempted DELETE_BUTTON`);
+              ws.send(JSON.stringify({ type: 'ERROR', message: 'Unauthorized: editor privilege required' }));
+              return;
+            }
+            const page = getCurrentPage();
+            if (page.buttons.length <= 1) {
+              ws.send(JSON.stringify({ type: 'ERROR', message: 'Cannot delete the last remaining button' }));
+              return;
+            }
+            const idx = page.buttons.findIndex(b => b.id === data.buttonId);
+            if (idx !== -1) {
+              console.log(`[Arya Dock] [MUTATION] Client ${clientIp} deleted button ${data.buttonId}`);
+              page.buttons.splice(idx, 1);
+              saveConfig();
+              broadcastState(wss);
+            } else {
+              ws.send(JSON.stringify({ type: 'ERROR', message: 'Button not found' }));
+            }
+            break;
+          }
+
+          case 'SET_BUTTONS_COUNT': {
+            if (!ws.canEdit) {
+              console.warn(`[Arya Dock] [MUTATION REJECTED] Client ${clientIp} (${ws.role}) attempted SET_BUTTONS_COUNT`);
+              ws.send(JSON.stringify({ type: 'ERROR', message: 'Unauthorized: editor privilege required' }));
+              return;
+            }
+            const page = getCurrentPage();
+            const targetCount = Math.max(1, Math.min(24, parseInt(data.count, 10) || 9));
+            const currentCount = page.buttons.length;
+            if (targetCount > currentCount) {
+              const defaultColors = ['#0066b1', '#1c69d4', '#e22718', '#2b2b2b'];
+              for (let i = currentCount; i < targetCount; i++) {
+                const newId = page.buttons.length > 0 ? Math.max(...page.buttons.map(b => b.id)) + 1 : 0;
+                page.buttons.push({
+                  id: newId,
+                  label: `KEY ${newId + 1}`,
+                  sublabel: 'EMPTY',
+                  icon: '◻️',
+                  color: defaultColors[i % defaultColors.length],
+                  actionType: 'shell',
+                  command: '',
+                  terminalMode: 'background',
+                  workingDir: '',
+                  keepOpen: false,
+                  url: ''
+                });
+              }
+            } else if (targetCount < currentCount) {
+              const toRemove = page.buttons.slice(targetCount);
+              const hasConfigured = toRemove.some(b => (b.command && b.command.trim()) || (b.url && b.url.trim()) || (b.label && !/^KEY\s*\d+$/i.test(b.label.trim())));
+              if (hasConfigured && !data.force) {
+                ws.send(JSON.stringify({ type: 'ERROR', message: 'Cannot reduce tile count: removed buttons contain configured actions. Pass force: true to confirm.' }));
+                return;
+              }
+              page.buttons = page.buttons.slice(0, targetCount);
+            }
+            console.log(`[Arya Dock] [MUTATION] Client ${clientIp} adjusted tile count to ${targetCount}`);
+            saveConfig();
+            broadcastState(wss);
+            break;
+          }
+
+          case 'PING': {
+            ws.send(JSON.stringify({ type: 'PONG' }));
+            break;
+          }
+        }
+      } catch (e) {
+        console.error('[Arya Dock] WebSocket message error:', e.message);
+      }
+    });
+
+    ws.on('close', () => {
+      console.log(`[Arya Dock] Client disconnected (${clientIp})`);
+    });
+  });
+
+  const heartbeatInterval = setInterval(() => {
+    wss.clients.forEach((ws) => {
+      if (ws.isAlive === false) {
+        return ws.terminate();
+      }
+      ws.isAlive = false;
+      ws.ping();
+    });
+  }, 15000);
+
+  wss.on('close', () => {
+    clearInterval(heartbeatInterval);
+  });
+
+  return {
+    server,
+    wss,
+    credentials,
+    getConfig: () => appConfig,
+    close: (cb) => {
+      clearInterval(heartbeatInterval);
+      for (const client of wss.clients) {
+        try { client.terminate(); } catch (e) {}
+      }
+      wss.close(() => {
+        server.close(cb);
+      });
+    }
+  };
+}
+
+// Start standalone server when executed directly
+if (require.main === module) {
+  const instance = createServer();
+  const { server, credentials } = instance;
+
+  server.listen(PORT, HOST, () => {
+    const interfaces = getNetworkInterfaces();
+    const qrTarget = interfaces.find(i => i.type.includes('Wi-Fi')) || interfaces[0];
+    const pairingToken = credentials.pairingToken;
+    const editorKey = credentials.editorKey;
+
+    const qrUrl = qrTarget
+      ? `http://${qrTarget.address}:${PORT}/?token=${pairingToken}`
+      : `http://localhost:${PORT}/?token=${pairingToken}`;
+
+    console.log('\n========================================================');
+    console.log('         🚀 ARYA DOCK — VIRTUAL KEYPAD CONSOLE          ');
+    console.log('========================================================\n');
+    console.log(`  🖥️  PC Web App:            http://localhost:${PORT}/?token=${pairingToken}&editKey=${editorKey}`);
+
+    const defaultShell = getDefaultShell();
+    const defaultTerminal = getDefaultTerminal();
+    console.log(`  🐚  System Shell:          ${defaultShell} (${path.basename(defaultShell)})`);
+    console.log(`  ⚡  Terminal Emulator:     ${defaultTerminal.path} (${defaultTerminal.name})`);
+
+    interfaces.forEach(iface => {
+      const icon = iface.type.includes('USB') ? '🔌' : (iface.type.includes('Wi-Fi') ? '📱' : '🌐');
+      console.log(`  ${icon}  ${iface.type} (${iface.name}): http://${iface.address}:${PORT}/?token=${pairingToken}`);
+    });
+
+    console.log('\n--- SECURITY & ROLES ---');
+    console.log(`• Pairing Token:   ${pairingToken}`);
+    console.log(`• Editor Key:      ${editorKey}`);
+    console.log('• Role Privileges: Localhost sessions have editor privileges. Remote sessions connect as operators.');
+    console.log('                   To unlock editing remotely, append &editKey=<key> or unlock in the console.');
+
+    console.log('\n--- CONNECTION MODES ---');
+    console.log('• USB CABLE: Turn on "USB Tethering" on phone and open the USB link above.');
+    console.log('• WI-FI / LAN: Scan the QR code below on phone:');
+
+    try {
+      qrcode.generate(qrUrl, { small: true });
+    } catch (e) {
+      // ignore
+    }
+
+    console.log('========================================================\n');
+  });
+}
+
+module.exports = {
+  createServer
+};
