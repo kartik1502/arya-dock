@@ -1,6 +1,6 @@
 # 🏁 /// M ARYA DOCK — Virtual Macro Keypad & Stream Controller
 
-> A high-performance, Motorsport Motorsport-themed digital macro keypad and companion cockpit that transforms your phone, tablet, or secondary display into a tactile, programmable hardware-free stream deck.
+> A high-performance, Motorsport Cockpit digital macro keypad and companion deck that transforms your phone, tablet, or secondary display into a tactile, programmable hardware-free stream deck.
 
 ---
 
@@ -14,7 +14,7 @@ Whether you are writing code, monitoring cloud infrastructure, compiling microse
 
 ## 🎨 Design Philosophy & UI Architecture
 
-Arya Dock is built from the ground up using the **Motorsport Motorsport Design System** (`DESIGN.md`), reflecting precision engineering, dark cockpit aesthetics, and motorsport ergonomics:
+Arya Dock is built from the ground up using the **Motorsport Cockpit Design System** (`DESIGN.md`), reflecting precision engineering, dark cockpit aesthetics, and motorsport ergonomics:
 
 * **Pure Pitch Black Canvas (`#000000`):** Designed for OLED mobile screens to achieve infinite contrast, zero backlight bleed, and minimal battery consumption.
 * **Iconic /// M Tricolor Accents:**
@@ -128,7 +128,7 @@ npm start
 1. Click **`/// EDIT TILES`** in the header to enter edit mode.
 2. Tap the keycap you want to edit to open the configuration dialog:
    * **Label & Icon:** Customize emoji icon and primary label.
-   * **Accent Color:** Choose from Motorsport Light Blue, Dark Blue, Red, or Graphite.
+   * **Accent Color:** Choose from Light Blue, Dark Blue, Red, or Graphite.
    * **Action Type:** Shell script (`shell`) or Web URL (`url`).
    * **Terminal Mode:**
      - ⚡ **New Tab in Terminal:** Opens in an existing terminal as a new tab (`ptyxis --tab`, `gnome-terminal --tab`, etc.).
@@ -157,13 +157,13 @@ arya-dock/
 ├── docs/
 │   └── protocol-specs.md   # Low-level protocol and hardware architecture reference
 ├── public/
-│   ├── index.html          # Motorsport cockpit interface, modal dialogs, and drawer
+│   ├── index.html          # Cockpit interface, modal dialogs, and drawer
 │   ├── style.css           # Pitch black design system, container queries, and themes
 │   ├── app.js              # Client controller, WebSocket heartbeat, dynamic grid reflow
 │   ├── sw.js               # Service Worker with automatic cache-busting
 │   ├── manifest.json       # Progressive Web App (PWA) manifest
 │   └── icon.svg            # /// M branded application icon
-├── DESIGN.md               # Motorsport Motorsport design tokens and guidelines
+├── DESIGN.md               # Cockpit design tokens and guidelines
 ├── server.js               # Node.js backend: FreeDesktop parser, terminal dispatcher, WebSockets
 └── package.json            # Project manifest and minimal dependencies
 ```

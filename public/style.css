@@ -1,11 +1,11 @@
 /* ==========================================================================
-   Motorsport DESIGN SYSTEM — FULLSCREEN DYNAMIC DOCK
+   MOTORSPORT COCKPIT DESIGN SYSTEM — FULLSCREEN DYNAMIC DOCK
    Motorsport-engineered interface anchored on a pure black canvas with
    confident UPPERCASE typography, 1px hairlines, and the iconic M tricolor stripe.
    ========================================================================== */
 
 :root {
-  /* Motorsport Color System */
+  /* Performance Color System */
   --m-canvas: #000000;
   --m-surface-card: #141414;
   --m-surface-elevated: #222222;
@@ -17,7 +17,7 @@
   --m-hairline: #333333;
   --m-hairline-strong: #1f1f1f;
 
-  /* Motorsport Tricolor Signature */
+  /* Tricolor Signature */
   --m-blue-light: #0066b1;
   --m-blue-dark: #1c69d4;
   --m-red: #e22718;
@@ -93,7 +93,7 @@ body {
   gap: 12px;
 }
 
-/* Slanted Motorsport Tricolor Signature Badge */
+/* Slanted Tricolor Signature Badge */
 .m-tricolor-stripe {
   display: flex;
   height: 24px;

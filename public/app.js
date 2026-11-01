@@ -1,5 +1,5 @@
 // ==========================================================================
-// Motorsport ARYA DOCK — CLIENT CONTROLLER
+// ARYA DOCK — CLIENT CONTROLLER
 // Drag-and-drop app assignment, system application catalog, and M telemetry.
 // ==========================================================================
 
