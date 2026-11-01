@@ -43,52 +43,6 @@
               "color": "#06b6d4",
               "actionType": "shell",
               "command": "npm test || pytest || cargo test || echo 'Tests run' &"
-            },
-            {
-              "id": 4,
-              "label": "FORMAT CODE",
-              "sublabel": "PRETTIER",
-              "icon": "✨",
-              "color": "#8b5cf6",
-              "actionType": "shell",
-              "command": "npx prettier --write . 2>/dev/null || echo 'Formatting...' &"
-            },
-            {
-              "id": 5,
-              "label": "GIT PUSH",
-              "sublabel": "ORIGIN MAIN",
-              "icon": "🚀",
-              "color": "#ec4899",
-              "actionType": "shell",
-              "command": "git push 2>&1 | head -n 3 | xargs -0 -I {} notify-send 'Git Push' '{}'"
-            },
-            {
-              "id": 6,
-              "label": "CALENDAR",
-              "sublabel": "SCHEDULE",
-              "icon": "📅",
-              "color": "#2b2b2b",
-              "actionType": "shell",
-              "command": "gnome-calendar"
-            },
-            {
-              "id": 7,
-              "label": "BUILD",
-              "sublabel": "COMPILE",
-              "icon": "🔨",
-              "color": "#eab308",
-              "actionType": "shell",
-              "command": "npm run build 2>&1 || echo 'Build initiated' &"
-            },
-            {
-              "id": 8,
-              "label": "DOCKER PS",
-              "sublabel": "CONTAINERS",
-              "icon": "🐳",
-              "color": "#0284c7",
-              "actionType": "shell",
-              "command": "notify-send 'Docker Status' \"$(docker ps --format '{{.Names}}: {{.Status}}' 2>/dev/null || echo 'Docker daemon not running')\"",
-              "url": ""
             }
           ]
         },
@@ -264,12 +218,12 @@
             },
             {
               "id": 8,
-              "label": "Lock PC",
-              "sublabel": "Secure",
-              "icon": "🔒",
-              "color": "#64748b",
+              "label": "FILE MANAGER",
+              "sublabel": "SYSTEM",
+              "icon": "📁",
+              "color": "#0066b1",
               "actionType": "shell",
-              "command": "loginctl lock-session || gnome-screensaver-command -l || echo 'Lock session'"
+              "command": "nautilus || xdg-open ~ &"
             }
           ]
         }

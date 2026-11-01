@@ -337,6 +337,11 @@ function openDrawer() {
 
 function closeDrawer() {
   appDrawer.classList.add('hidden');
+  appDrawer.classList.remove('picker-mode');
+  const drawerTitle = appDrawer.querySelector('.m-drawer-title');
+  if (drawerTitle) drawerTitle.textContent = 'INSTALLED APPS & PRESETS';
+  const drawerHint = appDrawer.querySelector('.m-drawer-hint');
+  if (drawerHint) drawerHint.innerHTML = '💡 <strong>DRAG</strong> any card onto a Key, or <strong>TAP</strong> to assign';
   pickerTargetButtonId = null;
 }
 
@@ -350,18 +355,18 @@ function openAssignPopup(appPayload) {
   popupAppTitle.textContent = `ASSIGN "${appPayload.name.toUpperCase()}"`;
   popupTargetGrid.innerHTML = '';
 
-  for (let i = 0; i < 9; i++) {
+  currentButtons.forEach((btnData, i) => {
     const btn = document.createElement('button');
     btn.className = 'm-target-btn';
-    btn.innerHTML = `KEY ${i + 1}`;
+    btn.innerHTML = `${btnData.label || `KEY ${i + 1}`}`;
     btn.addEventListener('click', () => {
       triggerHaptic(25);
-      assignAppToButton(i, selectedAppForPopup);
+      assignAppToButton(btnData.id !== undefined ? btnData.id : i, selectedAppForPopup);
       closeAssignPopup();
       closeDrawer();
     });
     popupTargetGrid.appendChild(btn);
-  }
+  });
 
   assignPopup.classList.remove('hidden');
 }
@@ -748,6 +753,15 @@ btnModalClose.addEventListener('click', closeEditModal);
 // Modal "Choose from Installed Apps" button
 btnPickFromApps.addEventListener('click', () => {
   pickerTargetButtonId = editingButtonId;
+  appDrawer.classList.add('picker-mode');
+  const drawerTitle = appDrawer.querySelector('.m-drawer-title');
+  if (drawerTitle) {
+    drawerTitle.textContent = `SELECT APP FOR KEY ${String(editingButtonId + 1).padStart(2, '0')}`;
+  }
+  const drawerHint = appDrawer.querySelector('.m-drawer-hint');
+  if (drawerHint) {
+    drawerHint.innerHTML = '💡 <strong>TAP</strong> any app to configure this key';
+  }
   openDrawer();
 });
 
