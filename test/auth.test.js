@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { execSync } = require('child_process');
 const {
   safeEqual,
   isAllowedOrigin,
@@ -101,6 +102,40 @@ test('Auth: loadOrCreateAuth persists and generates credentials', () => {
     const reloaded = loadOrCreateAuth(tmpAuth);
     assert.equal(reloaded.pairingToken, rotated.pairingToken);
     assert.equal(reloaded.editorKey, rotated.editorKey);
+  } finally {
+    if (fs.existsSync(tmpAuth)) fs.unlinkSync(tmpAuth);
+  }
+});
+
+test('Auth: --rotate-credentials CLI flag rotates credentials and exits', () => {
+  const tmpAuth = path.join(os.tmpdir(), `arya-cli-auth-test-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+
+  try {
+    const creds1 = loadOrCreateAuth(tmpAuth);
+    const serverScript = path.join(__dirname, '..', 'server.js');
+    const authScript = path.join(__dirname, '..', 'lib', 'auth.js');
+
+    // Test on server.js
+    const outputServer = execSync(`node "${serverScript}" --rotate-credentials`, {
+      env: { ...process.env, AUTH_PATH: tmpAuth },
+      encoding: 'utf-8'
+    });
+    assert.ok(outputServer.includes('Credentials rotated successfully'));
+
+    const creds2 = loadOrCreateAuth(tmpAuth);
+    assert.notEqual(creds2.pairingToken, creds1.pairingToken);
+    assert.notEqual(creds2.editorKey, creds1.editorKey);
+
+    // Test on lib/auth.js
+    const outputAuth = execSync(`node "${authScript}" --rotate-credentials`, {
+      env: { ...process.env, AUTH_PATH: tmpAuth },
+      encoding: 'utf-8'
+    });
+    assert.ok(outputAuth.includes('Credentials rotated successfully'));
+
+    const creds3 = loadOrCreateAuth(tmpAuth);
+    assert.notEqual(creds3.pairingToken, creds2.pairingToken);
+    assert.notEqual(creds3.editorKey, creds2.editorKey);
   } finally {
     if (fs.existsSync(tmpAuth)) fs.unlinkSync(tmpAuth);
   }

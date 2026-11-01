@@ -101,6 +101,9 @@ if (require.main === module) {
     console.log('[Arya Dock] Credentials rotated successfully:');
     console.log(`• New Pairing Token: ${rotated.pairingToken}`);
     console.log(`• New Editor Key:    ${rotated.editorKey}\n`);
+    if (!process.argv.includes('--start')) {
+      process.exit(0);
+    }
   }
 
   const instance = createServer();
