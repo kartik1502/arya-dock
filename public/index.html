@@ -379,5 +379,16 @@
   </div>
 
   <script src="app.js"></script>
+  <!-- Reticle Agent Verification Layer -->
+  <script type="module">
+    Promise.all([
+      import('https://cdn.jsdelivr.net/npm/@reticlehq/browser@3.9.0/+esm'),
+      import('/reticle.local.js').catch(() => ({}))
+    ]).then(([{ reticle }, local]) => {
+      if (local && local.token) {
+        reticle.connect({ projectId: 'arya-dock-4f274f15', token: local.token });
+      }
+    }).catch(() => {});
+  </script>
 </body>
 </html>

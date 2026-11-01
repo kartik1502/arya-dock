@@ -1,0 +1,25 @@
+{
+  "UserPromptSubmit": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node \"$HOME/.npm/_npx/f403495c3e985d95/node_modules/@reticlehq/server/bin/reticle.js\" hook prompt --agent factory-droid || npx -y @reticlehq/server@3.9.0 hook prompt --agent factory-droid",
+          "timeout": 30
+        }
+      ]
+    }
+  ],
+  "PostToolUse": [
+    {
+      "matcher": "Execute|Edit|ApplyPatch|Create|FetchUrl|WebSearch",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "node \"$HOME/.npm/_npx/f403495c3e985d95/node_modules/@reticlehq/server/bin/reticle.js\" hook tool --agent factory-droid || npx -y @reticlehq/server@3.9.0 hook tool --agent factory-droid",
+          "timeout": 30
+        }
+      ]
+    }
+  ]
+}

@@ -4,3 +4,6 @@ node_modules/
 config/profiles.json
 config/auth.json
 *.tmp
+reticle.local.js
+public/reticle.local.js
+.reticle/

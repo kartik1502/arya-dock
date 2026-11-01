@@ -1,0 +1,36 @@
+{
+  "hooks": {
+    "BeforeAgent": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.npm/_npx/f403495c3e985d95/node_modules/@reticlehq/server/bin/reticle.js\" hook prompt --agent gemini || npx -y @reticlehq/server@3.9.0 hook prompt --agent gemini"
+          }
+        ]
+      }
+    ],
+    "AfterTool": [
+      {
+        "matcher": "run_shell_command",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.npm/_npx/f403495c3e985d95/node_modules/@reticlehq/server/bin/reticle.js\" hook tool --agent gemini || npx -y @reticlehq/server@3.9.0 hook tool --agent gemini"
+          }
+        ]
+      }
+    ],
+    "AfterAgent": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$HOME/.npm/_npx/f403495c3e985d95/node_modules/@reticlehq/server/bin/reticle.js\" hook tool --agent gemini || npx -y @reticlehq/server@3.9.0 hook tool --agent gemini"
+          }
+        ]
+      }
+    ]
+  }
+}
