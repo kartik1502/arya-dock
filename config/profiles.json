@@ -24,16 +24,16 @@
               "icon": "⚡",
               "color": "#10b981",
               "actionType": "shell",
-              "command": "x-terminal-emulator || gnome-terminal || alacritty || kitty &"
+              "command": "ptyxis --tab || ptyxis --new-window || gnome-terminal --tab || gnome-terminal || alacritty || kitty || x-terminal-emulator &"
             },
             {
               "id": 2,
-              "label": "Git Status",
-              "sublabel": "Check Repo",
-              "icon": "🌿",
-              "color": "#f59e0b",
+              "label": "LIBREOFFICE CA",
+              "sublabel": "OFFICE",
+              "icon": "🧮",
+              "color": "#e22718",
               "actionType": "shell",
-              "command": "notify-send 'Git Status' \"$(git status --short 2>&1 || echo 'Not a git repository')\""
+              "command": "libreoffice --calc"
             },
             {
               "id": 3,
@@ -64,12 +64,12 @@
             },
             {
               "id": 6,
-              "label": "VS Code",
-              "sublabel": "Open Editor",
-              "icon": "💻",
-              "color": "#3b82f6",
+              "label": "CALENDAR",
+              "sublabel": "GNOME",
+              "icon": "📅",
+              "color": "#2b2b2b",
               "actionType": "shell",
-              "command": "code . || echo 'Opening editor' &"
+              "command": "gnome-calendar"
             },
             {
               "id": 7,
@@ -82,12 +82,13 @@
             },
             {
               "id": 8,
-              "label": "Docker PS",
-              "sublabel": "Containers",
+              "label": "DOCKER PS",
+              "sublabel": "CONTAINERS",
               "icon": "🐳",
               "color": "#0284c7",
               "actionType": "shell",
-              "command": "notify-send 'Docker Status' \"$(docker ps --format '{{.Names}}: {{.Status}}' 2>/dev/null || echo 'Docker daemon not running')\""
+              "command": "notify-send 'Docker Status' \"$(docker ps --format '{{.Names}}: {{.Status}}' 2>/dev/null || echo 'Docker daemon not running')\"",
+              "url": ""
             }
           ]
         },
@@ -161,12 +162,12 @@
             },
             {
               "id": 7,
-              "label": "Git Log",
-              "sublabel": "Recent",
-              "icon": "🔍",
-              "color": "#84cc16",
+              "label": "FILES",
+              "sublabel": "GNOME",
+              "icon": "📁",
+              "color": "#1c69d4",
               "actionType": "shell",
-              "command": "git log --oneline -n 3 2>/dev/null | xargs -0 -I {} notify-send 'Recent Commits' '{}'"
+              "command": "nautilus --new-window"
             },
             {
               "id": 8,
@@ -253,12 +254,13 @@
             },
             {
               "id": 7,
-              "label": "Screenshot",
-              "sublabel": "Capture",
+              "label": "SCREENSHOT",
+              "sublabel": "CAPTURE",
               "icon": "📸",
               "color": "#eab308",
               "actionType": "shell",
-              "command": "gnome-screenshot -i 2>/dev/null || grim 2>/dev/null || echo 'Screenshot'"
+              "command": "gnome-screenshot -i 2>/dev/null || grim 2>/dev/null || echo 'Screenshot'",
+              "url": ""
             },
             {
               "id": 8,

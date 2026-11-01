@@ -48,7 +48,7 @@ function getNetworkInterfaces() {
 function getAppEmoji(name, category, execCmd) {
   const lower = (name + ' ' + (category || '') + ' ' + execCmd).toLowerCase();
   if (lower.includes('code') || lower.includes('dev') || lower.includes('studio') || lower.includes('git')) return '💻';
-  if (lower.includes('term') || lower.includes('bash') || lower.includes('zsh') || lower.includes('shell')) return '⚡';
+  if (lower.includes('term') || lower.includes('bash') || lower.includes('zsh') || lower.includes('shell') || lower.includes('ptyxis')) return '⚡';
   if (lower.includes('chrome') || lower.includes('brave') || lower.includes('firefox') || lower.includes('browser') || lower.includes('web')) return '🌐';
   if (lower.includes('calc')) return '🧮';
   if (lower.includes('file') || lower.includes('nautilus') || lower.includes('folder')) return '📁';
@@ -220,7 +220,7 @@ function executeAction(button) {
   switch (button.actionType) {
     case 'shell':
       if (button.command) {
-        exec(button.command, (error, stdout, stderr) => {
+        exec(button.command, { env: process.env }, (error, stdout, stderr) => {
           if (error) console.error(`[Exec Error]: ${error.message}`);
           if (stdout) console.log(`[Exec Output]: ${stdout.trim()}`);
         });

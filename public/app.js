@@ -30,10 +30,10 @@ const MOTORSPORT_PRESETS = [
   },
   {
     name: 'Terminal',
-    command: 'gnome-terminal || x-terminal-emulator || alacritty || kitty &',
+    command: 'ptyxis --tab || ptyxis --new-window || gnome-terminal --tab || gnome-terminal || alacritty || kitty || x-terminal-emulator &',
     emoji: '⚡',
     category: 'System',
-    comment: 'Open new terminal cockpit'
+    comment: 'Open new terminal tab'
   },
   {
     name: 'Web Browser',
