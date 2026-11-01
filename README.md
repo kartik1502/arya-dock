@@ -9,7 +9,7 @@
 > **Arya Dock** is a high-performance, dark-cockpit virtual macro keypad and stream deck alternative for Linux. Transform your smartphone, tablet, or secondary display into a customizable, low-latency companion deck for developer workflows, terminal scripts, system hotkeys, and media controls — completely free and hardware-independent.
 
 <p align="center">
-  <img src="public/og-image.png" alt="Arya Dock — Virtual Macro Keypad & Stream Deck Alternative for Linux" width="760">
+  <img src="https://raw.githubusercontent.com/kartik1502/arya-dock/main/public/og-image.png?v=2" alt="Arya Dock — Virtual Macro Keypad & Control Deck for Linux" width="760">
 </p>
 
 ---
