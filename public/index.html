@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>Arya Dock - Virtual Keypad Console</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#0b0f19">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Header Bar -->
+    <header class="header-bar">
+      <div class="brand">
+        <div class="brand-title">ARYA DOCK</div>
+        <div class="brand-sub">MX KEYPAD <span>(046D:C354)</span></div>
+      </div>
+      
+      <div class="profile-select-wrapper">
+        <select id="profileSelect" title="Select Profile">
+          <option value="developer">Developer & AI</option>
+          <option value="media">Media & Audio</option>
+        </select>
+      </div>
+
+      <div class="header-actions">
+        <button id="btnEdit" class="icon-btn" title="Edit Keys">✏️</button>
+        <button id="btnWakeLock" class="icon-btn" title="Keep Screen Awake">👁️</button>
+        <button id="btnFullscreen" class="icon-btn" title="Fullscreen Mode">⛶</button>
+        <div id="connectionStatus" class="status-badge disconnected" title="Connection Status">
+          <span class="status-dot"></span>
+          <span class="status-text">Connecting</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Keypad Chassis -->
+    <main class="console-body">
+      <!-- 480x480 Virtual LCD Panel -->
+      <div class="lcd-frame">
+        <div class="lcd-grid" id="keypadGrid">
+          <!-- 9 Keys (3x3) Generated dynamically -->
+        </div>
+      </div>
+
+      <!-- Bottom Paging & Info Bar -->
+      <div class="bottom-bar">
+        <button id="btnPagePrev" class="page-button" title="Previous Page (HID 0x01a1)">
+          <svg viewBox="0 0 24 24" width="24" height="24">
+            <path fill="currentColor" d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
+          </svg>
+        </button>
+
+        <div class="page-indicator">
+          <div class="page-numbers" id="pageLabel">PAGE 1 / 1</div>
+          <div class="page-name" id="pageName">AI & Core Tools</div>
+        </div>
+
+        <button id="btnPageNext" class="page-button" title="Next Page (HID 0x01a2)">
+          <svg viewBox="0 0 24 24" width="24" height="24">
+            <path fill="currentColor" d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/>
+          </svg>
+        </button>
+      </div>
+    </main>
+
+    <!-- Connection Info Banner -->
+    <footer class="footer-info">
+      <span id="transportMode">Mode: Detecting (Cable / Wi-Fi)</span>
+      <span class="sep">•</span>
+      <span id="hapticFeedbackLabel">Haptics: Active</span>
+    </footer>
+  </div>
+
+  <!-- Key Edit Modal -->
+  <div id="editModal" class="modal-backdrop hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modalTitle">Edit Button #0</h3>
+        <button id="btnModalClose" class="close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="editIcon">Icon (Emoji or SVG text):</label>
+          <input type="text" id="editIcon" maxlength="4" placeholder="🤖">
+        </div>
+        <div class="form-group">
+          <label for="editLabel">Primary Label:</label>
+          <input type="text" id="editLabel" maxlength="14" placeholder="AI Agent">
+        </div>
+        <div class="form-group">
+          <label for="editSublabel">Sublabel:</label>
+          <input type="text" id="editSublabel" maxlength="16" placeholder="Run Agent">
+        </div>
+        <div class="form-group">
+          <label for="editColor">Accent Color:</label>
+          <input type="color" id="editColor" value="#6366f1">
+        </div>
+        <div class="form-group">
+          <label for="editActionType">Action Type:</label>
+          <select id="editActionType">
+            <option value="shell">Shell Command</option>
+            <option value="url">Open URL / Web Link</option>
+            <option value="media">Media Control</option>
+          </select>
+        </div>
+        <div class="form-group" id="commandGroup">
+          <label for="editCommand">Shell Command / Script:</label>
+          <input type="text" id="editCommand" placeholder="notify-send 'Hello' 'Arya Dock'">
+        </div>
+        <div class="form-group hidden" id="urlGroup">
+          <label for="editUrl">URL to Open:</label>
+          <input type="text" id="editUrl" placeholder="https://github.com">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button id="btnModalTest" class="secondary-btn">Test Run</button>
+        <button id="btnModalSave" class="primary-btn">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

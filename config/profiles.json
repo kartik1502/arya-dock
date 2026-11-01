@@ -1,0 +1,276 @@
+{
+  "activeProfile": "developer",
+  "profiles": {
+    "developer": {
+      "name": "Developer & AI Workflows",
+      "pages": [
+        {
+          "pageNumber": 1,
+          "name": "AI & Core Tools",
+          "buttons": [
+            {
+              "id": 0,
+              "label": "AI Agent",
+              "sublabel": "Run Agent",
+              "icon": "🤖",
+              "color": "#6366f1",
+              "actionType": "shell",
+              "command": "notify-send 'Arya Dock' 'AI Agent Invoked' -i dialog-information"
+            },
+            {
+              "id": 1,
+              "label": "Terminal",
+              "sublabel": "New Tab",
+              "icon": "⚡",
+              "color": "#10b981",
+              "actionType": "shell",
+              "command": "x-terminal-emulator || gnome-terminal || alacritty || kitty &"
+            },
+            {
+              "id": 2,
+              "label": "Git Status",
+              "sublabel": "Check Repo",
+              "icon": "🌿",
+              "color": "#f59e0b",
+              "actionType": "shell",
+              "command": "notify-send 'Git Status' \"$(git status --short 2>&1 || echo 'Not a git repository')\""
+            },
+            {
+              "id": 3,
+              "label": "Test Suite",
+              "sublabel": "Run Tests",
+              "icon": "🧪",
+              "color": "#06b6d4",
+              "actionType": "shell",
+              "command": "npm test || pytest || cargo test || echo 'Tests run' &"
+            },
+            {
+              "id": 4,
+              "label": "Format Code",
+              "sublabel": "Prettier/Lint",
+              "icon": "✨",
+              "color": "#8b5cf6",
+              "actionType": "shell",
+              "command": "npx prettier --write . 2>/dev/null || echo 'Formatting...' &"
+            },
+            {
+              "id": 5,
+              "label": "Git Push",
+              "sublabel": "Push Origin",
+              "icon": "🚀",
+              "color": "#ec4899",
+              "actionType": "shell",
+              "command": "git push 2>&1 | head -n 3 | xargs -0 -I {} notify-send 'Git Push' '{}'"
+            },
+            {
+              "id": 6,
+              "label": "VS Code",
+              "sublabel": "Open Editor",
+              "icon": "💻",
+              "color": "#3b82f6",
+              "actionType": "shell",
+              "command": "code . || echo 'Opening editor' &"
+            },
+            {
+              "id": 7,
+              "label": "Build",
+              "sublabel": "Compile",
+              "icon": "🔨",
+              "color": "#eab308",
+              "actionType": "shell",
+              "command": "npm run build 2>&1 || echo 'Build initiated' &"
+            },
+            {
+              "id": 8,
+              "label": "Docker PS",
+              "sublabel": "Containers",
+              "icon": "🐳",
+              "color": "#0284c7",
+              "actionType": "shell",
+              "command": "notify-send 'Docker Status' \"$(docker ps --format '{{.Names}}: {{.Status}}' 2>/dev/null || echo 'Docker daemon not running')\""
+            }
+          ]
+        },
+        {
+          "pageNumber": 2,
+          "name": "DevOps & Cloud",
+          "buttons": [
+            {
+              "id": 0,
+              "label": "K8s Pods",
+              "sublabel": "Cluster Info",
+              "icon": "☸️",
+              "color": "#326ce5",
+              "actionType": "shell",
+              "command": "kubectl get pods 2>/dev/null | head -n 5 | xargs -0 -I {} notify-send 'K8s Pods' '{}'"
+            },
+            {
+              "id": 1,
+              "label": "Server Logs",
+              "sublabel": "journalctl",
+              "icon": "📜",
+              "color": "#64748b",
+              "actionType": "shell",
+              "command": "journalctl -n 20 --no-pager 2>&1 &"
+            },
+            {
+              "id": 2,
+              "label": "Reload API",
+              "sublabel": "Restart Svc",
+              "icon": "🔄",
+              "color": "#f97316",
+              "actionType": "shell",
+              "command": "notify-send 'DevOps' 'API Reload Triggered'"
+            },
+            {
+              "id": 3,
+              "label": "Localhost",
+              "sublabel": ":3000",
+              "icon": "🌐",
+              "color": "#14b8a6",
+              "actionType": "shell",
+              "command": "xdg-open http://localhost:3000 || echo 'Opened 3000'"
+            },
+            {
+              "id": 4,
+              "label": "Localhost",
+              "sublabel": ":8080",
+              "icon": "🚀",
+              "color": "#a855f7",
+              "actionType": "shell",
+              "command": "xdg-open http://localhost:8080 || echo 'Opened 8080'"
+            },
+            {
+              "id": 5,
+              "label": "Postman/HTTP",
+              "sublabel": "API Client",
+              "icon": "📮",
+              "color": "#ff6c37",
+              "actionType": "shell",
+              "command": "postman || insomnia || echo 'Launching API client' &"
+            },
+            {
+              "id": 6,
+              "label": "Clean Cache",
+              "sublabel": "rm -rf tmp",
+              "icon": "🧹",
+              "color": "#ef4444",
+              "actionType": "shell",
+              "command": "notify-send 'Cache' 'Cache cleaned'"
+            },
+            {
+              "id": 7,
+              "label": "Git Log",
+              "sublabel": "Recent",
+              "icon": "🔍",
+              "color": "#84cc16",
+              "actionType": "shell",
+              "command": "git log --oneline -n 3 2>/dev/null | xargs -0 -I {} notify-send 'Recent Commits' '{}'"
+            },
+            {
+              "id": 8,
+              "label": "Top CPU",
+              "sublabel": "Sys Stats",
+              "icon": "📊",
+              "color": "#06b6d4",
+              "actionType": "shell",
+              "command": "ps -eo pid,ppid,cmd,%mem,%cpu --sort=-%cpu | head -n 4 | xargs -0 -I {} notify-send 'Top CPU' '{}'"
+            }
+          ]
+        }
+      ]
+    },
+    "media": {
+      "name": "Media & Audio Controls",
+      "pages": [
+        {
+          "pageNumber": 1,
+          "name": "Sound & Media",
+          "buttons": [
+            {
+              "id": 0,
+              "label": "Mute Audio",
+              "sublabel": "Toggle",
+              "icon": "🔇",
+              "color": "#ef4444",
+              "actionType": "shell",
+              "command": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle || pactl set-sink-mute @DEFAULT_SINK@ toggle"
+            },
+            {
+              "id": 1,
+              "label": "Vol -",
+              "sublabel": "5% Down",
+              "icon": "🔉",
+              "color": "#3b82f6",
+              "actionType": "shell",
+              "command": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- || pactl set-sink-volume @DEFAULT_SINK@ -5%"
+            },
+            {
+              "id": 2,
+              "label": "Vol +",
+              "sublabel": "5% Up",
+              "icon": "🔊",
+              "color": "#3b82f6",
+              "actionType": "shell",
+              "command": "wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ || pactl set-sink-volume @DEFAULT_SINK@ +5%"
+            },
+            {
+              "id": 3,
+              "label": "Prev",
+              "sublabel": "Track",
+              "icon": "⏮️",
+              "color": "#8b5cf6",
+              "actionType": "shell",
+              "command": "playerctl previous 2>/dev/null || echo 'Previous'"
+            },
+            {
+              "id": 4,
+              "label": "Play / Pause",
+              "sublabel": "Media",
+              "icon": "⏯️",
+              "color": "#10b981",
+              "actionType": "shell",
+              "command": "playerctl play-pause 2>/dev/null || echo 'Play/Pause'"
+            },
+            {
+              "id": 5,
+              "label": "Next",
+              "sublabel": "Track",
+              "icon": "⏭️",
+              "color": "#8b5cf6",
+              "actionType": "shell",
+              "command": "playerctl next 2>/dev/null || echo 'Next'"
+            },
+            {
+              "id": 6,
+              "label": "Mic Mute",
+              "sublabel": "Toggle Mic",
+              "icon": "🎙️",
+              "color": "#f97316",
+              "actionType": "shell",
+              "command": "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle || pactl set-source-mute @DEFAULT_SOURCE@ toggle"
+            },
+            {
+              "id": 7,
+              "label": "Screenshot",
+              "sublabel": "Capture",
+              "icon": "📸",
+              "color": "#eab308",
+              "actionType": "shell",
+              "command": "gnome-screenshot -i 2>/dev/null || grim 2>/dev/null || echo 'Screenshot'"
+            },
+            {
+              "id": 8,
+              "label": "Lock PC",
+              "sublabel": "Secure",
+              "icon": "🔒",
+              "color": "#64748b",
+              "actionType": "shell",
+              "command": "loginctl lock-session || gnome-screensaver-command -l || echo 'Lock session'"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
