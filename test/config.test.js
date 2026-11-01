@@ -79,6 +79,58 @@ test('Config: validateButton schema enforcement', () => {
     url: 'javascript:alert(1)'
   });
   assert.equal(resUrlInvalid.valid, false);
+
+  // Reject garbage types with clear error
+  assert.equal(validateButton({ label: 12345 }).valid, false);
+  assert.equal(validateButton({ color: 'red' }).valid, false);
+  assert.equal(validateButton({ color: '#123' }).valid, false);
+  assert.equal(validateButton({ actionType: 'bogus' }).valid, false);
+  assert.equal(validateButton({ command: { evil: true } }).valid, false);
+  assert.equal(validateButton({ terminalMode: 'invalid' }).valid, false);
+  assert.equal(validateButton({ keepOpen: 'yes' }).valid, false);
+  assert.equal(validateButton({ workingDir: 999 }).valid, false);
+  assert.equal(validateButton({ mediaAction: 'bogus_media' }).valid, false);
+
+  // Partial update merges onto existing button and preserves unedited fields
+  const existingButton = {
+    id: 1,
+    label: 'LAZY DOCKER',
+    sublabel: 'CONTAINERS',
+    icon: '⚡',
+    color: '#10b981',
+    actionType: 'shell',
+    command: 'lzd',
+    terminalMode: 'tab',
+    workingDir: '~/docker-repo',
+    keepOpen: true
+  };
+
+  const partialUpdate = { id: 1, label: 'UPDATED LABEL' };
+  const resPartial = validateButton(partialUpdate, {
+    isUpdate: true,
+    existingId: 1,
+    existingButton
+  });
+
+  assert.equal(resPartial.valid, true);
+  assert.equal(resPartial.button.id, 1);
+  assert.equal(resPartial.button.label, 'UPDATED LABEL');
+  assert.equal(resPartial.button.sublabel, 'CONTAINERS');
+  assert.equal(resPartial.button.command, 'lzd');
+  assert.equal(resPartial.button.color, '#10b981');
+  assert.equal(resPartial.button.terminalMode, 'tab');
+  assert.equal(resPartial.button.workingDir, '~/docker-repo');
+  assert.equal(resPartial.button.keepOpen, true);
+
+  // Partial update with garbage types on existing button is rejected without corrupting
+  const partialGarbage = { id: 1, color: 'not-a-color', command: 12345 };
+  const resGarbage = validateButton(partialGarbage, {
+    isUpdate: true,
+    existingId: 1,
+    existingButton
+  });
+  assert.equal(resGarbage.valid, false);
+  assert.ok(resGarbage.error);
 });
 
 test('Config: atomic persistence and error handling', () => {

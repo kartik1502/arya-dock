@@ -34,10 +34,13 @@ self.addEventListener('fetch', (event) => {
   // Do not cache API or WebSocket upgrade requests
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/ws')) return;
 
+  // Never cache request URLs containing sensitive credentials
+  const hasAuthParams = url.searchParams.has('token') || url.searchParams.has('editKey');
+
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200) {
+        if (networkResponse && networkResponse.status === 200 && !hasAuthParams) {
           const responseClone = networkResponse.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(event.request, responseClone);

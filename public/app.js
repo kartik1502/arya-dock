@@ -24,6 +24,13 @@ if (urlParams.get('editKey')) {
   localStorage.setItem('arya_editor_key', urlParams.get('editKey'));
 }
 
+// Scrub sensitive token and editKey from URL bar and browser history
+if (urlParams.has('token') || urlParams.has('editKey')) {
+  try {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  } catch (e) {}
+}
+
 let userRole = 'operator';
 let canEdit = false;
 
@@ -242,13 +249,19 @@ function updateEditorUI() {
     }
     if (btnEdit) {
       btnEdit.classList.remove('active');
-      btnEdit.style.display = 'none';
+      btnEdit.style.display = '';
+      btnEdit.innerHTML = '<span class="m-tool-icon">🔒</span>';
+      btnEdit.title = 'Unlock Editor Mode (Enter Editor Key)';
     }
     if (tileControls) tileControls.style.display = 'none';
     if (btnOpenDrawer) btnOpenDrawer.style.display = 'none';
     if (dragBanner) dragBanner.style.display = 'none';
   } else {
-    if (btnEdit) btnEdit.style.display = '';
+    if (btnEdit) {
+      btnEdit.style.display = '';
+      btnEdit.innerHTML = '<span class="m-tool-icon">✏️</span>';
+      btnEdit.title = 'Toggle Edit Mode';
+    }
     if (tileControls) tileControls.style.display = '';
     if (btnOpenDrawer) btnOpenDrawer.style.display = '';
     if (dragBanner) dragBanner.style.display = '';
@@ -963,9 +976,20 @@ btnModeM2.addEventListener('click', () => {
   }
 });
 
-// Edit Mode Toggle
+// Edit Mode Toggle & Editor Unlock
 btnEdit.addEventListener('click', () => {
-  if (!canEdit) return;
+  triggerHaptic(15);
+  if (!canEdit) {
+    const entered = window.prompt('Enter Editor Key to unlock configuration controls:');
+    if (entered) {
+      editorKey = entered.trim();
+      localStorage.setItem('arya_editor_key', editorKey);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'AUTH_EDIT', editKey: editorKey }));
+      }
+    }
+    return;
+  }
   isEditMode = !isEditMode;
   btnEdit.classList.toggle('active', isEditMode);
   renderButtons(currentButtons);

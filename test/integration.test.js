@@ -128,13 +128,44 @@ test('Integration: WebSocket authentication, Origin check, operator and editor r
     // Now as Editor, UPDATE_BUTTON succeeds
     ws.send(JSON.stringify({
       type: 'UPDATE_BUTTON',
-      button: { id: 0, label: 'AUTHORIZED EDIT', command: 'echo hello' }
+      button: { id: 0, label: 'AUTHORIZED EDIT', command: 'echo hello', color: '#10b981' }
     }));
 
     const stateUpdate = await getNextMessage();
     assert.equal(stateUpdate.type, 'STATE_UPDATE');
     const updatedBtn = stateUpdate.buttons.find(b => b.id === 0);
     assert.equal(updatedBtn.label, 'AUTHORIZED EDIT');
+    assert.equal(updatedBtn.command, 'echo hello');
+    assert.equal(updatedBtn.color, '#10b981');
+
+    // Partial update preserves existing fields without wiping command or color
+    ws.send(JSON.stringify({
+      type: 'UPDATE_BUTTON',
+      button: { id: 0, label: 'PARTIAL ONLY' }
+    }));
+
+    const partialState = await getNextMessage();
+    assert.equal(partialState.type, 'STATE_UPDATE');
+    const partialBtn = partialState.buttons.find(b => b.id === 0);
+    assert.equal(partialBtn.label, 'PARTIAL ONLY');
+    assert.equal(partialBtn.command, 'echo hello'); // Preserved!
+    assert.equal(partialBtn.color, '#10b981');     // Preserved!
+
+    // Garbage type update (e.g. invalid color and command object) is rejected and config preserved
+    ws.send(JSON.stringify({
+      type: 'UPDATE_BUTTON',
+      button: { id: 0, color: 'not-hex', command: { injection: true } }
+    }));
+
+    const garbageError = await getNextMessage();
+    assert.equal(garbageError.type, 'ERROR');
+    assert.ok(garbageError.message.includes('color') || garbageError.message.includes('command'));
+
+    // Verify current button state is unchanged
+    const currentBtn = app.getConfig().profiles.developer.pages[0].buttons.find(b => b.id === 0);
+    assert.equal(currentBtn.label, 'PARTIAL ONLY');
+    assert.equal(currentBtn.command, 'echo hello');
+    assert.equal(currentBtn.color, '#10b981');
 
     // Button click yields BUTTON_ACK
     ws.send(JSON.stringify({

@@ -8,7 +8,8 @@ const {
   isAllowedOrigin,
   isLocalAddress,
   getRole,
-  loadOrCreateAuth
+  loadOrCreateAuth,
+  rotateAuthCredentials
 } = require('../lib/auth');
 
 test('Auth: safeEqual constant-time comparison', () => {
@@ -89,6 +90,17 @@ test('Auth: loadOrCreateAuth persists and generates credentials', () => {
     const creds2 = loadOrCreateAuth(tmpAuth);
     assert.equal(creds2.pairingToken, creds1.pairingToken);
     assert.equal(creds2.editorKey, creds1.editorKey);
+
+    // rotateAuthCredentials generates new credentials and updates disk
+    const rotated = rotateAuthCredentials(tmpAuth);
+    assert.ok(rotated.pairingToken);
+    assert.ok(rotated.editorKey);
+    assert.notEqual(rotated.pairingToken, creds1.pairingToken);
+    assert.notEqual(rotated.editorKey, creds1.editorKey);
+
+    const reloaded = loadOrCreateAuth(tmpAuth);
+    assert.equal(reloaded.pairingToken, rotated.pairingToken);
+    assert.equal(reloaded.editorKey, rotated.editorKey);
   } finally {
     if (fs.existsSync(tmpAuth)) fs.unlinkSync(tmpAuth);
   }

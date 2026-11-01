@@ -49,6 +49,8 @@ test('HTTP: static file serving, path traversal guard, and security headers', as
     assert.ok(resRoot.headers['content-security-policy']);
     assert.equal(resRoot.headers['x-content-type-options'], 'nosniff');
     assert.equal(resRoot.headers['x-frame-options'], 'DENY');
+    assert.equal(resRoot.headers['referrer-policy'], 'no-referrer');
+    assert.ok(resRoot.headers['content-security-policy'].includes("connect-src 'self' ws://127.0.0.1:"));
     // Verify wildcard CORS is removed
     assert.equal(resRoot.headers['access-control-allow-origin'], undefined);
 
