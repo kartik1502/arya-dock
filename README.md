@@ -1,22 +1,71 @@
-# 🏁 ARYA DOCK — Virtual Macro Keypad & Cockpit Controller
+# 🏁 Arya Dock — Virtual Macro Keypad & Stream Deck Alternative for Linux
 
-[![CI](https://github.com/kartik1502/arya-dock/actions/workflows/ci.yml/badge.svg)](https://github.com/kartik1502/arya-dock/actions/workflows/ci.yml)
-[![Security Scan](https://github.com/kartik1502/arya-dock/actions/workflows/security.yml/badge.svg)](https://github.com/kartik1502/arya-dock/actions/workflows/security.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+[![GitHub Actions CI Build Status](https://github.com/kartik1502/arya-dock/actions/workflows/ci.yml/badge.svg)](https://github.com/kartik1502/arya-dock/actions/workflows/ci.yml)
+[![CodeQL Static Security Analysis](https://github.com/kartik1502/arya-dock/actions/workflows/security.yml/badge.svg)](https://github.com/kartik1502/arya-dock/actions/workflows/security.yml)
+[![Open Source License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Node.js Version Requirement](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
+[![Progressive Web App](https://img.shields.io/badge/PWA-Ready-orange.svg)](public/manifest.json)
 
-> A responsive, dark-cockpit digital macro keypad and companion deck that transforms your phone, tablet, or secondary display into a tactile, programmable hardware-free control deck.
+> **Arya Dock** is a high-performance, dark-cockpit virtual macro keypad and stream deck alternative for Linux. Transform your smartphone, tablet, or secondary display into a customizable, low-latency companion deck for developer workflows, terminal scripts, system hotkeys, and media controls — completely free and hardware-independent.
 
 ---
 
+## 📑 Table of Contents
+
+- [🏎️ What is Arya Dock?](#what-is-arya-dock)
+- [🔒 Security Model & Architecture](#security-model--architecture)
+  - [1. Cryptographic Pairing Token (`ARYA_PAIRING_TOKEN`)](#1-cryptographic-pairing-token-arya_pairing_token)
+  - [2. Origin Header Verification](#2-origin-header-verification)
+  - [3. Role Separation: Operator vs. Editor](#3-role-separation-operator-vs-editor)
+  - [4. Localhost Automatic Editor Privilege](#4-localhost-automatic-editor-privilege--ssh-tunnel--proxy-considerations)
+  - [5. Remote Editor Elevation & Query-String Elimination](#5-remote-editor-elevation--query-string-elimination)
+  - [6. Unauthenticated Static Assets](#6-unauthenticated-static-assets)
+  - [7. Credential Rotation Lifecycle](#7-credential-rotation-lifecycle)
+  - [8. Content Security Policy (CSP) & Defense-in-Depth](#8-content-security-policy-csp--defense-in-depth)
+- [⚙️ Configuration & Environment Variables](#configuration--environment-variables)
+  - [Environment Variables](#environment-variables)
+  - [CLI Flags](#cli-flags)
+  - [Config Location Flexibility](#config-location-flexibility)
+- [🎨 Design Philosophy & UI Architecture](#design-philosophy--ui-architecture)
+- [🛠️ Supported Platforms & Requirements](#supported-platforms--requirements)
+- [⚡ Connection Modes](#connection-modes)
+  - [Option A: USB Cable (Lowest Latency)](#option-a-usb-cable-recommended-for-lowest-latency)
+  - [Option B: Wi-Fi / LAN](#option-b-wi-fi--lan)
+- [🚀 Getting Started](#getting-started)
+  - [1. Installation](#1-installation)
+  - [2. Startup Banner Output](#2-startup-banner-output)
+- [🎛️ How to Use & Configure](#how-to-use--configure)
+  - [1. Navigation & Modes](#1-navigation--modes)
+  - [2. Dynamic Tile Count (+ / −)](#2-dynamic-tile-count---)
+  - [3. Drag & Drop Application Catalog](#3-drag--drop-application-catalog)
+  - [4. Customizing Keys & Execution Modes](#4-customizing-keys--execution-modes)
+  - [5. Multi-Client Deck Semantics](#5-multi-client-deck-semantics)
+  - [6. Data-Loss Protection on Tile Adjustments](#6-data-loss-protection-on-tile-adjustments)
+- [📁 Repository Structure](#repository-structure)
+- [🤝 Contributing](#contributing)
+- [🛡️ Security](#security)
+- [📄 License](#license)
+
+---
+
+<a id="what-is-arya-dock"></a>
 ## 🏎️ What is Arya Dock?
 
-**Arya Dock** is a web-based companion deck that eliminates the need for expensive physical macro keypads or hardware consoles. It runs as a local web service on your PC and streams an interactive, responsive control deck to any connected device (mobile browser, tablet, or desktop window).
+**Arya Dock** is a web-based companion deck and virtual stream deck alternative that eliminates the need for expensive physical macro keypads or proprietary hardware consoles. It runs as a local web service on your Linux workstation and streams an interactive, responsive control deck to any connected device (mobile browser, tablet, or desktop window).
 
 Whether you are writing code, monitoring cloud infrastructure, compiling microservices, running tests, or controlling media playback, Arya Dock gives you instant physical command over your workstation directly from your desk phone stand.
 
+### ✨ Key Features
+- 📱 **Hardware-Free Companion Deck:** Turn any phone or tablet into a tactile macro keypad via modern Progressive Web App (PWA) technology.
+- ⚡ **Ultra Low-Latency Execution:** USB tethering connection mode ensures near-zero latency input dispatch to your system.
+- 🔒 **Defense-in-Depth Security:** Cryptographically generated pairing tokens, constant-time authentication, and Origin verification protect your workstation.
+- 📐 **Dynamic Responsive Bezel:** Container-query-based adaptive layout scales dynamically from 1 to 24 keys without text truncation.
+- 🚀 **Native Linux Integration:** Direct execution in your preferred shell (Bash, Zsh) and terminal emulator (`ptyxis`, `gnome-terminal`, `konsole`, `alacritty`, `kitty`).
+- 🎵 **Workstation & Media Controls:** Native hotkeys for volume adjustment, mute toggles, and media track playback (`playerctl`, WirePlumber/PipeWire, PulseAudio).
+
 ---
 
+<a id="security-model--architecture"></a>
 ## 🔒 Security Model & Architecture
 
 Arya Dock implements strict defense-in-depth boundaries to protect your workstation from unauthorized command execution, cross-site hijacking, and network eavesdropping:
@@ -66,6 +115,7 @@ Arya Dock implements strict defense-in-depth boundaries to protect your workstat
 
 ---
 
+<a id="configuration--environment-variables"></a>
 ## ⚙️ Configuration & Environment Variables
 
 Arya Dock is configurable via environment variables and CLI arguments:
@@ -97,6 +147,7 @@ CONFIG_PATH=~/.config/arya-dock/profiles.json AUTH_PATH=~/.config/arya-dock/auth
 
 ---
 
+<a id="design-philosophy--ui-architecture"></a>
 ## 🎨 Design Philosophy & UI Architecture
 
 Arya Dock is built using the **Motorsport Cockpit Design System** (`DESIGN.md`), reflecting precision engineering, dark cockpit aesthetics, and motorsport ergonomics:
@@ -116,6 +167,7 @@ Arya Dock is built using the **Motorsport Cockpit Design System** (`DESIGN.md`),
 
 ---
 
+<a id="supported-platforms--requirements"></a>
 ## 🛠️ Supported Platforms & Requirements
 
 * **Operating System:** Linux (systemd-based distributions such as Fedora, Ubuntu, Arch, Debian)
@@ -129,6 +181,7 @@ Arya Dock is built using the **Motorsport Cockpit Design System** (`DESIGN.md`),
 
 ---
 
+<a id="connection-modes"></a>
 ## ⚡ Connection Modes
 
 ```text
@@ -158,6 +211,7 @@ Arya Dock is built using the **Motorsport Cockpit Design System** (`DESIGN.md`),
 
 ---
 
+<a id="getting-started"></a>
 ## 🚀 Getting Started
 
 ### 1. Installation
@@ -197,6 +251,7 @@ npm start
 
 ---
 
+<a id="how-to-use--configure"></a>
 ## 🎛️ How to Use & Configure
 
 ### 1. Navigation & Modes
@@ -243,6 +298,7 @@ Arya Dock operates as a shared physical workstation deck. All connected client d
 
 ---
 
+<a id="repository-structure"></a>
 ## 📁 Repository Structure
 
 ```text
@@ -295,18 +351,21 @@ arya-dock/
 
 ---
 
+<a id="contributing"></a>
 ## 🤝 Contributing
 
 Contributions, bug reports, and enhancements are warmly welcomed! Please read our [Contributing Guidelines](CONTRIBUTING.md) and [Code of Conduct](CODE_OF_CONDUCT.md) before submitting pull requests or proposing major architectural changes.
 
 ---
 
+<a id="security"></a>
 ## 🛡️ Security
 
 To report security vulnerabilities responsibly, please consult our [Security Policy](SECURITY.md).
 
 ---
 
+<a id="license"></a>
 ## 📄 License
 
 This project is open-source under the [MIT License](LICENSE). Created by [Karthik Kulkarni](https://github.com/kartik1502).

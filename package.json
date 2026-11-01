@@ -1,7 +1,7 @@
 {
   "name": "arya-dock",
   "version": "1.0.0",
-  "description": "Virtual Macro Keypad & Cockpit Companion Console",
+  "description": "A high-performance virtual macro keypad & companion deck for Linux. Transform your phone or tablet into a customizable, low-latency control deck.",
   "main": "server.js",
   "repository": {
     "type": "git",
@@ -21,12 +21,23 @@
     "node": ">=18.0.0"
   },
   "keywords": [
-    "virtual-dock",
+    "stream-deck-alternative",
+    "virtual-stream-deck",
+    "macro-pad",
+    "companion-deck",
+    "virtual-keypad",
     "macro-keypad",
-    "cockpit",
+    "linux-desktop",
+    "developer-tools",
+    "touch-controller",
+    "remote-control",
+    "shortcuts",
+    "hotkeys",
+    "productivity",
+    "pwa",
     "touch-deck",
-    "motorsport-cockpit",
-    "macro-keypad-alternative"
+    "control-deck",
+    "cockpit"
   ],
   "author": "Karthik Kulkarni",
   "license": "MIT",
