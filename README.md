@@ -8,6 +8,10 @@
 
 > **Arya Dock** is a high-performance, dark-cockpit virtual macro keypad and stream deck alternative for Linux. Transform your smartphone, tablet, or secondary display into a customizable, low-latency companion deck for developer workflows, terminal scripts, system hotkeys, and media controls — completely free and hardware-independent.
 
+<p align="center">
+  <img src="public/og-image.png" alt="Arya Dock — Virtual Macro Keypad & Stream Deck Alternative for Linux" width="760">
+</p>
+
 ---
 
 ## 📑 Table of Contents
@@ -70,33 +74,40 @@ Whether you are writing code, monitoring cloud infrastructure, compiling microse
 
 Arya Dock implements strict defense-in-depth boundaries to protect your workstation from unauthorized command execution, cross-site hijacking, and network eavesdropping:
 
+<a id="1-cryptographic-pairing-token-arya_pairing_token"></a>
 ### 1. Cryptographic Pairing Token (`ARYA_PAIRING_TOKEN`)
 - All WebSocket upgrade handshakes and `/api/*` endpoints require a secure 32-character hexadecimal token.
 - Tokens can be supplied via the `Authorization: Bearer <token>` header, `X-Pairing-Token` header, or URL query parameter (`?token=<token>`).
 - The pairing token is cryptographically generated on first launch (`crypto.randomBytes(16).toString('hex')`) and persisted in `config/auth.json` with strict `0600` permissions.
 - Evaluated on upgrade and API requests using constant-time comparison (`crypto.timingSafeEqual`) to prevent timing side-channel attacks.
 
+<a id="2-origin-header-verification"></a>
 ### 2. Origin Header Verification
 - Browser WebSocket upgrades verify the HTTP `Origin` header against localhost, loopback (`127.0.0.1`, `::1`), and detected host network interface IPs.
 - Requests originating from external browser tabs or malicious websites are rejected with `403 Forbidden`, neutralizing Cross-Site WebSocket Hijacking (CSWSH).
 - Wildcard CORS (`Access-Control-Allow-Origin: *`) is completely removed from all HTTP endpoints.
 
+<a id="3-role-separation-operator-vs-editor"></a>
 ### 3. Role Separation: Operator vs. Editor
 - **Operator Role (Viewer / Trigger):** Default role for remote phone and tablet connections. Operators are permitted to trigger buttons (`BUTTON_CLICK`), switch active pages (`PAGE_PREV`, `PAGE_NEXT`), and respond to heartbeats (`PING`/`PONG`). Operators **cannot** mutate button definitions, add or remove tiles, switch active profiles, or inspect workstation directories.
 - **Editor Role:** Full workstation configuration privilege. Editors can modify button actions (`UPDATE_BUTTON`), add/delete tiles (`ADD_BUTTON`, `DELETE_BUTTON`), resize the grid (`SET_BUTTONS_COUNT`), change active profiles (`SET_PROFILE`), and browse workstation directories (`/api/directories`).
 
+<a id="4-localhost-automatic-editor-privilege--ssh-tunnel--proxy-considerations"></a>
 ### 4. Localhost Automatic Editor Privilege & SSH Tunnel / Proxy Considerations
 - Connections originating directly from localhost (`127.0.0.1`, `::1`, `localhost`) automatically receive the **Editor** role without needing an editor key.
 - ⚠️ **Key Security Behavior:** If you expose Arya Dock via an SSH port forward (e.g. `ssh -L 3333:localhost:3333 user@server`) or behind a reverse proxy (e.g. Nginx, Caddy) that forwards connections from `127.0.0.1` without preserving remote client IPs, **every incoming connection through that tunnel or proxy will appear as localhost and receive full Editor privileges**. When exposing Arya Dock remotely across shared networks, bind directly to your LAN IP or configure reverse proxies so that client IPs are not masked as `127.0.0.1`.
 
+<a id="5-remote-editor-elevation--query-string-elimination"></a>
 ### 5. Remote Editor Elevation & Query-String Elimination
 - Remote devices connect as Operators by default. To unlock Editor privileges, tap the unlock button in the web interface and enter the Editor Key into the in-app modal (transmitting an `AUTH_EDIT` WebSocket message) or provide the `X-Editor-Key` HTTP header.
 - Query-string `editKey` (`?editKey=...`) is **intentionally rejected and ignored** across both HTTP and WebSocket connections to prevent editor keys from leaking into browser history, server access logs, or HTTP Referer headers.
 
+<a id="6-unauthenticated-static-assets"></a>
 ### 6. Unauthenticated Static Assets
 - Static web assets (`/`, `/index.html`, `/style.css`, `/app.js`, `/manifest.json`, `/icon.svg`) are served without requiring an authentication token.
 - This allows browsers and Progressive Web App (PWA) client shells to load the application frontend and service worker offline before pairing. All dynamic data endpoints (`/api/*`) and WebSocket control channels require authentication.
 
+<a id="7-credential-rotation-lifecycle"></a>
 ### 7. Credential Rotation Lifecycle
 - Credentials (`pairingToken` and `editorKey`) are stored in `config/auth.json`.
 - Rotate credentials on disk at any time via CLI:
@@ -109,6 +120,7 @@ Arya Dock implements strict defense-in-depth boundaries to protect your workstat
   node server.js --rotate-credentials --start
   ```
 
+<a id="8-content-security-policy-csp--defense-in-depth"></a>
 ### 8. Content Security Policy (CSP) & Defense-in-Depth
 - Strict security headers: `default-src 'self'`, `connect-src 'self' ws: wss:`, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, and `Referrer-Policy: no-referrer`.
 - Dynamic user-controlled strings and application metadata are rendered via safe DOM `textContent` APIs.
@@ -120,6 +132,7 @@ Arya Dock implements strict defense-in-depth boundaries to protect your workstat
 
 Arya Dock is configurable via environment variables and CLI arguments:
 
+<a id="environment-variables"></a>
 ### Environment Variables
 
 | Variable | Default | Description |
@@ -132,6 +145,7 @@ Arya Dock is configurable via environment variables and CLI arguments:
 | `ARYA_PAIRING_TOKEN` | Generated | Static pairing token override instead of generating a random 32-character token. |
 | `ARYA_EDITOR_KEY` | Generated | Static editor key override instead of generating a random 32-character key. |
 
+<a id="cli-flags"></a>
 ### CLI Flags
 
 | Flag | Description |
@@ -139,6 +153,7 @@ Arya Dock is configurable via environment variables and CLI arguments:
 | `--rotate-credentials` | Generates a new random pairing token and editor key, saves them to `auth.json`, prints them to stdout, and exits. |
 | `--start` | When combined with `--rotate-credentials` (`node server.js --rotate-credentials --start`), rotates credentials on disk and boots the server immediately. |
 
+<a id="config-location-flexibility"></a>
 ### Config Location Flexibility
 By default, profiles and authentication credentials live in `./config/profiles.json` and `./config/auth.json`. If you prefer to store configurations in a standard user configuration directory (e.g. `~/.config/arya-dock/`), specify `CONFIG_PATH` and `AUTH_PATH`:
 ```bash
@@ -199,12 +214,14 @@ Arya Dock is built using the **Motorsport Cockpit Design System** (`DESIGN.md`),
                                         └─ FreeDesktop App Parser (lib/apps.js)
 ```
 
+<a id="option-a-usb-cable-recommended-for-lowest-latency"></a>
 ### Option A: USB Cable (Recommended for Lowest Latency)
 1. Connect your phone to your PC using a USB cable.
 2. Turn on **USB Tethering** in your phone's network settings.
 3. The server terminal detects the USB interface and prints the paired USB link (e.g. `http://10.91.187.251:3333/?token=...`).
 4. Open the URL in your phone browser for instant, jitter-free physical response.
 
+<a id="option-b-wi-fi--lan"></a>
 ### Option B: Wi-Fi / LAN
 1. Ensure your phone and PC are connected to the same Wi-Fi network.
 2. Scan the **QR Code** generated in your terminal at server startup.
@@ -214,6 +231,7 @@ Arya Dock is built using the **Motorsport Cockpit Design System** (`DESIGN.md`),
 <a id="getting-started"></a>
 ## 🚀 Getting Started
 
+<a id="1-installation"></a>
 ### 1. Installation
 ```bash
 # Clone the repository
@@ -230,6 +248,7 @@ npm test
 npm start
 ```
 
+<a id="2-startup-banner-output"></a>
 ### 2. Startup Banner Output
 ```text
 ========================================================
@@ -254,21 +273,25 @@ npm start
 <a id="how-to-use--configure"></a>
 ## 🎛️ How to Use & Configure
 
+<a id="1-navigation--modes"></a>
 ### 1. Navigation & Modes
 * **M1 (Dev Cockpit):** Development workflows, AI coding agents, Docker, test runners, and text editors.
 * **M2 (Media & Telemetry):** Volume up/down, mute, audio playback controls, screenshot, and workstation lock.
 * **Shift Paddles:** Tap **`◀ PREV PAGE`** or **`NEXT PAGE ▶`** at the bottom of the bezel to switch pages.
 
+<a id="2-dynamic-tile-count---"></a>
 ### 2. Dynamic Tile Count (+ / −)
 * Use the **`+`** and **`−`** buttons in the header to add or remove shortcuts.
 * **Data-loss Protection:** If a configured tile with commands or custom labels is about to be deleted via `−`, a confirmation dialog prevents accidental mis-taps. Placeholder keys can be removed freely.
 
+<a id="3-drag--drop-application-catalog"></a>
 ### 3. Drag & Drop Application Catalog
 1. Click **`⚡ APPS`** to open the side drawer (available to Editors).
 2. Browse or search through your installed system applications.
 3. **Desktop:** Drag any application card directly onto any key.
 4. **Mobile (Touch):** Tap any application card to open the quick-assign popup, then tap the target keycap.
 
+<a id="4-customizing-keys--execution-modes"></a>
 ### 4. Customizing Keys & Execution Modes
 1. Click **`✏️`** in the header to enter edit mode.
 2. Tap the keycap you want to edit to open the configuration dialog:
@@ -286,11 +309,13 @@ npm start
    * **Stay Open After Exit:** Keeps your interactive shell open after the command exits so you can inspect output.
 3. Tap **`SAVE CONFIGURATION`**.
 
+<a id="5-multi-client-deck-semantics"></a>
 ### 5. Multi-Client Deck Semantics
 Arya Dock operates as a shared physical workstation deck. All connected client devices share a synchronized active page and profile state:
 - When any client navigates to next/previous page (`PAGE_NEXT` / `PAGE_PREV`) or switches profile (`SET_PROFILE`), all active screens (phone, tablet, desktop) update synchronously in real time.
 - Key clicks trigger immediately on the workstation and send acknowledgment feedback (`BUTTON_ACK`) to the triggering client.
 
+<a id="6-data-loss-protection-on-tile-adjustments"></a>
 ### 6. Data-Loss Protection on Tile Adjustments
 - Decreasing the grid count or removing a configured tile requires user confirmation if the target button contains a configured command, URL, or custom label.
 - Empty placeholder keys (`KEY n` with no assigned action) are removed cleanly without confirmation prompts.
