@@ -157,6 +157,11 @@ const editActionType = document.getElementById('editActionType');
 const commandGroup = document.getElementById('commandGroup');
 const urlGroup = document.getElementById('urlGroup');
 const editCommand = document.getElementById('editCommand');
+const editTerminalMode = document.getElementById('editTerminalMode');
+const editWorkingDir = document.getElementById('editWorkingDir');
+const editKeepOpen = document.getElementById('editKeepOpen');
+const terminalModeGroup = document.getElementById('terminalModeGroup');
+const terminalOptionsRow = document.getElementById('terminalOptionsRow');
 const editUrl = document.getElementById('editUrl');
 const btnModalTest = document.getElementById('btnModalTest');
 const btnModalSave = document.getElementById('btnModalSave');
@@ -199,6 +204,15 @@ function formatAppSublabel(cat, comment) {
   if (cat && cat !== 'Utility') return cat.toUpperCase().slice(0, 16);
   if (comment) return comment.split(' ')[0].toUpperCase().slice(0, 16);
   return 'APP';
+}
+
+function isTerminalCommand(cmd, cat) {
+  const lower = ((cmd || '') + ' ' + (cat || '')).toLowerCase();
+  return lower.includes('btop') || lower.includes('top') || lower.includes('journalctl') ||
+         lower.includes('git') || lower.includes('bash') || lower.includes('sh') ||
+         lower.includes('python') || lower.includes('npm') || lower.includes('test') ||
+         lower.includes('docker') || lower.includes('kubectl') || lower.includes('claude') ||
+         lower.includes('term') || lower.includes('ptyxis');
 }
 
 // Fetch Installed Applications from Server
@@ -284,9 +298,12 @@ function renderAppCatalog(filterCategory = 'all', searchQuery = '') {
         editSublabel.value = formatAppSublabel(appPayload.category, appPayload.comment);
         editActionType.value = 'shell';
         editCommand.value = appPayload.command;
+        editTerminalMode.value = isTerminalCommand(appPayload.command, appPayload.category) ? 'tab' : 'background';
+        editKeepOpen.checked = true;
         toggleActionFields();
         closeDrawer();
         pickerTargetButtonId = null;
+        editLabel.focus();
       } else {
         // Direct tap-to-assign on key
         openAssignPopup(appPayload);
@@ -381,6 +398,7 @@ btnPopupClose.addEventListener('click', closeAssignPopup);
 // Assign App to Key & Push to Server
 function assignAppToButton(buttonIndex, app) {
   const colorPalette = ['#0066b1', '#1c69d4', '#e22718', '#0066b1', '#1c69d4', '#e22718', '#2b2b2b', '#1c69d4', '#0066b1'];
+  const isCli = isTerminalCommand(app.command, app.category);
   const updatedButton = {
     id: buttonIndex,
     icon: app.icon || '🚀',
@@ -388,7 +406,9 @@ function assignAppToButton(buttonIndex, app) {
     sublabel: formatAppSublabel(app.category, app.comment),
     color: colorPalette[buttonIndex % colorPalette.length],
     actionType: 'shell',
-    command: app.command
+    command: app.command,
+    terminalMode: isCli ? 'tab' : 'background',
+    keepOpen: true
   };
 
   if (ws && ws.readyState === WebSocket.OPEN) {
@@ -737,6 +757,9 @@ function openEditModal(button) {
   editColor.value = button.color || '#1c69d4';
   editActionType.value = button.actionType || 'shell';
   editCommand.value = button.command || '';
+  editTerminalMode.value = button.terminalMode || 'tab';
+  editWorkingDir.value = button.workingDir || '';
+  editKeepOpen.checked = button.keepOpen !== false;
   editUrl.value = button.url || '';
 
   toggleActionFields();
@@ -771,9 +794,18 @@ function toggleActionFields() {
   const type = editActionType.value;
   if (type === 'url') {
     commandGroup.classList.add('hidden');
+    terminalModeGroup.classList.add('hidden');
+    terminalOptionsRow.classList.add('hidden');
     urlGroup.classList.remove('hidden');
-  } else {
+  } else if (type === 'shell') {
     commandGroup.classList.remove('hidden');
+    terminalModeGroup.classList.remove('hidden');
+    terminalOptionsRow.classList.remove('hidden');
+    urlGroup.classList.add('hidden');
+  } else {
+    commandGroup.classList.add('hidden');
+    terminalModeGroup.classList.add('hidden');
+    terminalOptionsRow.classList.add('hidden');
     urlGroup.classList.add('hidden');
   }
 }
@@ -805,8 +837,18 @@ btnModalSave.addEventListener('click', () => {
     color: editColor.value,
     actionType: editActionType.value,
     command: editCommand.value.trim(),
+    terminalMode: editTerminalMode.value,
+    workingDir: editWorkingDir.value.trim(),
+    keepOpen: editKeepOpen.checked,
     url: editUrl.value.trim()
   };
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({ type: 'UPDATE_BUTTON', button: updatedButton }));
+  }
+
+  closeEditModal();
+});
 
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'UPDATE_BUTTON', button: updatedButton }));

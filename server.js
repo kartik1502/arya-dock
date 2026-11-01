@@ -211,16 +211,68 @@ function broadcastState() {
   }
 }
 
+// Build command wrapper based on target terminal execution mode
+function buildTerminalCommand(command, mode = 'background', title = 'Arya Dock', workingDir = '', keepOpen = true) {
+  if (mode === 'background' || !mode) {
+    return command;
+  }
+
+  let innerScript = command.trim();
+  if (keepOpen) {
+    innerScript += '; echo ""; echo -e "\\033[1;34m[Arya Dock]\\033[0m Command completed. Session interactive."; exec bash';
+  }
+
+  const escapedInner = innerScript.replace(/"/g, '\\"');
+  const safeTitle = (title || 'Arya Dock').replace(/"/g, '');
+  const dirFlag = workingDir ? `-d "${workingDir}"` : '';
+
+  if (mode === 'tab') {
+    // Open in existing terminal as a new tab
+    return `ptyxis --tab ${dirFlag} -T "${safeTitle}" -- bash -c "${escapedInner}" || ` +
+           `gnome-terminal --tab --title="${safeTitle}" -- bash -c "${escapedInner}" || ` +
+           `konsole --new-tab -e bash -c "${escapedInner}" || ` +
+           `ptyxis ${dirFlag} -T "${safeTitle}" -- bash -c "${escapedInner}"`;
+  } else if (mode === 'window') {
+    // Open in new standalone terminal window
+    return `ptyxis --new-window ${dirFlag} -T "${safeTitle}" -- bash -c "${escapedInner}" || ` +
+           `gnome-terminal --title="${safeTitle}" -- bash -c "${escapedInner}" || ` +
+           `alacritty --title "${safeTitle}" -e bash -c "${escapedInner}" || ` +
+           `kitty --title "${safeTitle}" bash -c "${escapedInner}" || ` +
+           `konsole -e bash -c "${escapedInner}" || ` +
+           `xterm -title "${safeTitle}" -e bash -c "${escapedInner}"`;
+  } else if (mode === 'existing') {
+    // Run in active / existing terminal
+    return `ptyxis ${dirFlag} -T "${safeTitle}" -- bash -c "${escapedInner}" || ` +
+           `ptyxis --tab ${dirFlag} -T "${safeTitle}" -- bash -c "${escapedInner}" || ` +
+           `gnome-terminal --title="${safeTitle}" -- bash -c "${escapedInner}"`;
+  }
+
+  return command;
+}
+
 // Action Dispatcher
 function executeAction(button) {
   if (!button || !button.actionType) return;
 
-  console.log(`[Arya Dock] Triggered Button [${button.id}] '${button.label}': ${button.actionType}`);
+  console.log(`[Arya Dock] Triggered Button [${button.id}] '${button.label}': ${button.actionType} (${button.terminalMode || 'background'})`);
 
   switch (button.actionType) {
     case 'shell':
       if (button.command) {
-        exec(button.command, { env: process.env }, (error, stdout, stderr) => {
+        const finalCommand = buildTerminalCommand(
+          button.command,
+          button.terminalMode || 'background',
+          button.label || 'Arya Dock',
+          button.workingDir || '',
+          button.keepOpen !== false
+        );
+        const execOptions = {
+          env: process.env
+        };
+        if (button.workingDir && fs.existsSync(button.workingDir)) {
+          execOptions.cwd = button.workingDir;
+        }
+        exec(finalCommand, execOptions, (error, stdout, stderr) => {
           if (error) console.error(`[Exec Error]: ${error.message}`);
           if (stdout) console.log(`[Exec Output]: ${stdout.trim()}`);
         });

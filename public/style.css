@@ -1128,6 +1128,38 @@ body {
   border-color: var(--m-blue-light);
 }
 
+.m-field-checkbox-wrap {
+  display: flex;
+  align-items: flex-end;
+  flex: 0 0 170px;
+}
+
+.m-checkbox-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  background-color: var(--m-canvas);
+  border: 1px solid var(--m-hairline);
+  padding: 8px 10px;
+  width: 100%;
+}
+
+.m-checkbox-container input[type="checkbox"] {
+  accent-color: var(--m-blue-light);
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.m-checkbox-text {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  color: var(--m-primary);
+  text-transform: uppercase;
+}
+
 .m-modal-footer {
   display: flex;
   justify-content: flex-end;

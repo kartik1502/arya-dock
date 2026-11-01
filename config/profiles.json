@@ -24,7 +24,9 @@
               "icon": "⚡",
               "color": "#10b981",
               "actionType": "shell",
-              "command": "ptyxis --tab || ptyxis --new-window || gnome-terminal --tab || gnome-terminal || alacritty || kitty || x-terminal-emulator &"
+              "command": "bash",
+              "terminalMode": "tab",
+              "keepOpen": true
             },
             {
               "id": 2,
@@ -33,7 +35,8 @@
               "icon": "🧮",
               "color": "#e22718",
               "actionType": "shell",
-              "command": "libreoffice --calc"
+              "command": "libreoffice --calc",
+              "terminalMode": "background"
             },
             {
               "id": 3,
@@ -42,7 +45,19 @@
               "icon": "🧪",
               "color": "#06b6d4",
               "actionType": "shell",
-              "command": "npm test || pytest || cargo test || echo 'Tests run' &"
+              "command": "npm test || pytest || cargo test",
+              "terminalMode": "tab",
+              "keepOpen": true
+            },
+            {
+              "id": 4,
+              "label": "INTELLIJ IDEA 2026.2",
+              "sublabel": "DEVELOPMENT",
+              "icon": "💻",
+              "color": "#1c69d4",
+              "actionType": "shell",
+              "command": "\"~/.local/share/JetBrains/Toolbox/apps/intellij-idea/bin/idea\"",
+              "url": ""
             }
           ]
         },
@@ -208,12 +223,12 @@
             },
             {
               "id": 7,
-              "label": "SCREENSHOT",
-              "sublabel": "CAPTURE",
-              "icon": "📸",
+              "label": "VLC MEDIA PLAYER",
+              "sublabel": "AUDIOVIDEO",
+              "icon": "📁",
               "color": "#eab308",
               "actionType": "shell",
-              "command": "gnome-screenshot -i 2>/dev/null || grim 2>/dev/null || echo 'Screenshot'",
+              "command": "/usr/bin/vlc --started-from-file",
               "url": ""
             },
             {

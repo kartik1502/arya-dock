@@ -230,8 +230,31 @@
         </div>
 
         <div class="m-field-group" id="commandGroup">
-          <label for="editCommand">SHELL COMMAND / EXEC PATH</label>
-          <input type="text" id="editCommand" placeholder="google-chrome || code . || wpctl">
+          <label for="editCommand">SHELL COMMAND / SCRIPT TO RUN</label>
+          <input type="text" id="editCommand" placeholder="btop || git status || npm test || python script.py">
+        </div>
+
+        <div class="m-field-group" id="terminalModeGroup">
+          <label for="editTerminalMode">RUN WHERE / TERMINAL MODE</label>
+          <select id="editTerminalMode">
+            <option value="tab">⚡ New Tab in Terminal</option>
+            <option value="window">🪟 New Terminal Window</option>
+            <option value="existing">🔄 Existing Terminal</option>
+            <option value="background">🤫 Background / Silent (No Window)</option>
+          </select>
+        </div>
+
+        <div class="m-field-row" id="terminalOptionsRow">
+          <div class="m-field-group">
+            <label for="editWorkingDir">WORKING DIRECTORY (OPTIONAL)</label>
+            <input type="text" id="editWorkingDir" placeholder="Default project directory">
+          </div>
+          <div class="m-field-group m-field-checkbox-wrap">
+            <label class="m-checkbox-container" title="Keep terminal interactive after script finishes">
+              <input type="checkbox" id="editKeepOpen" checked>
+              <span class="m-checkbox-text">STAY OPEN AFTER EXIT</span>
+            </label>
+          </div>
         </div>
 
         <div class="m-field-group hidden" id="urlGroup">
