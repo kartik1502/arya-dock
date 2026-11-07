@@ -7,13 +7,29 @@ const {
   CURRENT_SCHEMA_VERSION,
   migrateV0ToV1,
   migrateConfig,
+  resolveConfigPath,
   resolveWorkingDir,
   validateButton,
   loadConfig,
   saveConfigAtomic
 } = require('../lib/config');
 
-test('Config: resolveWorkingDir path expansions', () => {
+test('Config: resolveConfigPath path expansions and validation', () => {
+  const home = os.homedir();
+
+  assert.equal(resolveConfigPath(''), '');
+  assert.equal(resolveConfigPath('   '), '');
+  assert.equal(resolveConfigPath('~'), home);
+  assert.equal(resolveConfigPath('$HOME'), home);
+  assert.equal(resolveConfigPath('~/config/profiles.json'), path.join(home, 'config/profiles.json'));
+  assert.equal(resolveConfigPath('$HOME/config/profiles.json'), path.join(home, 'config/profiles.json'));
+  assert.equal(resolveConfigPath('/etc/profiles.json'), path.resolve('/etc/profiles.json'));
+  assert.equal(resolveConfigPath('profiles.json'), path.resolve('profiles.json'));
+  assert.equal(resolveConfigPath('path/with\0null'), '');
+  assert.equal(resolveConfigPath('path/with\nnewline'), '');
+});
+
+test('Config: resolveWorkingDir path expansions and shell metacharacter rejection', () => {
   const home = os.homedir();
 
   assert.equal(resolveWorkingDir(''), '');
@@ -26,6 +42,16 @@ test('Config: resolveWorkingDir path expansions', () => {
   assert.equal(resolveWorkingDir('relative/path'), path.resolve('relative/path'));
   assert.equal(resolveWorkingDir('path/with\0null'), '');
   assert.equal(resolveWorkingDir('path/with\nnewline'), '');
+
+  // Rejects shell metacharacters and command injection attempts
+  assert.equal(resolveWorkingDir('/path/with;rm -rf /'), '');
+  assert.equal(resolveWorkingDir('/path/with|cmd'), '');
+  assert.equal(resolveWorkingDir('/path/with&bg'), '');
+  assert.equal(resolveWorkingDir('/path/with`sub`'), '');
+  assert.equal(resolveWorkingDir('/path/with"quotes"'), '');
+  assert.equal(resolveWorkingDir("/path/with'single'"), '');
+  assert.equal(resolveWorkingDir('/path/with>redirect'), '');
+  assert.equal(resolveWorkingDir('/path/with<input'), '');
 });
 
 test('Config: validateButton schema enforcement', () => {

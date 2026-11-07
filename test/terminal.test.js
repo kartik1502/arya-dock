@@ -32,6 +32,9 @@ test('Terminal: buildActionCommand builds valid CLI arguments for all supported 
   }, { ignoreDirExists: true });
 
   assert.equal(bgCmd.bin, defaultShell);
+  assert.equal(bgCmd.isBackground, true);
+  assert.equal(bgCmd.shellBin, defaultShell);
+  assert.deepEqual(bgCmd.shellArgs, ['-i', '-l', '-c', 'git status']);
   assert.deepEqual(bgCmd.args, ['-i', '-l', '-c', 'git status']);
   assert.equal(bgCmd.options.cwd, testDir);
 
@@ -61,6 +64,9 @@ test('Terminal: buildActionCommand builds valid CLI arguments for all supported 
     ignoreDirExists: true
   });
   assert.equal(ptyxisCmd.bin, '/usr/bin/ptyxis');
+  assert.equal(ptyxisCmd.isTerminal, true);
+  assert.equal(ptyxisCmd.terminalBin, '/usr/bin/ptyxis');
+  assert.deepEqual(ptyxisCmd.terminalArgs, ptyxisCmd.args);
   assert.equal(ptyxisCmd.rawCommand, 'htop');
   assert.ok(ptyxisCmd.innerScript.includes(quoteForShell(defaultShell)));
   assert.ok(ptyxisCmd.args.includes('--tab'));
@@ -222,6 +228,24 @@ test('Terminal: executeAction handles spawn errors gracefully without uncaught e
       label: 'Bad Action',
       actionType: 'media',
       mediaAction: 'mute'
+    });
+  });
+  assert.doesNotThrow(() => {
+    executeAction({
+      id: 101,
+      label: 'Bg Action',
+      actionType: 'shell',
+      terminalMode: 'background',
+      command: 'true'
+    });
+  });
+  assert.doesNotThrow(() => {
+    executeAction({
+      id: 102,
+      label: 'Term Action',
+      actionType: 'shell',
+      terminalMode: 'tab',
+      command: 'echo test'
     });
   });
 });

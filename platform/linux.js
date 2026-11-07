@@ -48,9 +48,12 @@ function findInPath(binName) {
 function detectTerminal() {
   const envTerm = process.env.TERMINAL;
   if (envTerm && typeof envTerm === 'string' && /^[\w./-]+$/.test(envTerm) && !envTerm.includes('..')) {
-    const resolved = findInPath(envTerm) || (path.isAbsolute(envTerm) && fs.existsSync(envTerm) ? envTerm : null);
-    if (resolved) {
-      return { name: path.basename(resolved), path: resolved };
+    const base = path.basename(envTerm).toLowerCase();
+    if (!['sh', 'bash', 'zsh', 'dash', 'csh', 'tcsh', 'fish'].includes(base)) {
+      const resolved = findInPath(envTerm) || (path.isAbsolute(envTerm) && fs.existsSync(envTerm) ? envTerm : null);
+      if (resolved) {
+        return { name: path.basename(resolved), path: resolved };
+      }
     }
   }
 
