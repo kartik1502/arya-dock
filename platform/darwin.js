@@ -1,5 +1,6 @@
 'use strict';
 
+const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
@@ -8,7 +9,13 @@ module.exports = {
   isSupported: true,
 
   getDefaultShell() {
-    return process.env.SHELL || '/bin/zsh';
+    const envShell = process.env.SHELL;
+    if (envShell && typeof envShell === 'string' && path.isAbsolute(envShell) && /^[\w./-]+$/.test(envShell) && !envShell.includes('..')) {
+      try {
+        if (fs.existsSync(envShell)) return envShell;
+      } catch (e) {}
+    }
+    return '/bin/zsh';
   },
 
   getDefaultTerminal() {

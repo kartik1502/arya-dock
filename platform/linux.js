@@ -8,12 +8,17 @@ let cachedShell = null;
 let cachedTerminal = null;
 
 function detectShell() {
-  if (process.env.SHELL && fs.existsSync(process.env.SHELL)) {
-    return process.env.SHELL;
+  const envShell = process.env.SHELL;
+  if (envShell && typeof envShell === 'string' && path.isAbsolute(envShell) && /^[\w./-]+$/.test(envShell) && !envShell.includes('..')) {
+    try {
+      if (fs.existsSync(envShell)) return envShell;
+    } catch (e) {}
   }
   try {
     const userShell = os.userInfo().shell;
-    if (userShell && fs.existsSync(userShell)) return userShell;
+    if (userShell && typeof userShell === 'string' && path.isAbsolute(userShell) && /^[\w./-]+$/.test(userShell) && !userShell.includes('..')) {
+      if (fs.existsSync(userShell)) return userShell;
+    }
   } catch (e) {}
   if (fs.existsSync('/usr/bin/zsh')) return '/usr/bin/zsh';
   if (fs.existsSync('/bin/zsh')) return '/bin/zsh';
@@ -22,10 +27,11 @@ function detectShell() {
 }
 
 function findInPath(binName) {
+  if (!binName || typeof binName !== 'string' || !/^[\w.-]+$/.test(binName)) return null;
   const pathEnv = process.env.PATH || '';
   const dirs = pathEnv.split(path.delimiter);
   for (const dir of dirs) {
-    if (!dir) continue;
+    if (!dir || !path.isAbsolute(dir) || dir.includes('..')) continue;
     const full = path.join(dir, binName);
     try {
       if (fs.existsSync(full)) {
@@ -40,8 +46,9 @@ function findInPath(binName) {
 }
 
 function detectTerminal() {
-  if (process.env.TERMINAL) {
-    const resolved = findInPath(process.env.TERMINAL) || (fs.existsSync(process.env.TERMINAL) ? process.env.TERMINAL : null);
+  const envTerm = process.env.TERMINAL;
+  if (envTerm && typeof envTerm === 'string' && /^[\w./-]+$/.test(envTerm) && !envTerm.includes('..')) {
+    const resolved = findInPath(envTerm) || (path.isAbsolute(envTerm) && fs.existsSync(envTerm) ? envTerm : null);
     if (resolved) {
       return { name: path.basename(resolved), path: resolved };
     }

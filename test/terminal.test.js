@@ -15,6 +15,7 @@ test('Terminal: quoteForShell safely escapes arbitrary strings', () => {
   assert.equal(quoteForShell("has 'single' quotes"), "'has '\\''single'\\'' quotes'");
   assert.equal(quoteForShell('has $VAR and `cmd` and $(sub)'), "'has $VAR and `cmd` and $(sub)'");
   assert.equal(quoteForShell('path/with/\\backslash'), "'path/with/\\backslash'");
+  assert.equal(quoteForShell('path/with/\0null'), "'path/with/null'");
 });
 
 test('Terminal: buildActionCommand builds valid CLI arguments for all supported terminals', () => {

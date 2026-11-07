@@ -63,7 +63,7 @@ function createServer(options = {}) {
 
   function getCurrentPage() {
     const profile = getActiveProfile();
-    if (!profile.pages || profile.pages.length === 0) return { buttons: [] };
+    if (!profile || !profile.pages || profile.pages.length === 0) return { buttons: [] };
     if (currentPageIndex >= profile.pages.length) currentPageIndex = 0;
     if (currentPageIndex < 0) currentPageIndex = profile.pages.length - 1;
     return profile.pages[currentPageIndex];

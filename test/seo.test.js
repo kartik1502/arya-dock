@@ -63,7 +63,7 @@ test('SEO: public/index.html contains complete meta, Open Graph, Twitter, and Sc
   assert.ok(jsonLd.author && jsonLd.author.name);
   assert.ok(jsonLd.offers && jsonLd.offers.price === '0');
   assert.ok(jsonLd.image && jsonLd.image.endsWith('.png'));
-  assert.ok(jsonLd.codeRepository && jsonLd.codeRepository.includes('kartik1502/arya-dock'));
+  assert.equal(jsonLd.codeRepository, 'https://github.com/kartik1502/arya-dock');
 });
 
 test('SEO: public/manifest.json conforms to PWA installability requirements', () => {

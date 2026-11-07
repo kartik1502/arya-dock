@@ -458,3 +458,33 @@ test('Schema: diagnostic warnings identify profile, page, and tile on invalid bu
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
+
+test('Config: ignores prototype pollution keys in profiles dictionary', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arya-proto-test-'));
+  const configPath = path.join(tmpDir, 'profiles.json');
+  const examplePath = path.join(tmpDir, 'profiles.example.json');
+
+  try {
+    const raw = {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      activeProfile: 'valid',
+      profiles: {
+        __proto__: { polluted: true },
+        constructor: { name: 'exploit' },
+        prototype: { name: 'exploit2' },
+        valid: {
+          name: 'Valid Profile',
+          pages: [{ pageNumber: 1, name: 'Page 1', buttons: [] }]
+        }
+      }
+    };
+    fs.writeFileSync(configPath, JSON.stringify(raw));
+    const loaded = loadConfig(configPath, examplePath);
+    assert.equal(loaded.activeProfile, 'valid');
+    assert.equal(Object.prototype.hasOwnProperty.call(loaded.profiles, 'constructor'), false);
+    assert.equal(Object.prototype.hasOwnProperty.call(loaded.profiles, 'prototype'), false);
+    assert.equal(Object.prototype.hasOwnProperty.call(loaded.profiles, '__proto__'), false);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});

@@ -10,7 +10,8 @@ const {
   isLocalAddress,
   getRole,
   loadOrCreateAuth,
-  rotateAuthCredentials
+  rotateAuthCredentials,
+  resolvePath
 } = require('../lib/auth');
 
 test('Auth: safeEqual constant-time comparison', () => {
@@ -21,6 +22,18 @@ test('Auth: safeEqual constant-time comparison', () => {
   assert.equal(safeEqual(null, 'secret'), false);
   assert.equal(safeEqual(undefined, undefined), false);
   assert.equal(safeEqual(123, 123), false);
+});
+
+test('Auth: resolvePath path expansion and control character sanitization', () => {
+  const home = os.homedir();
+  assert.equal(resolvePath(''), '');
+  assert.equal(resolvePath('~'), home);
+  assert.equal(resolvePath('$HOME'), home);
+  assert.equal(resolvePath('~/config/auth.json'), path.join(home, 'config/auth.json'));
+  assert.equal(resolvePath('$HOME/config/auth.json'), path.join(home, 'config/auth.json'));
+  assert.equal(resolvePath('/etc/auth.json'), path.resolve('/etc/auth.json'));
+  assert.equal(resolvePath('path/with\0null'), '');
+  assert.equal(resolvePath('path/with\nnewline'), '');
 });
 
 test('Auth: isAllowedOrigin checks', () => {
