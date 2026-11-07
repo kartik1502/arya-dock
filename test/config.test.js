@@ -24,6 +24,8 @@ test('Config: resolveWorkingDir path expansions', () => {
   assert.equal(resolveWorkingDir('$HOME/workspace/dock'), path.join(home, 'workspace/dock'));
   assert.equal(resolveWorkingDir('/absolute/path'), path.resolve('/absolute/path'));
   assert.equal(resolveWorkingDir('relative/path'), path.resolve('relative/path'));
+  assert.equal(resolveWorkingDir('path/with\0null'), '');
+  assert.equal(resolveWorkingDir('path/with\nnewline'), '');
 });
 
 test('Config: validateButton schema enforcement', () => {

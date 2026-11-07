@@ -98,7 +98,7 @@ module.exports = {
   },
 
   getMediaCommand(action) {
-    if (action && mediaCommands[action]) {
+    if (action && Object.prototype.hasOwnProperty.call(mediaCommands, action)) {
       return {
         bin: mediaCommands[action][0],
         args: mediaCommands[action][1],

@@ -31,7 +31,8 @@ test('Platform: interface exposes adapters for linux, darwin, and fake', () => {
   const mediaFallback = linux.getMediaFallbackCommand('vol_up');
   assert.ok(mediaFallback && mediaFallback.bin);
   const linuxUrl = linux.getUrlCommand('https://example.com');
-  assert.ok(linuxUrl && linuxUrl.bin && linuxUrl.args.includes('https://example.com'));
+  assert.ok(linuxUrl && linuxUrl.bin);
+  assert.deepEqual(linuxUrl.args, ['https://example.com']);
   const linuxDirs = linux.getApplicationDirectories();
   assert.ok(Array.isArray(linuxDirs) && linuxDirs.length > 0);
 
@@ -124,7 +125,7 @@ test('Platform: server runs with a fake adapter without real OS access', () => {
       url: 'https://example.com'
     });
     assert.equal(urlCmd.bin, 'fake-browser-bin');
-    assert.ok(fakeAdapter.calls.getUrlCommand.includes('https://example.com/'));
+    assert.deepEqual(fakeAdapter.calls.getUrlCommand, ['https://example.com/']);
   } finally {
     serverInstance.close();
     // Reset active platform back to default

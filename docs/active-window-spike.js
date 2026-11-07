@@ -12,7 +12,7 @@
  * - Only stable application identifiers (`app-id`, `wm_class`, `desktopId`) are parsed and emitted.
  */
 
-const { exec, execSync, spawn } = require('child_process');
+const { execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 
@@ -62,12 +62,24 @@ function getSessionInfo() {
  */
 function getGnomeActiveApp(callback) {
   // Try gdbus first, then busctl
-  const cmd = 'gdbus call --session --dest org.gnome.Shell.Introspect --object-path /org/gnome/Shell/Introspect --method org.gnome.Shell.Introspect.GetWindows';
-  exec(cmd, { timeout: 800, maxBuffer: 1024 * 1024 }, (err, stdout) => {
+  execFile('gdbus', [
+    'call',
+    '--session',
+    '--dest', 'org.gnome.Shell.Introspect',
+    '--object-path', '/org/gnome/Shell/Introspect',
+    '--method', 'org.gnome.Shell.Introspect.GetWindows'
+  ], { timeout: 800, maxBuffer: 1024 * 1024 }, (err, stdout) => {
     if (err) {
       // Fallback to busctl
-      const busctlCmd = 'busctl --user --json=short call org.gnome.Shell.Introspect /org/gnome/Shell/Introspect org.gnome.Shell.Introspect GetWindows';
-      exec(busctlCmd, { timeout: 800, maxBuffer: 1024 * 1024 }, (bErr, bStdout) => {
+      execFile('busctl', [
+        '--user',
+        '--json=short',
+        'call',
+        'org.gnome.Shell.Introspect',
+        '/org/gnome/Shell/Introspect',
+        'org.gnome.Shell.Introspect',
+        'GetWindows'
+      ], { timeout: 800, maxBuffer: 1024 * 1024 }, (bErr, bStdout) => {
         if (bErr) return callback(new Error('GNOME Shell Introspect D-Bus unavailable: ' + (err.message || bErr.message)));
         try {
           const parsed = JSON.parse(bStdout);
@@ -111,14 +123,14 @@ function getGnomeActiveApp(callback) {
  * Resolves _NET_ACTIVE_WINDOW on the root window, then queries WM_CLASS.
  */
 function getX11ActiveApp(callback) {
-  exec('xprop -root 32x "\\t$0" _NET_ACTIVE_WINDOW', { timeout: 600 }, (err, stdout) => {
+  execFile('xprop', ['-root', '32x', '\t$0', '_NET_ACTIVE_WINDOW'], { timeout: 600 }, (err, stdout) => {
     if (err) return callback(err);
     const winMatch = stdout.match(/_NET_ACTIVE_WINDOW\s+0x([0-9a-fA-F]+)/);
     if (!winMatch || winMatch[1] === '0') {
       return callback(null, null);
     }
     const winId = '0x' + winMatch[1];
-    exec(`xprop -id ${winId} WM_CLASS`, { timeout: 600 }, (clsErr, clsStdout) => {
+    execFile('xprop', ['-id', winId, 'WM_CLASS'], { timeout: 600 }, (clsErr, clsStdout) => {
       if (clsErr) return callback(clsErr);
       // WM_CLASS(STRING) = "instance", "class"
       const clsMatch = clsStdout.match(/WM_CLASS\(STRING\)\s*=\s*"([^"]+)",\s*"([^"]+)"/);

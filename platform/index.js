@@ -56,7 +56,7 @@ function getPlatform(name, options = {}) {
   const platformName = name !== undefined ? name : (process.env.ARYA_PLATFORM || process.platform);
   const key = String(platformName || '').toLowerCase();
 
-  if (ADAPTERS[key]) {
+  if (Object.prototype.hasOwnProperty.call(ADAPTERS, key)) {
     return ADAPTERS[key];
   }
 

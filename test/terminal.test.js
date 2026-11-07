@@ -65,7 +65,23 @@ test('Terminal: buildActionCommand builds valid CLI arguments for all supported 
   assert.ok(ptyxisCmd.args.includes('--tab'));
   assert.ok(ptyxisCmd.args.includes('-d'));
   assert.ok(ptyxisCmd.args.includes('-T'));
+  const ptyxisTitleIdx = ptyxisCmd.args.indexOf('-T');
+  assert.equal(ptyxisCmd.args[ptyxisTitleIdx + 1], 'Test "Title" & $VAR');
   assert.ok(ptyxisCmd.args.includes('--'));
+
+  // Verify terminal title strips newlines and control characters
+  const uncleanTitleBtn = {
+    id: 99,
+    label: 'Bad\nTitle\0With\rChars',
+    actionType: 'shell',
+    command: 'true',
+    terminalMode: 'tab'
+  };
+  const sanitizedCmd = buildActionCommand(uncleanTitleBtn, {
+    terminal: { name: 'ptyxis', path: '/usr/bin/ptyxis' }
+  });
+  const sanitizedTitleIdx = sanitizedCmd.args.indexOf('-T');
+  assert.equal(sanitizedCmd.args[sanitizedTitleIdx + 1], 'Bad Title With Chars');
 
   // Gnome-Terminal: --tab, --title=title, --working-directory=dir, -- shell -i -l -c script
   const gnomeCmd = buildActionCommand(testButton, {

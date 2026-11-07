@@ -55,7 +55,10 @@ function createServer(options = {}) {
 
   function getActiveProfile() {
     const pId = appConfig.activeProfile || 'developer';
-    return appConfig.profiles[pId] || Object.values(appConfig.profiles)[0];
+    if (pId && Object.prototype.hasOwnProperty.call(appConfig.profiles, pId)) {
+      return appConfig.profiles[pId];
+    }
+    return Object.values(appConfig.profiles)[0];
   }
 
   function getCurrentPage() {
