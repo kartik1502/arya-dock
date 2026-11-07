@@ -23,6 +23,7 @@ const {
 const { getNetworkInterfaces } = require('./lib/network');
 const { createHttpHandler } = require('./lib/http');
 const { setupWebSocketServer } = require('./lib/ws');
+const platform = require('./platform');
 
 const PORT = !isNaN(parseInt(process.env.PORT, 10)) ? parseInt(process.env.PORT, 10) : 3333;
 const HOST = process.env.HOST || '0.0.0.0';
@@ -34,6 +35,11 @@ function createServer(options = {}) {
   const configPath = options.configPath || CONFIG_PATH;
   const authPath = options.authPath || AUTH_PATH;
   const publicDir = options.publicDir || PUBLIC_DIR;
+
+  const platformAdapter = options.platformAdapter || (options.platform ? platform.getPlatform(options.platform, { logger: options.logger || console.warn, silent: options.silent }) : platform.getActivePlatform());
+  if (options.platform || options.platformAdapter) {
+    platform.setPlatform(platformAdapter);
+  }
 
   const credentials = loadOrCreateAuth(authPath);
   let appConfig = loadConfig(configPath, DEFAULT_EXAMPLE_PATH);
@@ -86,6 +92,7 @@ function createServer(options = {}) {
     wss: wsManager.wss,
     credentials,
     getConfig: () => appConfig,
+    platform: platformAdapter,
     close: (cb) => {
       wsManager.close();
       wsManager.wss.close(() => {

@@ -169,4 +169,4 @@ Byte 5+:    Remaining JPEG payload
      - **Bluetooth PAN (Tethering):** Phone and PC pair via standard Bluetooth PAN networking, allowing local HTTP/WebSocket communication.
      - **Wi-Fi / Local Hotspot:** Zero-setup mobile connection via QR Code scan.
    - **Backend Dispatcher:**
-     - A lightweight Node.js daemon handles incoming keypresses from the web app and invokes native desktop shortcuts, media keys, audio volume (`wpctl`/`pactl`), developer tools, or AI workflows.
+     - A lightweight Node.js daemon handles incoming keypresses from the web app and invokes native desktop shortcuts, media keys, audio volume controls, developer tools, or AI workflows.

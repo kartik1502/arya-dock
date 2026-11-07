@@ -57,7 +57,7 @@ const PRESETS = [
   },
   {
     name: 'Web Browser',
-    command: 'google-chrome || brave-browser || firefox || xdg-open https://google.com &',
+    command: 'google-chrome || brave-browser || firefox &',
     emoji: '🌐',
     category: 'Network',
     comment: 'Launch default browser'
@@ -78,35 +78,35 @@ const PRESETS = [
   },
   {
     name: 'File Manager',
-    command: 'nautilus || xdg-open ~ &',
+    command: 'nautilus ~ &',
     emoji: '📁',
     category: 'System',
     comment: 'Open home file manager'
   },
   {
     name: 'Audio Mute',
-    command: 'wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle || pactl set-sink-mute @DEFAULT_SINK@ toggle',
+    command: 'pactl set-sink-mute @DEFAULT_SINK@ toggle || amixer set Master toggle',
     emoji: '🔇',
     category: 'AudioVideo',
     comment: 'Toggle audio output mute'
   },
   {
     name: 'Volume Up',
-    command: 'wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%+ || pactl set-sink-volume @DEFAULT_SINK@ +5%',
+    command: 'pactl set-sink-volume @DEFAULT_SINK@ +5% || amixer set Master 5%+',
     emoji: '🔊',
     category: 'AudioVideo',
     comment: 'Increase system volume 5%'
   },
   {
     name: 'Volume Down',
-    command: 'wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- || pactl set-sink-volume @DEFAULT_SINK@ -5%',
+    command: 'pactl set-sink-volume @DEFAULT_SINK@ -5% || amixer set Master 5%-',
     emoji: '🔉',
     category: 'AudioVideo',
     comment: 'Decrease system volume 5%'
   },
   {
     name: 'Play / Pause',
-    command: 'playerctl play-pause 2>/dev/null || echo "Play/Pause"',
+    command: 'echo "Toggle playback"',
     emoji: '⏯️',
     category: 'AudioVideo',
     comment: 'Toggle media playback'

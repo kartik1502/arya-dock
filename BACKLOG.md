@@ -113,7 +113,7 @@ Information disclosure that makes targeting easier, and exposes personal paths.
 **Location:** `server.js` → `buildTerminalCommand`, `executeAction` (`case 'url'`, `case 'shell'`)
 
 **Problem**  
-Commands are assembled as one string and wrapped in double quotes, with only `"` escaped. Inside double quotes the shell still expands `$(...)`, backticks, `$VAR`, and `\`. The `url` action does `xdg-open "${button.url}"` with no scheme validation. `workingDir` is also interpolated into `cd "..."`.
+Commands are assembled as one string and wrapped in double quotes, with only `"` escaped. Inside double quotes the shell still expands `$(...)`, backticks, `$VAR`, and `\`. The `url` action opened URLs with no scheme validation. `workingDir` is also interpolated into `cd "..."`.
 
 **Impact**  
 Because commands are arbitrary by design, the main risk is the trust boundary (#1–#3). But broken quoting also causes real bugs (labels/paths with `"`, `$`, or backslashes), and the `url` action can launch non-http handlers (`file:`, custom schemes).
@@ -332,13 +332,13 @@ Confusing for new users, and risky if someone "fixes" the labels by making them 
 - README claims "sub-millisecond latency" and "zero battery drain"-style properties that aren't measurable/defensible over WebSocket + tethering.
 - The last commit says Motorsport references were sanitized, but the README and design system still lean heavily on them.
 - `docs/protocol-specs.md` documents a specific hardware device (VID/PID, HID++ packets) that this software-only project doesn't implement, with no explanation of why it's here.
-- The project is Linux-specific (`.desktop` parsing, `xdg-open`, `wpctl`/`pactl`/`playerctl`, specific terminals) but this isn't stated up front.
+- The project is Linux-specific (`.desktop` parsing, platform URL openers, audio/media controllers, specific terminals) but this isn't stated up front.
 
 **Hints**  
 - Replace performance claims with what you can measure (e.g. measure round-trip time of a `PING`/`PONG`).
 - Pick a naming/theming direction and make README, DESIGN, and commit history agree.
 - Either add an intro to the protocol doc ("reference for a future hardware backend") or move it to a separate repo/branch.
-- Add a "Requirements / Supported platforms" section including dependencies (`playerctl`, `wpctl`, etc.).
+- Add a "Requirements / Supported platforms" section including dependencies (audio and media controllers, etc.).
 
 **Acceptance criteria**  
 - No unverifiable latency claims.

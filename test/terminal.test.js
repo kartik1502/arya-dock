@@ -164,8 +164,10 @@ test('Terminal: buildActionCommand builds valid CLI arguments for all supported 
     actionType: 'media',
     mediaAction: 'vol_up'
   });
-  assert.equal(mediaCmd.bin, 'wpctl');
-  assert.deepEqual(mediaCmd.args, ['set-volume', '@DEFAULT_AUDIO_SINK@', '5%+']);
+  const platform = require('../platform');
+  const expectedMedia = platform.getActivePlatform().getMediaCommand('vol_up');
+  assert.equal(mediaCmd.bin, expectedMedia.bin);
+  assert.deepEqual(mediaCmd.args, expectedMedia.args);
 
   // 4. URL Actions
   const urlCmd = buildActionCommand({
@@ -173,8 +175,9 @@ test('Terminal: buildActionCommand builds valid CLI arguments for all supported 
     actionType: 'url',
     url: 'https://github.com'
   });
-  assert.ok(urlCmd.bin === 'xdg-open' || urlCmd.bin === 'open');
-  assert.deepEqual(urlCmd.args, ['https://github.com/']);
+  const expectedUrl = platform.getActivePlatform().getUrlCommand('https://github.com/');
+  assert.equal(urlCmd.bin, expectedUrl.bin);
+  assert.deepEqual(urlCmd.args, expectedUrl.args);
 
   // URL security scheme validation
   const badUrlCmd = buildActionCommand({

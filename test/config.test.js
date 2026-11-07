@@ -4,6 +4,9 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const {
+  CURRENT_SCHEMA_VERSION,
+  migrateV0ToV1,
+  migrateConfig,
   resolveWorkingDir,
   validateButton,
   loadConfig,
@@ -276,6 +279,179 @@ test('Config: atomic persistence and error handling', () => {
     fs.writeFileSync(configPath, JSON.stringify(duplicateIdConfig, null, 2));
     const cappedConfig = loadConfig(configPath, examplePath);
     assert.equal(cappedConfig.profiles.dupes.pages[0].buttons.length, 24);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('Schema: CURRENT_SCHEMA_VERSION is 1 and migrations are pure functions', () => {
+  assert.equal(CURRENT_SCHEMA_VERSION, 1);
+
+  // Pure function migration v0 -> v1
+  const v0Config = {
+    activeProfile: 'developer',
+    profiles: {
+      developer: { name: 'Developer', pages: [{ buttons: [] }] }
+    }
+  };
+  const v1Config = migrateV0ToV1(v0Config);
+  assert.equal(v1Config.schemaVersion, 1);
+  assert.equal(v0Config.schemaVersion, undefined, 'Original object should not be mutated by pure migration');
+
+  // migrateConfig handles missing schemaVersion as v0
+  const migrated = migrateConfig(v0Config);
+  assert.equal(migrated.schemaVersion, 1);
+});
+
+test('Schema: loads legacy v0 config and writes backup on first save', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arya-schema-legacy-test-'));
+  const configPath = path.join(tmpDir, 'profiles.json');
+  const backupPath = path.join(tmpDir, 'profiles.json.bak');
+  const examplePath = path.join(tmpDir, 'profiles.example.json');
+
+  try {
+    // Write a legacy v0 config file (no schemaVersion)
+    const legacyConfig = {
+      activeProfile: 'legacy',
+      profiles: {
+        legacy: {
+          name: 'Legacy Profile',
+          pages: [
+            {
+              pageNumber: 1,
+              name: 'Page 1',
+              buttons: [{ id: 0, label: 'LEGACY TILE', color: '#1c69d4', actionType: 'shell', command: 'echo legacy' }]
+            }
+          ]
+        }
+      }
+    };
+    fs.writeFileSync(configPath, JSON.stringify(legacyConfig, null, 2));
+
+    // Load legacy config: should migrate in memory to CURRENT_SCHEMA_VERSION
+    const loaded = loadConfig(configPath, examplePath);
+    assert.equal(loaded.schemaVersion, 1);
+    assert.equal(loaded.activeProfile, 'legacy');
+    assert.equal(fs.existsSync(backupPath), false, 'Backup should not be written until first save');
+
+    // First save: must create backup copy (.bak) before writing migrated config
+    saveConfigAtomic(configPath, loaded);
+    assert.equal(fs.existsSync(backupPath), true, 'Backup copy (.bak) must exist after first save');
+
+    // Verify backup content matches the original legacy content (without schemaVersion)
+    const backupRaw = fs.readFileSync(backupPath, 'utf-8');
+    const backupJson = JSON.parse(backupRaw);
+    assert.equal(backupJson.schemaVersion, undefined);
+    assert.equal(backupJson.activeProfile, 'legacy');
+
+    // Verify current file now contains schemaVersion 1
+    const currentRaw = fs.readFileSync(configPath, 'utf-8');
+    const currentJson = JSON.parse(currentRaw);
+    assert.equal(currentJson.schemaVersion, 1);
+
+    // Modify and save again: should not overwrite existing backup
+    const backupStatBefore = fs.statSync(backupPath);
+    currentJson.profiles.legacy.name = 'Updated Profile Name';
+    saveConfigAtomic(configPath, currentJson);
+
+    const backupStatAfter = fs.statSync(backupPath);
+    assert.equal(backupStatBefore.mtimeMs, backupStatAfter.mtimeMs, 'Second save must not recreate or overwrite backup');
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('Schema: rejects future unsupported schemaVersion greater than CURRENT_SCHEMA_VERSION', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arya-schema-future-test-'));
+  const configPath = path.join(tmpDir, 'profiles.json');
+  const examplePath = path.join(tmpDir, 'profiles.example.json');
+
+  try {
+    // Write future schemaVersion 99
+    const futureConfig = {
+      schemaVersion: 99,
+      activeProfile: 'developer',
+      profiles: {
+        developer: { name: 'Developer', pages: [{ buttons: [] }] }
+      }
+    };
+    fs.writeFileSync(configPath, JSON.stringify(futureConfig, null, 2));
+
+    assert.throws(() => {
+      loadConfig(configPath, examplePath);
+    }, /Unsupported schema version 99\. Maximum supported version is 1\./);
+
+    // Also test negative or non-integer schemaVersion
+    fs.writeFileSync(configPath, JSON.stringify({ ...futureConfig, schemaVersion: -1 }, null, 2));
+    assert.throws(() => {
+      loadConfig(configPath, examplePath);
+    }, /Invalid schemaVersion: must be a non-negative integer/);
+
+    fs.writeFileSync(configPath, JSON.stringify({ ...futureConfig, schemaVersion: 1.5 }, null, 2));
+    assert.throws(() => {
+      loadConfig(configPath, examplePath);
+    }, /Invalid schemaVersion: must be a non-negative integer/);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('Schema: diagnostic warnings identify profile, page, and tile on invalid buttons', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arya-schema-warning-test-'));
+  const configPath = path.join(tmpDir, 'profiles.json');
+  const examplePath = path.join(tmpDir, 'profiles.example.json');
+
+  try {
+    const invalidConfig = {
+      schemaVersion: 1,
+      activeProfile: 'work',
+      profiles: {
+        work: {
+          name: 'Work Profile',
+          pages: [
+            {
+              pageNumber: 1,
+              name: 'Page 1',
+              buttons: [
+                { id: 0, label: 'VALID', actionType: 'shell', command: 'uptime' },
+                { id: 1, label: 'BAD COLOR', color: 'blue-invalid' },
+                { id: 2, label: 'BAD URL', actionType: 'url', url: 'javascript:void(0)' }
+              ]
+            }
+          ]
+        }
+      }
+    };
+    fs.writeFileSync(configPath, JSON.stringify(invalidConfig, null, 2));
+
+    const capturedWarnings = [];
+    const loaded = loadConfig(configPath, examplePath, {
+      onWarning: (msg) => capturedWarnings.push(msg)
+    });
+
+    assert.equal(loaded.schemaVersion, 1);
+    assert.equal(capturedWarnings.length, 2);
+
+    // Warning 1: tile 1 (BAD COLOR)
+    assert.match(capturedWarnings[0], /profile "work"/);
+    assert.match(capturedWarnings[0], /page 1/);
+    assert.match(capturedWarnings[0], /tile 1/);
+    assert.match(capturedWarnings[0], /id: 1/);
+    assert.match(capturedWarnings[0], /Invalid color format/);
+
+    // Warning 2: tile 2 (BAD URL)
+    assert.match(capturedWarnings[1], /profile "work"/);
+    assert.match(capturedWarnings[1], /page 1/);
+    assert.match(capturedWarnings[1], /tile 2/);
+    assert.match(capturedWarnings[1], /id: 2/);
+    assert.match(capturedWarnings[1], /URL must use http: or https: scheme/);
+
+    // Both bad tiles are repaired
+    assert.equal(loaded.profiles.work.pages[0].buttons[1].color, '#1c69d4');
+    assert.equal(loaded.profiles.work.pages[0].buttons[2].url, '');
+
+    // _warnings property on config matches captured warnings
+    assert.deepEqual(loaded._warnings, capturedWarnings);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }

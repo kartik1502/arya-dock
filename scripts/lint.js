@@ -6,7 +6,7 @@ const path = require('path');
 const { execFileSync } = require('child_process');
 
 const rootDir = path.resolve(__dirname, '..');
-const targetDirs = ['lib', 'public', 'test', 'scripts'];
+const targetDirs = ['lib', 'platform', 'public', 'test', 'scripts'];
 const filesToCheck = [];
 
 const rootServer = path.join(rootDir, 'server.js');
