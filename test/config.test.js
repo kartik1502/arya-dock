@@ -9,6 +9,7 @@ const {
   DEFAULT_EXAMPLE_PATH,
   LEGACY_CONFIG_PATH,
   LEGACY_AUTH_PATH,
+  MAX_BUTTONS_PER_PAGE,
   getDefaultUserConfigDir,
   getDefaultConfigPath,
   migrateLegacyConfigAndAuth,
@@ -320,12 +321,13 @@ test('Config: atomic persistence and error handling', () => {
     const uniqueIds = new Set(ids);
     assert.equal(uniqueIds.size, 4, 'All button IDs on a page must be distinct');
 
-    // Excessive buttons (>24) are safely capped to 24
+    // Excessive buttons (>15) are safely capped to MAX_BUTTONS_PER_PAGE (15)
     const excessiveButtons = Array.from({ length: 30 }, (_, i) => ({ id: i, label: `BTN ${i}` }));
     duplicateIdConfig.profiles.dupes.pages[0].buttons = excessiveButtons;
     fs.writeFileSync(configPath, JSON.stringify(duplicateIdConfig, null, 2));
     const cappedConfig = loadConfig(configPath, examplePath);
-    assert.equal(cappedConfig.profiles.dupes.pages[0].buttons.length, 24);
+    assert.equal(cappedConfig.profiles.dupes.pages[0].buttons.length, 15);
+    assert.equal(MAX_BUTTONS_PER_PAGE, 15);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }

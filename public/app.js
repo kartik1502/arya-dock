@@ -900,27 +900,17 @@ function updatePageInfo(pageNum, totalPages, name) {
 }
 
 function getOptimalGridDimensions(count, isLandscape) {
-  if (count <= 1) return { cols: 1, rows: 1 };
-  if (count === 2) return isLandscape ? { cols: 2, rows: 1 } : { cols: 1, rows: 2 };
-  if (count === 3) return isLandscape ? { cols: 3, rows: 1 } : { cols: 1, rows: 3 };
-  if (count === 4) return { cols: 2, rows: 2 };
-  if (count <= 6) return isLandscape ? { cols: 3, rows: 2 } : { cols: 2, rows: 3 };
-  if (count <= 8) return isLandscape ? { cols: 4, rows: 2 } : { cols: 2, rows: 4 };
-  if (count === 9) return { cols: 3, rows: 3 };
-  if (count <= 12) return isLandscape ? { cols: 4, rows: 3 } : { cols: 3, rows: 4 };
-  if (count <= 15) return isLandscape ? { cols: 5, rows: 3 } : { cols: 3, rows: 5 };
-  if (count <= 16) return { cols: 4, rows: 4 };
-  if (count <= 20) return isLandscape ? { cols: 5, rows: 4 } : { cols: 4, rows: 5 };
-
-  if (isLandscape) {
-    let cols = Math.ceil(Math.sqrt(count * 1.33));
-    let rows = Math.ceil(count / cols);
-    return { cols, rows };
-  } else {
-    let rows = Math.ceil(Math.sqrt(count * 1.33));
-    let cols = Math.ceil(count / rows);
-    return { cols, rows };
-  }
+  const num = typeof count === 'number' && !Number.isNaN(count) ? count : 1;
+  const clamped = Math.max(1, Math.min(15, num));
+  if (clamped <= 1) return { cols: 1, rows: 1 };
+  if (clamped === 2) return isLandscape ? { cols: 2, rows: 1 } : { cols: 1, rows: 2 };
+  if (clamped === 3) return isLandscape ? { cols: 3, rows: 1 } : { cols: 1, rows: 3 };
+  if (clamped === 4) return { cols: 2, rows: 2 };
+  if (clamped <= 6) return isLandscape ? { cols: 3, rows: 2 } : { cols: 2, rows: 3 };
+  if (clamped <= 8) return isLandscape ? { cols: 4, rows: 2 } : { cols: 2, rows: 4 };
+  if (clamped === 9) return { cols: 3, rows: 3 };
+  if (clamped <= 12) return isLandscape ? { cols: 4, rows: 3 } : { cols: 3, rows: 4 };
+  return isLandscape ? { cols: 5, rows: 3 } : { cols: 3, rows: 5 };
 }
 
 function updateDynamicGridSizing(totalCount) {
@@ -937,7 +927,8 @@ function updateDynamicGridSizing(totalCount) {
 // Render Keypad Buttons (Safe DOM creation to prevent XSS - Issue #6)
 function renderButtons(buttons) {
   currentButtons = buttons || [];
-  const displayCount = (isEditMode && canEdit) ? currentButtons.length + 1 : currentButtons.length;
+  const showAddTile = (isEditMode && canEdit && currentButtons.length < 15);
+  const displayCount = showAddTile ? currentButtons.length + 1 : currentButtons.length;
 
   if (tileCountNum) {
     tileCountNum.textContent = currentButtons.length;
@@ -1019,8 +1010,8 @@ function renderButtons(buttons) {
     keypadGrid.appendChild(keyEl);
   });
 
-  // Render [+ ADD TILE] slot in Edit Mode (if editor)
-  if (isEditMode && canEdit) {
+  // Render [+ ADD TILE] slot in Edit Mode (if editor and under max capacity)
+  if (showAddTile) {
     const addKeyEl = document.createElement('div');
     addKeyEl.className = 'm-lcd-key add-tile-btn';
 
@@ -1229,6 +1220,41 @@ if (btnAddTile) {
       ws.send(JSON.stringify({ type: 'ADD_BUTTON' }));
     }
   });
+
+  btnAddTile.addEventListener('dragover', (e) => {
+    if (!canEdit) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    btnAddTile.classList.add('drag-over');
+  });
+
+  btnAddTile.addEventListener('dragleave', () => {
+    btnAddTile.classList.remove('drag-over');
+  });
+
+  btnAddTile.addEventListener('drop', (e) => {
+    if (!canEdit) return;
+    e.preventDefault();
+    btnAddTile.classList.remove('drag-over');
+    triggerHaptic(30);
+    try {
+      const raw = e.dataTransfer.getData('application/json');
+      if (raw) {
+        const app = JSON.parse(raw);
+        const newButton = {
+          icon: app.icon || '🚀',
+          label: formatAppLabel(app.name),
+          sublabel: formatAppSublabel(app.category, app.comment),
+          color: '#1c69d4',
+          actionType: 'shell',
+          command: app.command
+        };
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: 'ADD_BUTTON', button: newButton }));
+        }
+      }
+    } catch (err) {}
+  });
 }
 
 if (btnRemoveTile) {
@@ -1254,7 +1280,8 @@ if (btnRemoveTile) {
 }
 
 window.addEventListener('resize', () => {
-  const count = (isEditMode && canEdit) ? currentButtons.length + 1 : currentButtons.length;
+  const showAddTile = (isEditMode && canEdit && currentButtons.length < 15);
+  const count = showAddTile ? currentButtons.length + 1 : currentButtons.length;
   updateDynamicGridSizing(Math.max(1, count));
 });
 
