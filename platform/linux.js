@@ -154,7 +154,7 @@ module.exports = {
 
   capabilities() {
     return {
-      activeWindow: true,
+      activeWindow: false,
       media: true,
       applications: true
     };

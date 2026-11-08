@@ -34,8 +34,8 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
   const url = new URL(event.request.url);
-  // Do not cache API or WebSocket upgrade requests
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/ws')) return;
+  // Do not cache API, health check, or WebSocket upgrade requests
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/ws') || url.pathname === '/health') return;
 
   // Never cache request URLs containing sensitive credentials
   const hasAuthParams = url.searchParams.has('token') || url.searchParams.has('editKey');

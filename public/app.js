@@ -274,15 +274,18 @@ function updateEditorUI() {
   }
 }
 
-// Fetch Installed Applications from Server (Issue #4)
+// Fetch Installed Applications from Server (Issue #4, E4-2)
 async function loadInstalledApplications() {
   try {
     const url = pairingToken ? `/api/apps?token=${encodeURIComponent(pairingToken)}` : '/api/apps';
     const headers = {};
     if (pairingToken) headers['Authorization'] = `Bearer ${pairingToken}`;
+    if (editorKey) headers['X-Editor-Key'] = editorKey;
     const res = await fetch(url, { headers });
     if (res.ok) {
       installedApps = await res.json();
+    } else {
+      installedApps = [];
     }
   } catch (err) {
     console.warn('Could not fetch /api/apps, using presets:', err);
@@ -697,7 +700,10 @@ function handleServerMessage(data) {
       if (data.canEdit !== undefined) {
         canEdit = Boolean(data.canEdit);
         updateEditorUI();
-        if (canEdit) loadSuggestedDirectories();
+        if (canEdit) {
+          loadSuggestedDirectories();
+          loadInstalledApplications();
+        }
       }
       updateActiveModeButtons(data.activeProfileId);
       updatePageInfo(data.pageNumber, data.totalPages, data.pageName);
@@ -716,6 +722,7 @@ function handleServerMessage(data) {
           unlockModalError.textContent = '';
         }
         loadSuggestedDirectories();
+        loadInstalledApplications();
       }
       updateConnectionUI('connected');
       break;

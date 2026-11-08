@@ -35,6 +35,10 @@ test('Platform: interface exposes adapters for linux, darwin, and fake', () => {
   assert.deepEqual(linuxUrl.args, ['https://example.com']);
   const linuxDirs = linux.getApplicationDirectories();
   assert.ok(Array.isArray(linuxDirs) && linuxDirs.length > 0);
+  assert.equal(linux.capabilities().activeWindow, false);
+  assert.equal(linux.capabilities().media, true);
+  assert.equal(linux.capabilities().applications, true);
+  assert.equal(linux.getActiveWindow(), null);
 
   // Darwin adapter
   const darwin = platform.getPlatform('darwin');

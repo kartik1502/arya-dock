@@ -28,6 +28,8 @@
   - [3. Run Verification Tests](#3-run-verification-tests)
   - [4. Start the Service](#4-start-the-service)
   - [5. Startup Banner Output](#5-startup-banner-output)
+- [⚙️ Configuration Options](#configuration-options)
+- [🔒 Security Model](#security-model)
 - [📚 Documentation Guides](#documentation-guides)
 - [📁 Repository Structure](#repository-structure)
 - [🤝 Contributing](#contributing)
@@ -154,6 +156,50 @@ npm start
 • Role Privileges: Localhost sessions have editor privileges. Remote sessions connect as operators.
                    To unlock editing remotely, use the in-app unlock modal or pass the X-Editor-Key header.
 ```
+
+---
+
+<a id="configuration-options"></a>
+## ⚙️ Configuration Options
+
+Arya Dock is fully configurable through environment variables and command-line flags:
+
+| Option / Variable | Default | Description |
+|---|---|---|
+| `HOST` | `0.0.0.0` | IP address to bind the HTTP and WebSocket server. Set to `127.0.0.1` for local-only workstation access. |
+| `PORT` | `3333` | Port for the HTTP and WebSocket service. |
+| `CONFIG_PATH` | `./config/profiles.json` | Filesystem path for profiles, buttons, pages, and key bindings. |
+| `AUTH_PATH` | `./config/auth.json` | Filesystem path for the persistent pairing token and editor key credentials. |
+| `TERMINAL` | Auto-detected | Preferred terminal emulator command or path override (e.g. `ptyxis`, `gnome-terminal`, `konsole`, `alacritty`, `kitty`, `xterm`). |
+| `ARYA_PAIRING_TOKEN` | Generated | Static 32-character hexadecimal token override instead of generating a random token on boot. |
+| `ARYA_EDITOR_KEY` | Generated | Static 32-character hexadecimal key override instead of generating a random key on boot. |
+| `ARYA_PLATFORM` | `linux` (auto-detected) | Modular OS platform adapter override (`linux`, `darwin`, `fake`). |
+| `--rotate-credentials` | *CLI Flag* | Generates a new random pairing token and editor key, saves them to `auth.json`, prints them to stdout, and exits. *(Caveat: server restart required).* |
+| `--start` | *CLI Flag* | Combined with `--rotate-credentials` (`node server.js --rotate-credentials --start`), rotates credentials on disk and starts the server immediately with the new credentials. |
+
+---
+
+<a id="security-model"></a>
+## 🔒 Security Model
+
+Arya Dock provides layered defense-in-depth protection to safeguard the host workstation while allowing low-latency control from mobile and companion devices:
+
+### 1. Cryptographic Pairing & Constant-Time Validation
+- All WebSocket upgrade handshakes and dynamic `/api/*` endpoints require a secure 32-character token (`ARYA_PAIRING_TOKEN`).
+- Tokens can be provided via `Authorization: Bearer <token>`, `X-Pairing-Token` header, or `?token=<token>`.
+- Token comparison uses constant-time string equality (`crypto.timingSafeEqual`) to prevent timing side-channel attacks.
+
+### 2. Role Separation (Operator vs. Editor)
+- **Operator Role (Viewer / Trigger):** Default role assigned to remote connections (phones, tablets over Wi-Fi or USB tethering). Operators can trigger macro keys (`BUTTON_CLICK`), change deck pages (`PAGE_PREV`, `PAGE_NEXT`), and maintain heartbeats (`PING`/`PONG`). Operators **cannot** modify tile layouts, update shell commands, adjust tile counts, switch active profiles, browse workstation directories (`/api/directories`), or scan host applications and executable commands (`/api/apps`).
+- **Editor Role:** Full workstation configuration privilege. Editors can modify button actions (`UPDATE_BUTTON`), add/delete tiles, change profiles (`SET_PROFILE`), resize grid layouts (`SET_BUTTONS_COUNT`), browse suggested project directories (`/api/directories`), and scan installed host applications (`/api/apps`).
+
+### 3. Key Security Caveats & Operational Considerations
+- ⚠️ **Localhost as Editor:** Connections originating directly from localhost (`127.0.0.1`, `::1`, `localhost`) automatically receive **Editor** privileges without requiring an editor key.
+  - *Reverse Proxy / SSH Forwarding Warning:* If you expose Arya Dock through an SSH tunnel (e.g. `ssh -L 3333:localhost:3333`) or behind a reverse proxy (e.g. Nginx, Caddy) that forwards connections as `127.0.0.1` without preserving remote client IPs, **all incoming connections will appear as localhost and inherit Editor privileges**. When accessing remotely across untrusted or shared networks, bind directly to your LAN IP or configure reverse proxies so that client IPs are not masked as `127.0.0.1`.
+- ⚠️ **Unauthenticated Static Assets:** Static frontend assets (`/`, `/index.html`, `/style.css`, `/app.js`, `/manifest.json`, `/icon.svg`) are intentionally served without requiring authentication. This allows Progressive Web App (PWA) client shells and service workers to boot and cache assets offline before pairing. All dynamic control channels (`/ws`) and data endpoints (`/api/*`) strictly require authentication.
+- ⚠️ **Credential Rotation Takes Effect on Restart:** Running `node server.js --rotate-credentials` rotates credentials on disk in `config/auth.json`. However, the running server process holds credentials in memory and does not reload credentials dynamically mid-flight. **A restart of the server process is required for newly rotated credentials to take effect.** To rotate credentials and restart immediately in a single step, run `node server.js --rotate-credentials --start`.
+- ⚠️ **Environment Scan Barrier (`/api/apps` & `/api/directories`):** Workstation application scanning (`/api/apps`) and directory suggestions (`/api/directories`) expose executable commands (`Exec=`) and directory paths. These endpoints are strictly restricted to sessions with **Editor** privileges (localhost or remote sessions providing `X-Editor-Key`). Unprivileged operators querying these endpoints receive `403 Forbidden`. Furthermore, editor keys sent via query parameters (`?editKey=...`) are rejected to avoid leaking keys in browser history, logs, or HTTP Referer headers.
+- ⚠️ **Origin Header Verification:** All WebSocket upgrade requests verify the HTTP `Origin` header against allowed workstation addresses and network interfaces to prevent Cross-Site WebSocket Hijacking (CSWSH).
 
 ---
 

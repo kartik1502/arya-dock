@@ -111,7 +111,8 @@ if (require.main === module) {
     const rotated = rotateAuthCredentials(AUTH_PATH);
     console.log('[Arya Dock] Credentials rotated successfully:');
     console.log(`• New Pairing Token: ${rotated.pairingToken}`);
-    console.log(`• New Editor Key:    ${rotated.editorKey}\n`);
+    console.log(`• New Editor Key:    ${rotated.editorKey}`);
+    console.log('⚠️  Restart of running server is required for new credentials to take effect.\n');
     if (!process.argv.includes('--start')) {
       process.exit(0);
     }

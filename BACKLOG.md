@@ -393,7 +393,6 @@ No tests exist. Also, current page is a single global, so two connected devices 
 
 ## Out of scope / ideas for later
 
-- Per-profile switching UI on the client (the server already supports `SET_PROFILE`).
 - Hot-reloading `profiles.json` when edited by hand.
-- A `GET /health` endpoint and a log level setting.
-- macOS/Windows support: requires abstracting app discovery, media actions, and terminal launching behind an interface.
+- Full Wayland/X11 active-window auto-profile switching in production (spike completed in `docs/active-window-spike.md`; platform adapters gracefully degrade with `activeWindow: false` until production tracking is enabled).
+- Windows platform adapter support.

@@ -15,6 +15,7 @@ Arya Dock is configurable via environment variables and CLI arguments.
 | `TERMINAL` | Auto-detected | Custom terminal emulator command or path to override auto-detection (e.g. `ptyxis`, `gnome-terminal`, `konsole`, `alacritty`, `kitty`, `xterm`). |
 | `ARYA_PAIRING_TOKEN` | Generated | Static pairing token override instead of generating a random 32-character token. |
 | `ARYA_EDITOR_KEY` | Generated | Static editor key override instead of generating a random 32-character key. |
+| `ARYA_PLATFORM` | `linux` (auto-detected) | Target OS platform adapter override (`linux`, `darwin`, `fake`). |
 
 ---
 
@@ -22,8 +23,8 @@ Arya Dock is configurable via environment variables and CLI arguments.
 
 | Flag | Description |
 |---|---|
-| `--rotate-credentials` | Generates a new random pairing token and editor key, saves them to `auth.json`, prints them to stdout, and exits. |
-| `--start` | When combined with `--rotate-credentials` (`node server.js --rotate-credentials --start`), rotates credentials on disk and boots the server immediately. |
+| `--rotate-credentials` | Generates a new random pairing token and editor key, saves them to `auth.json`, prints them to stdout, and exits. **Note:** A restart of any running server instance is required for rotated credentials to take effect. |
+| `--start` | When combined with `--rotate-credentials` (`node server.js --rotate-credentials --start`), rotates credentials on disk and boots the server immediately with the new credentials in a single command. |
 
 ---
 

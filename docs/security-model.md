@@ -23,8 +23,8 @@ Arya Dock implements strict defense-in-depth boundaries to protect your workstat
 
 ## 3. Role Separation: Operator vs. Editor
 
-- **Operator Role (Viewer / Trigger):** Default role for remote phone and tablet connections. Operators are permitted to trigger buttons (`BUTTON_CLICK`), switch active pages (`PAGE_PREV`, `PAGE_NEXT`), and respond to heartbeats (`PING`/`PONG`). Operators **cannot** mutate button definitions, add or remove tiles, switch active profiles, or inspect workstation directories.
-- **Editor Role:** Full workstation configuration privilege. Editors can modify button actions (`UPDATE_BUTTON`), add/delete tiles (`ADD_BUTTON`, `DELETE_BUTTON`), resize the grid (`SET_BUTTONS_COUNT`), change active profiles (`SET_PROFILE`), and browse workstation directories (`/api/directories`).
+- **Operator Role (Viewer / Trigger):** Default role for remote phone and tablet connections. Operators are permitted to trigger buttons (`BUTTON_CLICK`), switch active pages (`PAGE_PREV`, `PAGE_NEXT`), and respond to heartbeats (`PING`/`PONG`). Operators **cannot** mutate button definitions, add or remove tiles, switch active profiles, inspect workstation directories (`/api/directories`), or scan host applications and executable commands (`/api/apps`).
+- **Editor Role:** Full workstation configuration privilege. Editors can modify button actions (`UPDATE_BUTTON`), add/delete tiles (`ADD_BUTTON`, `DELETE_BUTTON`), resize the grid (`SET_BUTTONS_COUNT`), change active profiles (`SET_PROFILE`), browse workstation directories (`/api/directories`), and scan installed system applications with executable commands (`/api/apps`).
 
 ---
 
@@ -39,6 +39,7 @@ Arya Dock implements strict defense-in-depth boundaries to protect your workstat
 
 - Remote devices connect as Operators by default. To unlock Editor privileges, tap the unlock button in the web interface and enter the Editor Key into the in-app modal (transmitting an `AUTH_EDIT` WebSocket message) or provide the `X-Editor-Key` HTTP header.
 - Query-string `editKey` (`?editKey=...`) is **intentionally rejected and ignored** across both HTTP and WebSocket connections to prevent editor keys from leaking into browser history, server access logs, or HTTP Referer headers.
+- **Environment Scan Protection (`/api/apps` & `/api/directories`):** System application scanning (`/api/apps`, which exposes executable command strings) and directory browsing (`/api/directories`, which exposes filesystem structure) are gated behind the Editor privilege barrier. Unprivileged operators receive `403 Forbidden`.
 
 ---
 

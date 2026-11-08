@@ -65,13 +65,18 @@ test('Auth: isAllowedOrigin checks', () => {
 
 test('Auth: isLocalAddress checks', () => {
   assert.equal(isLocalAddress('127.0.0.1'), true);
+  assert.equal(isLocalAddress('127.0.1.1'), true);
+  assert.equal(isLocalAddress('127.0.0.2'), true);
+  assert.equal(isLocalAddress('127.255.255.255'), true);
   assert.equal(isLocalAddress('::1'), true);
   assert.equal(isLocalAddress('::ffff:127.0.0.1'), true);
+  assert.equal(isLocalAddress('::ffff:127.0.1.1'), true);
   assert.equal(isLocalAddress('localhost'), true);
 
   assert.equal(isLocalAddress('192.168.1.50'), false);
   assert.equal(isLocalAddress('10.91.187.251'), false);
   assert.equal(isLocalAddress('8.8.8.8'), false);
+  assert.equal(isLocalAddress('1270.0.0.1'), false);
   assert.equal(isLocalAddress(null), false);
 });
 
@@ -134,6 +139,7 @@ test('Auth: --rotate-credentials CLI flag rotates credentials and exits', () => 
       encoding: 'utf-8'
     });
     assert.ok(outputServer.includes('Credentials rotated successfully'));
+    assert.match(outputServer, /Restart of running server is required/i);
 
     const creds2 = loadOrCreateAuth(tmpAuth);
     assert.notEqual(creds2.pairingToken, creds1.pairingToken);
@@ -145,6 +151,7 @@ test('Auth: --rotate-credentials CLI flag rotates credentials and exits', () => 
       encoding: 'utf-8'
     });
     assert.ok(outputAuth.includes('Credentials rotated successfully'));
+    assert.match(outputAuth, /Restart of running server is required/i);
 
     const creds3 = loadOrCreateAuth(tmpAuth);
     assert.notEqual(creds3.pairingToken, creds2.pairingToken);
@@ -223,5 +230,102 @@ test('Auth: ARYA_PAIRING_TOKEN and ARYA_EDITOR_KEY env overrides', () => {
     if (origEditor !== undefined) process.env.ARYA_EDITOR_KEY = origEditor;
     else delete process.env.ARYA_EDITOR_KEY;
     if (fs.existsSync(tmpAuth)) fs.unlinkSync(tmpAuth);
+  }
+});
+
+function makeRequest(port, reqPath, headers = {}) {
+  const http = require('http');
+  return new Promise((resolve, reject) => {
+    http.get({
+      host: '127.0.0.1',
+      port,
+      path: reqPath,
+      headers
+    }, (res) => {
+      let body = '';
+      res.on('data', chunk => { body += chunk; });
+      res.on('end', () => resolve({ statusCode: res.statusCode, body }));
+    }).on('error', reject);
+  });
+}
+
+test('Auth: credential rotation restart-required policy verification', async () => {
+  const { createServer } = require('../server');
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arya-restart-policy-test-'));
+  const configPath = path.join(tmpDir, 'profiles.json');
+  const authPath = path.join(tmpDir, 'auth.json');
+
+  try {
+    // Start active server app1 with remote client IP to test both pairingToken and editorKey barriers
+    const app1 = createServer({ configPath, authPath, mockClientIp: '192.168.1.185' });
+    await new Promise(resolve => app1.server.listen(0, '127.0.0.1', resolve));
+    const port1 = app1.server.address().port;
+    const initialToken = app1.credentials.pairingToken;
+    const initialEditorKey = app1.credentials.editorKey;
+
+    // 1. Initial credentials succeed on active server for remote editor
+    const res1 = await makeRequest(port1, '/api/apps', {
+      'x-pairing-token': initialToken,
+      'x-editor-key': initialEditorKey
+    });
+    assert.equal(res1.statusCode, 200);
+
+    // 2. Rotate credentials on disk
+    const rotated = rotateAuthCredentials(authPath);
+    assert.notEqual(rotated.pairingToken, initialToken);
+    assert.notEqual(rotated.editorKey, initialEditorKey);
+
+    // 3. Active server STILL accepts initial credentials (in-memory credentials unchanged)
+    const resStillValid = await makeRequest(port1, '/api/apps', {
+      'x-pairing-token': initialToken,
+      'x-editor-key': initialEditorKey
+    });
+    assert.equal(resStillValid.statusCode, 200);
+
+    // 4. Active server REJECTS newly rotated pairing token because restart is required
+    const resNewTokenRejected = await makeRequest(port1, '/api/apps', {
+      'x-pairing-token': rotated.pairingToken,
+      'x-editor-key': initialEditorKey
+    });
+    assert.equal(resNewTokenRejected.statusCode, 401);
+
+    // 4b. Active server REJECTS newly rotated editor key because restart is required
+    const resNewEditorRejected = await makeRequest(port1, '/api/apps', {
+      'x-pairing-token': initialToken,
+      'x-editor-key': rotated.editorKey
+    });
+    assert.equal(resNewEditorRejected.statusCode, 403);
+
+    // 5. Close running server and restart (boot new server instance app2 with rotated disk credentials)
+    await new Promise(resolve => app1.close(resolve));
+
+    const app2 = createServer({ configPath, authPath, mockClientIp: '192.168.1.185' });
+    await new Promise(resolve => app2.server.listen(0, '127.0.0.1', resolve));
+    const port2 = app2.server.address().port;
+
+    // 6. After restart, old pairing token is now REJECTED (401)
+    const resOldTokenAfterRestart = await makeRequest(port2, '/api/apps', {
+      'x-pairing-token': initialToken,
+      'x-editor-key': rotated.editorKey
+    });
+    assert.equal(resOldTokenAfterRestart.statusCode, 401);
+
+    // 6b. After restart, old editor key is now REJECTED (403)
+    const resOldEditorAfterRestart = await makeRequest(port2, '/api/apps', {
+      'x-pairing-token': rotated.pairingToken,
+      'x-editor-key': initialEditorKey
+    });
+    assert.equal(resOldEditorAfterRestart.statusCode, 403);
+
+    // 7. After restart, new rotated credentials are now ACCEPTED (200)
+    const resNewCredsAfterRestart = await makeRequest(port2, '/api/apps', {
+      'x-pairing-token': rotated.pairingToken,
+      'x-editor-key': rotated.editorKey
+    });
+    assert.equal(resNewCredsAfterRestart.statusCode, 200);
+
+    await new Promise(resolve => app2.close(resolve));
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
