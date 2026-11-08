@@ -1,0 +1,57 @@
+{
+  "version": 2,
+  "name": "category-lens-switching",
+  "projectId": "arya-dock-4f274f15",
+  "createdAt": 1793560604000,
+  "steps": [
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "tab",
+        "name": "💻 TERMINAL"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "text",
+        "contains": "TERMINAL 1"
+      },
+      "page": "/"
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "tab",
+        "name": "ALL"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "text",
+        "contains": "PAGE 01"
+      },
+      "page": "/"
+    }
+  ],
+  "startPath": "/",
+  "intent": "Switching between All view and Category Lens view filters shortcuts non-destructively",
+  "intentDerived": true,
+  "requires": [
+    {
+      "kind": "route",
+      "pathname": "/"
+    }
+  ],
+  "ensures": [
+    {
+      "kind": "route",
+      "pathname": "/"
+    }
+  ],
+  "author": {
+    "agent": "gemini",
+    "person": "kartikkulkarni1411@gmail.com"
+  }
+}

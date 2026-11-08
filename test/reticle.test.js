@@ -43,7 +43,9 @@ test('Reticle: Predefined flow definitions exist and conform to Reticle v2 schem
     'mode-switch.json',
     'tile-count-adjustment.json',
     'app-catalog-drawer.json',
-    'editor-mode-security.json'
+    'editor-mode-security.json',
+    'category-lens-switching.json',
+    'workspace-settings-modal.json'
   ];
 
   for (const flowFileName of requiredFlows) {
@@ -85,11 +87,13 @@ test('Reticle: Verification layer assets and offline bundle integrity', () => {
   assert.ok(bundleContent.length > 10000, 'public/reticle.js must be a populated bundle');
   assert.ok(bundleContent.includes('ReticleSdk') || bundleContent.includes('reticle'), 'bundle must contain Reticle SDK');
 
-  // 3. public/index.html includes Reticle module
+  // 3. public/index.html includes Reticle module and segregation controls
   const htmlPath = path.join(rootDir, 'public', 'index.html');
   const html = fs.readFileSync(htmlPath, 'utf8');
   assert.ok(html.includes('reticle.js') || html.includes('reticle'), 'index.html must load Reticle');
   assert.ok(html.includes('arya-dock-4f274f15'), 'index.html must reference project id');
+  assert.ok(html.includes('categoryLensStrip'), 'index.html must include category lens strip');
+  assert.ok(html.includes('workspaceSettingsModal'), 'index.html must include workspace settings modal');
 
   // 4. Content Security Policy permits local loopback daemon connections
   const httpHandlerFile = fs.readFileSync(path.join(rootDir, 'lib', 'http.js'), 'utf8');
@@ -318,6 +322,133 @@ test('Reticle Predefined Flow Replay: Editor Mode Security Barrier (editor-mode-
     const updatedBtn = updateMsg.buttons.find(b => b.id === 0);
     assert.ok(updatedBtn);
     assert.equal(updatedBtn.label, 'VERIFIED EDIT');
+
+    ws.close();
+  } finally {
+    await new Promise(resolve => app.close(resolve));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('Reticle Predefined Flow Replay: Category Lens Switching (category-lens-switching)', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'reticle-lens-test-'));
+  const configPath = path.join(tmpDir, 'profiles.json');
+  const authPath = path.join(tmpDir, 'auth.json');
+
+  const app = createServer({ configPath, authPath });
+  const server = app.server;
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  const token = app.credentials.pairingToken;
+
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?token=${token}`, {
+    headers: { Origin: `http://127.0.0.1:${port}` }
+  });
+  const nextMsg = createMessageQueue(ws);
+  await new Promise(resolve => ws.on('open', resolve));
+
+  try {
+    const initMsg = await nextMsg();
+    assert.equal(initMsg.type, 'INIT');
+    assert.ok(initMsg.allButtons, 'INIT message includes allButtons array');
+    assert.ok(Array.isArray(initMsg.allButtons));
+    assert.ok(initMsg.segregation, 'INIT message includes segregation config');
+    assert.equal(typeof initMsg.segregation.enabled, 'boolean');
+
+    // Step 1: Editor toggles segregation enabled -> verify STATE_UPDATE includes segregation and allButtons
+    ws.send(JSON.stringify({ type: 'TOGGLE_SEGREGATION', enabled: true }));
+    const update1 = await nextMsg();
+    assert.equal(update1.type, 'STATE_UPDATE');
+    assert.equal(update1.segregation.enabled, true, 'Segregation enabled in STATE_UPDATE');
+    assert.ok(Array.isArray(update1.allButtons), 'allButtons array broadcasted');
+
+    // Verify classifier categorizes buttons across categories
+    const { classifyButton, getCategoryProjection } = require('../lib/segregation');
+    const categories = new Set(update1.allButtons.map(b => classifyButton(b)));
+    assert.ok(categories.size > 0, 'Classified buttons present in allButtons');
+
+    // Verify virtual projection chunking with MAX_BUTTONS_PER_PAGE = 15
+    const terminalProjection = getCategoryProjection({ pages: [{ buttons: update1.buttons }] }, 'terminal');
+    assert.ok(terminalProjection.length > 0, 'Virtual projection produces terminal pages');
+    assert.ok(terminalProjection[0].buttons.length <= 15, 'Virtual projection page <= 15 tiles');
+
+    // Step 2: Editor switches back to ALL mode by toggling segregation off
+    ws.send(JSON.stringify({ type: 'TOGGLE_SEGREGATION', enabled: false }));
+    const update2 = await nextMsg();
+    assert.equal(update2.type, 'STATE_UPDATE');
+    assert.equal(update2.segregation.enabled, false, 'Segregation disabled in STATE_UPDATE');
+
+    ws.close();
+  } finally {
+    await new Promise(resolve => app.close(resolve));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('Reticle Predefined Flow Replay: Workspace Settings Modal & Segregation Toggle (workspace-settings-modal)', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'reticle-modal-test-'));
+  const configPath = path.join(tmpDir, 'profiles.json');
+  const authPath = path.join(tmpDir, 'auth.json');
+
+  // Start with remote IP to test operator security barrier
+  const app = createServer({
+    configPath,
+    authPath,
+    debounceMs: 0,
+    mockClientIp: '192.168.1.205'
+  });
+  const server = app.server;
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  const token = app.credentials.pairingToken;
+  const editorKey = app.credentials.editorKey;
+
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?token=${token}`, {
+    headers: { Origin: `http://127.0.0.1:${port}` }
+  });
+  const nextMsg = createMessageQueue(ws);
+  await new Promise(resolve => ws.on('open', resolve));
+
+  try {
+    const initMsg = await nextMsg();
+    assert.equal(initMsg.role, 'operator');
+    assert.equal(initMsg.canEdit, false);
+
+    // Step 1: Operator attempts TOGGLE_SEGREGATION -> rejected with ERROR
+    ws.send(JSON.stringify({ type: 'TOGGLE_SEGREGATION', enabled: true }));
+    const rejectMsg = await nextMsg();
+    assert.equal(rejectMsg.type, 'ERROR');
+    assert.ok(rejectMsg.message.includes('Unauthorized'));
+
+    // Step 2: Elevate to editor role
+    ws.send(JSON.stringify({ type: 'AUTH_EDIT', editKey: editorKey }));
+    const elevatedMsg = await nextMsg();
+    assert.equal(elevatedMsg.type, 'ROLE_UPDATE');
+    assert.equal(elevatedMsg.role, 'editor');
+
+    // Step 3: Editor toggles segregation enabled -> persists to disk
+    ws.send(JSON.stringify({ type: 'TOGGLE_SEGREGATION', enabled: true }));
+    const updateMsg = await nextMsg();
+    assert.equal(updateMsg.type, 'STATE_UPDATE');
+    assert.equal(updateMsg.segregation.enabled, true);
+
+    // Verify atomic disk persistence
+    const savedConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const activeWorkspace = savedConfig.workspaces.find(w => w.id === (savedConfig.activeWorkspaceId || 'developer'));
+    assert.ok(activeWorkspace, 'Active workspace found');
+    assert.ok(activeWorkspace.segregation, 'Saved workspace has segregation object');
+    assert.equal(activeWorkspace.segregation.enabled, true, 'Disk persistence reflects enabled segregation');
+
+    // Step 4: Toggle off again and verify disk persistence
+    ws.send(JSON.stringify({ type: 'TOGGLE_SEGREGATION', enabled: false }));
+    const updateOff = await nextMsg();
+    assert.equal(updateOff.type, 'STATE_UPDATE');
+    assert.equal(updateOff.segregation.enabled, false);
+
+    const savedConfigOff = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const activeWsOff = savedConfigOff.workspaces.find(w => w.id === (savedConfigOff.activeWorkspaceId || 'developer'));
+    assert.ok(activeWsOff, 'Active workspace found');
+    assert.equal(activeWsOff.segregation.enabled, false);
 
     ws.close();
   } finally {

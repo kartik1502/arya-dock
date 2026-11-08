@@ -14,6 +14,7 @@ The `docs/` directory contains deep-dive architectural specifications, security 
 | [`usage-guide.md`](file:///home/karthikulkarni/Documents/arya-dock/docs/usage-guide.md) | Operational walkthrough: navigation modes (M1 Dev, M2 Media), dynamic tile count adjustments (`+`/`−`), drag-and-drop application catalog, terminal execution modes, and data-loss prevention. |
 | [`protocol-specs.md`](file:///home/karthikulkarni/Documents/arya-dock/docs/protocol-specs.md) | Low-level engineering reference for optional hardware LCD keypad integration: USB HID reports, vendor VID/PID (`0x046d`/`0xc354`), LCD geometry (480×480), and Linux `udev` rules. |
 | [`active-window-spike.md`](file:///home/karthikulkarni/Documents/arya-dock/docs/active-window-spike.md) | Investigation findings for active window focus tracking on GNOME Wayland (`org.gnome.Shell.Introspect`) and X11 (`_NET_ACTIVE_WINDOW`), including privacy constraints (window titles never read or emitted). |
+| [`designs/workspace-tile-segregation.md`](file:///home/karthikulkarni/Documents/arya-dock/docs/designs/workspace-tile-segregation.md) | Architectural specification for workspace tile segregation, canonical page sequencing (`terminal`, `application`, `url`, `media`), 15-tile overflow mechanics, and lossless two-way migration. |
 
 ---
 

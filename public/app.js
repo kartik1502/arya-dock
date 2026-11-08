@@ -194,6 +194,13 @@ const editLabel = document.getElementById('editLabel');
 const editSublabel = document.getElementById('editSublabel');
 const editColor = document.getElementById('editColor');
 const editActionType = document.getElementById('editActionType');
+const editCategory = document.getElementById('editCategory');
+const btnWorkspaceSettings = document.getElementById('btnWorkspaceSettings');
+const workspaceSettingsModal = document.getElementById('workspaceSettingsModal');
+const btnSettingsModalClose = document.getElementById('btnSettingsModalClose');
+const btnSettingsModalDone = document.getElementById('btnSettingsModalDone');
+const toggleSegregation = document.getElementById('toggleSegregation');
+const categoryLensStrip = document.getElementById('categoryLensStrip');
 const commandGroup = document.getElementById('commandGroup');
 const urlGroup = document.getElementById('urlGroup');
 const editCommand = document.getElementById('editCommand');
@@ -386,7 +393,8 @@ function renderAppCatalog(filterCategory = 'all', searchQuery = '') {
       name: app.name,
       command: app.command,
       icon: app.emoji || '🚀',
-      category: app.category || 'Utility'
+      category: app.category || 'Utility',
+      isApplication: !isTerminalCommand(app.command, app.category)
     };
 
     card.addEventListener('dragstart', (e) => {
@@ -536,6 +544,7 @@ function assignAppToButton(buttonIndex, app) {
     actionType: 'shell',
     command: app.command,
     terminalMode: isCli ? 'tab' : 'background',
+    isApplication: !isCli,
     keepOpen: true
   };
 
@@ -702,6 +711,79 @@ if (connectionStatus) {
   });
 }
 
+// Lens & Segregation Projection State
+let activeLens = 'all';
+let virtualSubPageIndex = 0;
+let cachedAllButtons = [];
+let cachedCanonicalButtons = [];
+let cachedCanonicalPageNum = 1;
+let cachedCanonicalTotalPages = 1;
+let cachedCanonicalPageName = 'Page 1';
+let currentWorkspaceSegregation = { enabled: false };
+
+const ALLOWED_LENS_CATEGORIES = ['terminal', 'application', 'url', 'media'];
+const KNOWN_DESKTOP_BINARIES = [
+  'google-chrome', 'chrome', 'firefox', 'brave', 'chromium',
+  'code', 'cursor', 'subl', 'gedit',
+  'slack', 'discord', 'telegram-desktop', 'spotify',
+  'gimp', 'inkscape', 'vlc', 'obs', 'steam'
+];
+
+function isKnownDesktopCommand(command) {
+  if (!command || typeof command !== 'string') return false;
+  const cmd = command.trim().toLowerCase();
+  return KNOWN_DESKTOP_BINARIES.some(b => cmd === b || cmd.startsWith(b + ' '));
+}
+
+function classifyClientButton(button) {
+  if (!button || typeof button !== 'object') return 'terminal';
+  if (typeof button.categoryOverride === 'string') {
+    const override = button.categoryOverride.trim().toLowerCase();
+    if (ALLOWED_LENS_CATEGORIES.includes(override)) return override;
+  }
+  if (button.actionType === 'media') return 'media';
+  if (button.actionType === 'url') return 'url';
+  if (button.actionType === 'shell') {
+    if (['tab', 'window', 'existing'].includes(button.terminalMode)) return 'terminal';
+    if (button.isApplication === true) return 'application';
+    if (isKnownDesktopCommand(button.command)) return 'application';
+    return 'terminal';
+  }
+  return 'terminal';
+}
+
+function formatCategoryName(category) {
+  switch (category) {
+    case 'terminal': return 'Terminal';
+    case 'application': return 'Application';
+    case 'url': return 'URL';
+    case 'media': return 'Media';
+    default:
+      if (!category || typeof category !== 'string') return 'Category';
+      return category.charAt(0).toUpperCase() + category.slice(1);
+  }
+}
+
+function renderKeypadState() {
+  if (activeLens === 'all') {
+    updatePageInfo(cachedCanonicalPageNum, cachedCanonicalTotalPages, cachedCanonicalPageName);
+    renderButtons(cachedCanonicalButtons);
+    return;
+  }
+
+  const matchingButtons = cachedAllButtons.filter(b => classifyClientButton(b) === activeLens);
+  const totalVirtualPages = Math.max(1, Math.ceil(matchingButtons.length / 15));
+  virtualSubPageIndex = Math.max(0, Math.min(virtualSubPageIndex, totalVirtualPages - 1));
+
+  const startIdx = virtualSubPageIndex * 15;
+  const currentChunk = matchingButtons.slice(startIdx, startIdx + 15);
+
+  const subPageNum = virtualSubPageIndex + 1;
+  const catName = formatCategoryName(activeLens);
+  updatePageInfo(subPageNum, totalVirtualPages, `${catName} ${subPageNum}`);
+  renderButtons(currentChunk);
+}
+
 function handleServerMessage(data) {
   switch (data.type) {
     case 'INIT':
@@ -744,11 +826,25 @@ function handleServerMessage(data) {
           { id: 'media', name: 'Media & Audio Controls', icon: '🎵', origin: 'builtin' }
         ];
       }
-      renderWorkspaces(currentWorkspaces, activeWsId);
 
+      cachedCanonicalButtons = data.buttons || [];
+      cachedAllButtons = Array.isArray(data.allButtons) && data.allButtons.length > 0
+        ? data.allButtons
+        : (data.buttons || []);
+      cachedCanonicalPageNum = data.pageNumber || 1;
+      cachedCanonicalTotalPages = data.totalPages || 1;
+      cachedCanonicalPageName = data.pageName || `Page ${cachedCanonicalPageNum}`;
+
+      if (data.segregation) {
+        currentWorkspaceSegregation = data.segregation;
+        if (toggleSegregation) {
+          toggleSegregation.checked = Boolean(currentWorkspaceSegregation.enabled);
+        }
+      }
+
+      renderWorkspaces(currentWorkspaces, activeWsId);
       updateActiveModeButtons(activeWsId);
-      updatePageInfo(data.pageNumber, data.totalPages, data.pageName);
-      renderButtons(data.buttons);
+      renderKeypadState();
       updateConnectionUI('connected');
       break;
     }
@@ -1051,13 +1147,16 @@ function renderButtons(buttons) {
         const raw = e.dataTransfer.getData('application/json');
         if (raw) {
           const app = JSON.parse(raw);
+          const isCli = isTerminalCommand(app.command, app.category);
           const newButton = {
             icon: app.icon || '🚀',
             label: formatAppLabel(app.name),
             sublabel: formatAppSublabel(app.category, app.comment),
             color: '#1c69d4',
             actionType: 'shell',
-            command: app.command
+            command: app.command,
+            terminalMode: isCli ? 'tab' : 'background',
+            isApplication: !isCli
           };
           if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'ADD_BUTTON', button: newButton }));
@@ -1091,6 +1190,13 @@ function flashButtonAck(buttonId) {
 // Steering Shift Paddles
 btnPagePrev.addEventListener('click', () => {
   triggerHaptic(15);
+  if (activeLens !== 'all') {
+    if (virtualSubPageIndex > 0) {
+      virtualSubPageIndex--;
+      renderKeypadState();
+    }
+    return;
+  }
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'PAGE_PREV' }));
   }
@@ -1098,6 +1204,15 @@ btnPagePrev.addEventListener('click', () => {
 
 btnPageNext.addEventListener('click', () => {
   triggerHaptic(15);
+  if (activeLens !== 'all') {
+    const matchingButtons = cachedAllButtons.filter(b => classifyClientButton(b) === activeLens);
+    const totalVirtualPages = Math.max(1, Math.ceil(matchingButtons.length / 15));
+    if (virtualSubPageIndex < totalVirtualPages - 1) {
+      virtualSubPageIndex++;
+      renderKeypadState();
+    }
+    return;
+  }
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'PAGE_NEXT' }));
   }
@@ -1241,13 +1356,16 @@ if (btnAddTile) {
       const raw = e.dataTransfer.getData('application/json');
       if (raw) {
         const app = JSON.parse(raw);
+        const isCli = isTerminalCommand(app.command, app.category);
         const newButton = {
           icon: app.icon || '🚀',
           label: formatAppLabel(app.name),
           sublabel: formatAppSublabel(app.category, app.comment),
           color: '#1c69d4',
           actionType: 'shell',
-          command: app.command
+          command: app.command,
+          terminalMode: isCli ? 'tab' : 'background',
+          isApplication: !isCli
         };
         if (ws && ws.readyState === WebSocket.OPEN) {
           ws.send(JSON.stringify({ type: 'ADD_BUTTON', button: newButton }));
@@ -1300,6 +1418,9 @@ function openEditModal(button) {
   editWorkingDir.value = button.workingDir || '';
   editKeepOpen.checked = button.keepOpen !== false;
   editUrl.value = button.url || '';
+  if (editCategory) {
+    editCategory.value = button.categoryOverride || '';
+  }
 
   toggleActionFields();
   editModal.classList.remove('hidden');
@@ -1374,7 +1495,8 @@ btnModalSave.addEventListener('click', () => {
     terminalMode: editTerminalMode.value,
     workingDir: editWorkingDir.value.trim(),
     keepOpen: editKeepOpen.checked,
-    url: editUrl.value.trim()
+    url: editUrl.value.trim(),
+    categoryOverride: editCategory ? (editCategory.value.trim() || null) : null
   };
 
   if (ws && ws.readyState === WebSocket.OPEN) {
@@ -1418,6 +1540,76 @@ btnFullscreen.addEventListener('click', () => {
     btnFullscreen.classList.remove('active');
   }
 });
+
+// Category Lens Strip
+if (categoryLensStrip) {
+  categoryLensStrip.addEventListener('click', (e) => {
+    const tab = e.target.closest('.m-lens-tab');
+    if (!tab) return;
+    const lens = tab.dataset.lens;
+    if (!lens) return;
+    triggerHaptic(15);
+    activeLens = lens;
+    virtualSubPageIndex = 0;
+    categoryLensStrip.querySelectorAll('.m-lens-tab').forEach(t => {
+      const isActive = t === tab;
+      t.classList.toggle('active', isActive);
+      t.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+    renderKeypadState();
+  });
+}
+
+// Workspace Settings Modal Controls
+if (btnWorkspaceSettings) {
+  btnWorkspaceSettings.addEventListener('click', () => {
+    if (!canEdit) {
+      if (typeof openUnlockModal === 'function') {
+        openUnlockModal();
+      } else {
+        alert('Editor privilege required to configure workspace settings.');
+      }
+      return;
+    }
+    triggerHaptic(15);
+    if (toggleSegregation) {
+      toggleSegregation.checked = Boolean(currentWorkspaceSegregation && currentWorkspaceSegregation.enabled);
+    }
+    if (workspaceSettingsModal) {
+      workspaceSettingsModal.classList.remove('hidden');
+    }
+  });
+}
+
+if (btnSettingsModalClose) {
+  btnSettingsModalClose.addEventListener('click', () => {
+    if (workspaceSettingsModal) workspaceSettingsModal.classList.add('hidden');
+  });
+}
+
+if (btnSettingsModalDone) {
+  btnSettingsModalDone.addEventListener('click', () => {
+    if (workspaceSettingsModal) workspaceSettingsModal.classList.add('hidden');
+  });
+}
+
+if (toggleSegregation) {
+  toggleSegregation.addEventListener('change', () => {
+    if (!canEdit) return;
+    const enabled = toggleSegregation.checked;
+    currentWorkspaceSegregation = { enabled };
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'TOGGLE_SEGREGATION', enabled }));
+    }
+    if (enabled && activeLens === 'all') {
+      const termTab = categoryLensStrip ? categoryLensStrip.querySelector('[data-lens="terminal"]') : null;
+      if (termTab) termTab.click();
+    } else if (!enabled && activeLens !== 'all') {
+      const allTab = categoryLensStrip ? categoryLensStrip.querySelector('[data-lens="all"]') : null;
+      if (allTab) allTab.click();
+    }
+  });
+}
 
 // Initialize
 if ('serviceWorker' in navigator) {

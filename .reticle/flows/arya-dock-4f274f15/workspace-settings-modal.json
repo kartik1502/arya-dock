@@ -1,0 +1,60 @@
+{
+  "version": 2,
+  "name": "workspace-settings-modal",
+  "projectId": "arya-dock-4f274f15",
+  "createdAt": 1793560605000,
+  "steps": [
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "button",
+        "name": "Workspace Settings"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "text",
+        "contains": "ENABLE TILE CATEGORY SEGREGATION"
+      },
+      "page": "/"
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "button",
+        "name": "DONE"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "not",
+        "predicate": {
+          "kind": "text",
+          "contains": "ENABLE TILE CATEGORY SEGREGATION"
+        }
+      },
+      "page": "/"
+    }
+  ],
+  "startPath": "/",
+  "intent": "Opening and closing workspace settings modal and toggling category segregation preference",
+  "intentDerived": true,
+  "requires": [
+    {
+      "kind": "route",
+      "pathname": "/"
+    }
+  ],
+  "ensures": [
+    {
+      "kind": "route",
+      "pathname": "/"
+    }
+  ],
+  "author": {
+    "agent": "gemini",
+    "person": "kartikkulkarni1411@gmail.com"
+  }
+}

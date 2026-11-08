@@ -136,6 +136,9 @@
           <button id="btnRemoveTile" class="m-tile-ctrl-btn" title="Remove a Tile">−</button>
           <button id="btnAddTile" class="m-tile-ctrl-btn" title="Add a Tile">+</button>
         </div>
+        <button id="btnWorkspaceSettings" class="m-tool-btn" title="Workspace Settings">
+          <span class="m-tool-icon">⚙️</span>
+        </button>
         <button id="btnOpenDrawer" class="m-tool-btn m-tool-highlight" title="Open App Catalog & Presets">
           <span class="m-tool-icon">⚡</span>
           <span class="m-tool-text">APPS</span>
@@ -177,6 +180,14 @@
           <div class="m-deck-status-left">
             <span class="m-deck-status-dot"></span>
             <span class="m-deck-status-title">ARYA CONSOLE • ONLINE</span>
+          </div>
+          <!-- Category Lens Strip -->
+          <div class="m-lens-strip" id="categoryLensStrip" role="tablist" aria-label="Category Lens Filters">
+            <button class="m-lens-tab active" data-lens="all" role="tab" aria-selected="true">ALL</button>
+            <button class="m-lens-tab" data-lens="terminal" role="tab" aria-selected="false">💻 TERMINAL</button>
+            <button class="m-lens-tab" data-lens="application" role="tab" aria-selected="false">🚀 APPS</button>
+            <button class="m-lens-tab" data-lens="url" role="tab" aria-selected="false">🌐 URLS</button>
+            <button class="m-lens-tab" data-lens="media" role="tab" aria-selected="false">🎵 MEDIA</button>
           </div>
           <div class="m-deck-status-right" id="deckStatusPage">PAGE 1/2</div>
         </div>
@@ -324,6 +335,17 @@
           </select>
         </div>
 
+        <div class="m-field-group">
+          <label for="editCategory">CATEGORY OVERRIDE</label>
+          <select id="editCategory">
+            <option value="">Auto (Classified automatically)</option>
+            <option value="terminal">💻 Terminal / CLI</option>
+            <option value="application">🚀 Native Application</option>
+            <option value="url">🌐 Web / URL</option>
+            <option value="media">🎵 Media &amp; Telemetry</option>
+          </select>
+        </div>
+
         <div class="m-field-group" id="commandGroup">
           <label for="editCommand">SHELL COMMAND / SCRIPT TO RUN</label>
           <input type="text" id="editCommand" placeholder="btop || git status || npm test || python script.py">
@@ -394,6 +416,33 @@
       <div class="m-modal-footer">
         <button id="btnUnlockCancel" class="m-btn m-btn-secondary">CANCEL</button>
         <button id="btnUnlockSubmit" class="m-btn m-btn-primary">UNLOCK</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WORKSPACE SETTINGS MODAL -->
+  <div id="workspaceSettingsModal" class="m-modal-backdrop hidden">
+    <div class="m-modal-card" style="max-width: 480px;">
+      <div class="m-modal-header">
+        <div class="m-modal-title-wrap">
+          <div class="m-tricolor-mini"><span></span><span></span><span></span></div>
+          <h3>WORKSPACE SETTINGS</h3>
+        </div>
+        <button id="btnSettingsModalClose" class="m-modal-close-btn">&times;</button>
+      </div>
+      <div class="m-modal-body">
+        <div class="m-settings-row">
+          <label class="m-checkbox-container" title="Automatically organize shortcuts into dedicated category views">
+            <input type="checkbox" id="toggleSegregation">
+            <span class="m-checkbox-text">ENABLE TILE CATEGORY SEGREGATION</span>
+          </label>
+          <p class="m-settings-help">
+            Automatically organizes shortcuts into dedicated Terminal, Application, URL, and Media views capped at 15 tiles per page.
+          </p>
+        </div>
+      </div>
+      <div class="m-modal-footer">
+        <button id="btnSettingsModalDone" class="m-btn m-btn-primary">DONE</button>
       </div>
     </div>
   </div>
