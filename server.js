@@ -23,6 +23,12 @@ const {
   getDefaultTerminal
 } = require('./lib/terminal');
 
+const {
+  createInitialNavigationState,
+  navigationReducer,
+  findWorkspaceForApp
+} = require('./lib/navigation');
+
 const { getNetworkInterfaces } = require('./lib/network');
 const { createHttpHandler } = require('./lib/http');
 const { setupWebSocketServer } = require('./lib/ws');
@@ -75,7 +81,52 @@ function createServer(options = {}) {
 
   const credentials = loadOrCreateAuth(authPath, { silent: options.silent });
   let appConfig = loadConfig(configPath, DEFAULT_EXAMPLE_PATH, { silent: options.silent });
-  let currentPageIndex = 0;
+
+  // Navigation State Management (E3-2)
+  let navState = createInitialNavigationState({
+    workspaces: appConfig.workspaces,
+    initialWorkspaceId: appConfig.activeWorkspaceId || (appConfig.workspaces && appConfig.workspaces[0] && appConfig.workspaces[0].id) || 'developer',
+    mode: 'auto',
+    pinned: false
+  });
+
+  function getActiveWorkspace() {
+    const wsId = navState.workspaceId;
+    if (Array.isArray(appConfig.workspaces)) {
+      const found = appConfig.workspaces.find(w => w.id === wsId);
+      if (found) return found;
+      if (appConfig.workspaces.length > 0) return appConfig.workspaces[0];
+    }
+    if (appConfig.profiles && Object.prototype.hasOwnProperty.call(appConfig.profiles, wsId)) {
+      return { id: wsId, ...appConfig.profiles[wsId] };
+    }
+    return { id: 'developer', name: 'Developer', pages: [{ buttons: [] }] };
+  }
+
+  function getActiveProfile() {
+    return getActiveWorkspace();
+  }
+
+  function dispatchNav(event) {
+    const activeWs = getActiveWorkspace();
+    const totalPages = (activeWs && Array.isArray(activeWs.pages) && activeWs.pages.length > 0)
+      ? activeWs.pages.length
+      : 1;
+    const context = {
+      workspaces: appConfig.workspaces,
+      totalPages,
+      findWorkspaceForApp: (appId) => findWorkspaceForApp(appConfig.workspaces, appId)
+    };
+    const nextState = navigationReducer(navState, event, context);
+    if (nextState !== navState) {
+      navState = nextState;
+      if (appConfig.activeWorkspaceId !== navState.workspaceId) {
+        appConfig.activeWorkspaceId = navState.workspaceId;
+        appConfig.activeProfile = navState.workspaceId;
+      }
+    }
+    return navState;
+  }
 
   // Persistence hardening: debounced writes and shutdown flushing
   let saveTimer = null;
@@ -136,20 +187,13 @@ function createServer(options = {}) {
     process.on('beforeExit', onBeforeExit);
   }
 
-  function getActiveProfile() {
-    const pId = appConfig.activeProfile || 'developer';
-    if (pId && Object.prototype.hasOwnProperty.call(appConfig.profiles, pId)) {
-      return appConfig.profiles[pId];
-    }
-    return Object.values(appConfig.profiles)[0];
-  }
-
   function getCurrentPage() {
-    const profile = getActiveProfile();
-    if (!profile || !profile.pages || profile.pages.length === 0) return { buttons: [] };
-    if (currentPageIndex >= profile.pages.length) currentPageIndex = 0;
-    if (currentPageIndex < 0) currentPageIndex = profile.pages.length - 1;
-    return profile.pages[currentPageIndex];
+    const ws = getActiveWorkspace();
+    if (!ws || !ws.pages || ws.pages.length === 0) return { buttons: [] };
+    let idx = navState.pageIndex;
+    if (idx >= ws.pages.length) idx = 0;
+    if (idx < 0) idx = ws.pages.length - 1;
+    return ws.pages[idx];
   }
 
   const httpHandler = createHttpHandler({
@@ -165,10 +209,15 @@ function createServer(options = {}) {
     credentials,
     getConfig: () => appConfig,
     saveConfig,
+    getActiveWorkspace,
     getActiveProfile,
     getCurrentPage,
-    getPageIndex: () => currentPageIndex,
-    setPageIndex: (idx) => { currentPageIndex = idx; },
+    getNavState: () => navState,
+    dispatchNav,
+    getPageIndex: () => navState.pageIndex,
+    setPageIndex: (idx) => {
+      dispatchNav({ type: 'USER_SELECT', workspaceId: navState.workspaceId, pageIndex: idx });
+    },
     mockClientIp: options.mockClientIp,
     host: HOST
   });
@@ -178,6 +227,10 @@ function createServer(options = {}) {
     wss: wsManager.wss,
     credentials,
     getConfig: () => appConfig,
+    getNavState: () => navState,
+    dispatchNav,
+    getActiveWorkspace,
+    getActiveProfile,
     platform: platformAdapter,
     saveConfig,
     flushConfig: flushConfigSync,

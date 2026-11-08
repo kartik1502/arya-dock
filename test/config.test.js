@@ -17,7 +17,9 @@ const {
   resolveConfigPath,
   resolveWorkingDir,
   validateButton,
+  validateWorkspace,
   migrateV0ToV1,
+  migrateV1ToV2,
   migrateConfig,
   loadConfig,
   saveConfigAtomic
@@ -230,7 +232,7 @@ test('Config: atomic persistence and error handling', () => {
     saveConfigAtomic(configPath, exampleData);
     const reloaded = loadConfig(configPath, examplePath);
     assert.equal(reloaded.activeProfile, 'developer');
-    assert.equal(reloaded.schemaVersion, 1);
+    assert.equal(reloaded.schemaVersion, CURRENT_SCHEMA_VERSION);
     const remainingTemp = fs.readdirSync(tmpDir).filter(f => f.startsWith('.profiles.'));
     assert.equal(remainingTemp.length, 0);
 
@@ -269,7 +271,7 @@ test('Config: atomic persistence and error handling', () => {
     };
     fs.writeFileSync(configPath, JSON.stringify(handEdited, null, 2));
     const repairedConfig = loadConfig(configPath, examplePath);
-    assert.equal(repairedConfig.schemaVersion, 1);
+    assert.equal(repairedConfig.schemaVersion, CURRENT_SCHEMA_VERSION);
     assert.equal(repairedConfig.activeProfile, 'custom');
     const pageButtons = repairedConfig.profiles.custom.pages[0].buttons;
     assert.equal(pageButtons.length, 2);
@@ -329,8 +331,8 @@ test('Config: atomic persistence and error handling', () => {
   }
 });
 
-test('Schema: CURRENT_SCHEMA_VERSION is 1 and migrations are pure functions', () => {
-  assert.equal(CURRENT_SCHEMA_VERSION, 1);
+test('Schema: CURRENT_SCHEMA_VERSION is 2 and migrations are pure functions', () => {
+  assert.equal(CURRENT_SCHEMA_VERSION, 2);
 
   // Pure function migration v0 -> v1
   const v0Config = {
@@ -343,9 +345,150 @@ test('Schema: CURRENT_SCHEMA_VERSION is 1 and migrations are pure functions', ()
   assert.equal(v1Config.schemaVersion, 1);
   assert.equal(v0Config.schemaVersion, undefined, 'Original object should not be mutated by pure migration');
 
-  // migrateConfig handles missing schemaVersion as v0
+  // Pure function migration v1 -> v2
+  const v2Config = migrateV1ToV2(v1Config);
+  assert.equal(v2Config.schemaVersion, 2);
+  assert.equal(v1Config.schemaVersion, 1, 'Original v1Config must not be mutated by pure migration');
+  assert.ok(Array.isArray(v2Config.workspaces));
+  assert.equal(v2Config.workspaces[0].id, 'developer');
+  assert.equal(v2Config.workspaces[0].origin, 'builtin');
+
+  // migrateConfig handles missing schemaVersion as v0 and migrates v0 -> v1 -> v2
   const migrated = migrateConfig(v0Config);
-  assert.equal(migrated.schemaVersion, 1);
+  assert.equal(migrated.schemaVersion, 2);
+  assert.ok(Array.isArray(migrated.workspaces));
+});
+
+test('Schema: migrateV1ToV2 converts profiles into workspaces with full fidelity and backwards compatibility', () => {
+  const v1 = {
+    schemaVersion: 1,
+    activeProfile: 'media',
+    profiles: {
+      developer: {
+        name: 'Developer Workstation',
+        icon: '💻',
+        pages: [{ pageNumber: 1, name: 'Dev Tools', buttons: [{ id: 0, label: 'CODE' }] }]
+      },
+      media: {
+        name: 'Audio Telemetry',
+        icon: '🎵',
+        pages: [{ pageNumber: 1, name: 'Sound', buttons: [{ id: 0, label: 'PLAY' }] }]
+      },
+      custom: {
+        name: 'Custom Workflow',
+        pages: [{ pageNumber: 1, name: 'Custom P1', buttons: [{ id: 0, label: 'CUSTOM' }] }]
+      }
+    }
+  };
+
+  const v2 = migrateV1ToV2(v1);
+
+  // Check pure function behavior
+  assert.equal(v1.schemaVersion, 1);
+  assert.equal(v1.workspaces, undefined);
+
+  // Schema v2 properties
+  assert.equal(v2.schemaVersion, 2);
+  assert.equal(v2.activeWorkspaceId, 'media');
+  assert.ok(Array.isArray(v2.workspaces));
+  assert.equal(v2.workspaces.length, 3);
+
+  // Developer workspace
+  const devWs = v2.workspaces.find(w => w.id === 'developer');
+  assert.ok(devWs);
+  assert.equal(devWs.name, 'Developer Workstation');
+  assert.equal(devWs.icon, '💻');
+  assert.equal(devWs.origin, 'builtin');
+  assert.ok(devWs.match && Array.isArray(devWs.match.apps));
+  assert.equal(devWs.pages[0].buttons[0].label, 'CODE');
+
+  // Media workspace
+  const mediaWs = v2.workspaces.find(w => w.id === 'media');
+  assert.ok(mediaWs);
+  assert.equal(mediaWs.name, 'Audio Telemetry');
+  assert.equal(mediaWs.icon, '🎵');
+  assert.equal(mediaWs.origin, 'builtin');
+  assert.ok(mediaWs.match && Array.isArray(mediaWs.match.apps));
+  assert.equal(mediaWs.pages[0].buttons[0].label, 'PLAY');
+
+  // Custom workspace
+  const customWs = v2.workspaces.find(w => w.id === 'custom');
+  assert.ok(customWs);
+  assert.equal(customWs.name, 'Custom Workflow');
+  assert.equal(customWs.origin, 'user');
+  assert.equal(customWs.pages[0].buttons[0].label, 'CUSTOM');
+
+  // Backwards compatibility dictionary and activeProfile
+  assert.equal(v2.activeProfile, 'media');
+  assert.ok(v2.profiles && typeof v2.profiles === 'object');
+  assert.equal(v2.profiles.developer.name, 'Developer Workstation');
+  assert.equal(v2.profiles.media.name, 'Audio Telemetry');
+  assert.equal(v2.profiles.custom.name, 'Custom Workflow');
+});
+
+test('Schema: validateWorkspace schema validation, repair, and rejection', () => {
+  // Valid workspace
+  const validWs = {
+    id: 'my-workspace',
+    name: 'My Workspace',
+    icon: '🚀',
+    pages: [{ pageNumber: 1, name: 'Page 1', buttons: [] }],
+    origin: 'user',
+    match: { apps: ['my-app'] }
+  };
+  const validRes = validateWorkspace(validWs, { repair: false });
+  assert.equal(validRes.valid, true);
+  assert.equal(validRes.workspace.id, 'my-workspace');
+  assert.equal(validRes.workspace.origin, 'user');
+  assert.deepEqual(validRes.workspace.match.apps, ['my-app']);
+
+  // Non-object rejection
+  assert.equal(validateWorkspace(null, { repair: false }).valid, false);
+  assert.equal(validateWorkspace('invalid', { repair: false }).valid, false);
+
+  // Missing ID rejection vs repair
+  assert.equal(validateWorkspace({ name: 'No ID' }, { repair: false }).valid, false);
+  const repairedNoId = validateWorkspace({ name: 'No ID' }, { repair: true, defaultId: 'repaired-id' });
+  assert.equal(repairedNoId.valid, true);
+  assert.equal(repairedNoId.workspace.id, 'repaired-id');
+
+  // Invalid origin rejection vs repair
+  assert.equal(validateWorkspace({ id: 'test', name: 'Test', pages: [{}], origin: 'invalid-origin' }, { repair: false }).valid, false);
+  const repairedOrigin = validateWorkspace({ id: 'developer', name: 'Test', pages: [{}], origin: 'bad' }, { repair: true });
+  assert.equal(repairedOrigin.workspace.origin, 'builtin');
+
+  // Empty pages rejection vs repair
+  assert.equal(validateWorkspace({ id: 'test', name: 'Test', pages: [] }, { repair: false }).valid, false);
+  const repairedPages = validateWorkspace({ id: 'test', name: 'Test', pages: [] }, { repair: true });
+  assert.equal(repairedPages.valid, true);
+  assert.equal(repairedPages.workspace.pages.length, 1);
+});
+
+test('Schema: sequential migrations v0 -> v1 -> v2 and v1 -> v2', () => {
+  // v0 (no schemaVersion)
+  const v0 = {
+    activeProfile: 'developer',
+    profiles: {
+      developer: { name: 'Dev', pages: [{ buttons: [] }] }
+    }
+  };
+  const v0Migrated = migrateConfig(v0);
+  assert.equal(v0Migrated.schemaVersion, 2);
+  assert.ok(Array.isArray(v0Migrated.workspaces));
+  assert.equal(v0Migrated.workspaces[0].id, 'developer');
+
+  // v1 (schemaVersion: 1)
+  const v1 = {
+    schemaVersion: 1,
+    activeProfile: 'developer',
+    profiles: {
+      developer: { name: 'Dev', pages: [{ buttons: [] }] }
+    }
+  };
+  const v1Migrated = migrateConfig(v1);
+  assert.equal(v1Migrated.schemaVersion, 2);
+  assert.ok(Array.isArray(v1Migrated.workspaces));
+  assert.equal(v1Migrated.workspaces[0].id, 'developer');
 });
 
 test('Schema: loads legacy v0 config and writes backup on first save', () => {
@@ -373,9 +516,9 @@ test('Schema: loads legacy v0 config and writes backup on first save', () => {
     };
     fs.writeFileSync(configPath, JSON.stringify(legacyConfig, null, 2));
 
-    // Load legacy config: should migrate in memory to CURRENT_SCHEMA_VERSION
+    // Load legacy config: should migrate in memory to CURRENT_SCHEMA_VERSION (2)
     const loaded = loadConfig(configPath, examplePath);
-    assert.equal(loaded.schemaVersion, 1);
+    assert.equal(loaded.schemaVersion, CURRENT_SCHEMA_VERSION);
     assert.equal(loaded.activeProfile, 'legacy');
     assert.equal(fs.existsSync(backupPath), false, 'Backup should not be written until first save');
 
@@ -389,10 +532,10 @@ test('Schema: loads legacy v0 config and writes backup on first save', () => {
     assert.equal(backupJson.schemaVersion, undefined);
     assert.equal(backupJson.activeProfile, 'legacy');
 
-    // Verify current file now contains schemaVersion 1
+    // Verify current file now contains schemaVersion CURRENT_SCHEMA_VERSION (2)
     const currentRaw = fs.readFileSync(configPath, 'utf-8');
     const currentJson = JSON.parse(currentRaw);
-    assert.equal(currentJson.schemaVersion, 1);
+    assert.equal(currentJson.schemaVersion, CURRENT_SCHEMA_VERSION);
 
     // Modify and save again: should not overwrite existing backup
     const backupStatBefore = fs.statSync(backupPath);
@@ -424,7 +567,7 @@ test('Schema: rejects future unsupported schemaVersion greater than CURRENT_SCHE
 
     assert.throws(() => {
       loadConfig(configPath, examplePath);
-    }, /Unsupported schema version 99\. Maximum supported version is 1\./);
+    }, /Unsupported schema version 99\. Maximum supported version is 2\./);
 
     // Also test negative or non-integer schemaVersion
     fs.writeFileSync(configPath, JSON.stringify({ ...futureConfig, schemaVersion: -1 }, null, 2));
@@ -474,7 +617,7 @@ test('Schema: diagnostic warnings identify profile, page, and tile on invalid bu
       onWarning: (msg) => capturedWarnings.push(msg)
     });
 
-    assert.equal(loaded.schemaVersion, 1);
+    assert.equal(loaded.schemaVersion, CURRENT_SCHEMA_VERSION);
     assert.equal(capturedWarnings.length, 2);
 
     // Warning 1: tile 1 (BAD COLOR)

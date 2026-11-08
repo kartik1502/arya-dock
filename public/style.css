@@ -410,6 +410,65 @@ body {
   to { opacity: 1; }
 }
 
+/* Navigation Mode Badge & Pin Controls (E3-2) */
+.m-nav-status-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background-color: var(--m-surface-card);
+  border: 1.5px solid var(--m-hairline);
+  border-radius: var(--m-radius-md);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.m-nav-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  transition: all 0.2s ease;
+}
+
+.m-nav-status-badge.auto .m-nav-dot {
+  background-color: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+.m-nav-status-badge.auto .m-nav-text {
+  color: #34d399;
+}
+
+.m-nav-status-badge.manual .m-nav-dot {
+  background-color: #f59e0b;
+  box-shadow: 0 0 8px #f59e0b;
+}
+.m-nav-status-badge.manual .m-nav-text {
+  color: #fbbf24;
+}
+
+.m-nav-status-badge.pinned .m-nav-dot {
+  background-color: #06b6d4;
+  box-shadow: 0 0 8px #06b6d4;
+}
+.m-nav-status-badge.pinned .m-nav-text {
+  color: #38bdf8;
+}
+
+.m-pin-btn {
+  transition: all 0.2s ease;
+}
+
+.m-pin-btn.pinned,
+.m-pin-btn.active {
+  background-color: #0b1329;
+  border-color: #0284c7;
+  color: var(--m-cyan);
+  box-shadow: 0 0 10px rgba(2, 132, 199, 0.4);
+}
+
 /* Subtle boundary line */
 .m-divider-bar {
   display: flex;

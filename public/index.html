@@ -107,13 +107,13 @@
         </div>
       </div>
 
-      <!-- M Drive Mode Selector -->
-      <div class="m-mode-selector">
-        <button id="btnModeM1" class="m-mode-btn active" data-profile="developer">
+      <!-- M Drive Workspace Selector (E3-1) -->
+      <div class="m-mode-selector" id="workspaceSelector">
+        <button id="btnModeM1" class="m-mode-btn active" data-workspace="developer" data-profile="developer">
           <span class="m-mode-label">M1</span>
           <span class="m-mode-sub">DEV COCKPIT</span>
         </button>
-        <button id="btnModeM2" class="m-mode-btn" data-profile="media">
+        <button id="btnModeM2" class="m-mode-btn" data-workspace="media" data-profile="media">
           <span class="m-mode-label">M2</span>
           <span class="m-mode-sub">MEDIA & TELEMETRY</span>
         </button>
@@ -121,6 +121,14 @@
 
       <!-- Header Controls -->
       <div class="m-header-tools">
+        <!-- Navigation Mode & Pin Controls (E3-2) -->
+        <div class="m-nav-status-badge auto" id="navStatusBadge" title="Navigation Mode: AUTO / MANUAL / PINNED">
+          <span class="m-nav-dot" id="navModeDot"></span>
+          <span class="m-nav-text" id="navModeText">AUTO</span>
+        </div>
+        <button id="btnPinWorkspace" class="m-tool-btn m-pin-btn" title="Toggle Workspace Pin (Lock to Current Workspace)">
+          <span class="m-tool-icon" id="pinIcon">📌</span>
+        </button>
         <div class="m-tile-counter-badge" id="tileCountBadge" title="Current Shortcut Count">
           <span id="tileCountNum">9</span> TILES
         </div>

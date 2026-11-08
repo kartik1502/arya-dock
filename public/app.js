@@ -135,12 +135,22 @@ const pageLabel = document.getElementById('pageLabel');
 const pageName = document.getElementById('pageName');
 const btnPagePrev = document.getElementById('btnPagePrev');
 const btnPageNext = document.getElementById('btnPageNext');
+const workspaceSelector = document.getElementById('workspaceSelector');
 const btnModeM1 = document.getElementById('btnModeM1');
 const btnModeM2 = document.getElementById('btnModeM2');
+const navStatusBadge = document.getElementById('navStatusBadge');
+const navModeDot = document.getElementById('navModeDot');
+const navModeText = document.getElementById('navModeText');
+const btnPinWorkspace = document.getElementById('btnPinWorkspace');
+const pinIcon = document.getElementById('pinIcon');
 const btnEdit = document.getElementById('btnEdit');
 const btnWakeLock = document.getElementById('btnWakeLock');
 const btnFullscreen = document.getElementById('btnFullscreen');
 const transportMode = document.getElementById('transportMode');
+
+// Workspaces and Navigation State (Epic E3)
+let currentWorkspaces = [];
+let navigationState = { mode: 'auto', workspaceId: 'developer', pageIndex: 0, pinned: false };
 
 // Tile Dynamic Sizing Elements
 const tileCountNum = document.getElementById('tileCountNum');
@@ -695,7 +705,7 @@ if (connectionStatus) {
 function handleServerMessage(data) {
   switch (data.type) {
     case 'INIT':
-    case 'STATE_UPDATE':
+    case 'STATE_UPDATE': {
       if (data.role !== undefined) userRole = data.role;
       if (data.canEdit !== undefined) {
         canEdit = Boolean(data.canEdit);
@@ -705,11 +715,43 @@ function handleServerMessage(data) {
           loadInstalledApplications();
         }
       }
-      updateActiveModeButtons(data.activeProfileId);
+
+      const activeWsId = data.workspaceId || data.activeWorkspaceId || data.activeProfileId || 'developer';
+
+      if (data.navigation) {
+        updateNavigationUI(data.navigation);
+      } else {
+        updateNavigationUI({
+          mode: 'manual',
+          workspaceId: activeWsId,
+          pageIndex: (data.pageNumber || 1) - 1,
+          pinned: false
+        });
+      }
+
+      if (Array.isArray(data.workspaces) && data.workspaces.length > 0) {
+        currentWorkspaces = data.workspaces;
+      } else if (Array.isArray(data.profiles) && data.profiles.length > 0) {
+        currentWorkspaces = data.profiles.map(p => ({
+          id: p.id,
+          name: p.name,
+          icon: p.id === 'developer' ? '💻' : (p.id === 'media' ? '🎵' : '⚡'),
+          origin: 'builtin'
+        }));
+      } else if (currentWorkspaces.length === 0) {
+        currentWorkspaces = [
+          { id: 'developer', name: 'Developer & AI Workflows', icon: '💻', origin: 'builtin' },
+          { id: 'media', name: 'Media & Audio Controls', icon: '🎵', origin: 'builtin' }
+        ];
+      }
+      renderWorkspaces(currentWorkspaces, activeWsId);
+
+      updateActiveModeButtons(activeWsId);
       updatePageInfo(data.pageNumber, data.totalPages, data.pageName);
       renderButtons(data.buttons);
       updateConnectionUI('connected');
       break;
+    }
 
     case 'ROLE_UPDATE':
       userRole = data.role;
@@ -741,9 +783,101 @@ function handleServerMessage(data) {
   }
 }
 
+function updateNavigationUI(nav) {
+  if (!nav) return;
+  navigationState = nav;
+  if (navStatusBadge && navModeDot && navModeText) {
+    navStatusBadge.classList.remove('auto', 'manual', 'pinned');
+    navModeDot.classList.remove('auto', 'manual', 'pinned');
+
+    if (nav.pinned) {
+      navStatusBadge.classList.add('pinned');
+      navModeDot.classList.add('pinned');
+      navModeText.textContent = 'PINNED';
+      navStatusBadge.title = 'Workspace Pinned (Context auto-switch locked)';
+    } else if (nav.mode === 'auto') {
+      navStatusBadge.classList.add('auto');
+      navModeDot.classList.add('auto');
+      navModeText.textContent = 'AUTO';
+      navStatusBadge.title = 'Automatic Navigation (Follows active desktop application)';
+    } else {
+      navStatusBadge.classList.add('manual');
+      navModeDot.classList.add('manual');
+      navModeText.textContent = 'MANUAL';
+      navStatusBadge.title = 'Manual Navigation (Workspace selected by user)';
+    }
+  }
+
+  if (btnPinWorkspace) {
+    btnPinWorkspace.classList.toggle('pinned', Boolean(nav.pinned));
+    btnPinWorkspace.classList.toggle('active', Boolean(nav.pinned));
+    btnPinWorkspace.title = nav.pinned ? 'Unpin Workspace (Restore Auto-Switching)' : 'Pin Workspace (Lock to Current Workspace)';
+  }
+}
+
+function renderWorkspaces(workspaces, activeWorkspaceId) {
+  if (!workspaceSelector) return;
+  if (!Array.isArray(workspaces) || workspaces.length === 0) return;
+
+  workspaceSelector.textContent = '';
+
+  workspaces.forEach((wsItem, idx) => {
+    const btn = document.createElement('button');
+    btn.className = 'm-mode-btn';
+    btn.dataset.workspace = wsItem.id;
+    btn.dataset.profile = wsItem.id;
+
+    if (wsItem.id === activeWorkspaceId) {
+      btn.classList.add('active');
+    }
+
+    let modeLabel = '';
+    let modeSub = '';
+
+    if (wsItem.id === 'developer') {
+      btn.id = 'btnModeM1';
+      modeLabel = 'M1';
+      modeSub = 'DEV COCKPIT';
+    } else if (wsItem.id === 'media') {
+      btn.id = 'btnModeM2';
+      modeLabel = 'M2';
+      modeSub = 'MEDIA & TELEMETRY';
+    } else {
+      btn.id = `btnWorkspace_${wsItem.id}`;
+      modeLabel = wsItem.icon || `M${idx + 1}`;
+      modeSub = (wsItem.name || wsItem.id).toUpperCase();
+    }
+
+    const labelSpan = document.createElement('span');
+    labelSpan.className = 'm-mode-label';
+    labelSpan.textContent = modeLabel;
+
+    const subSpan = document.createElement('span');
+    subSpan.className = 'm-mode-sub';
+    subSpan.textContent = modeSub;
+
+    btn.appendChild(labelSpan);
+    btn.appendChild(subSpan);
+
+    btn.addEventListener('click', () => {
+      triggerHaptic(20);
+      if (canEdit && ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'SET_WORKSPACE', workspaceId: wsItem.id }));
+        if (wsItem.id === 'developer' || wsItem.id === 'media') {
+          ws.send(JSON.stringify({ type: 'SET_PROFILE', profileId: wsItem.id }));
+        }
+      }
+    });
+
+    workspaceSelector.appendChild(btn);
+  });
+}
+
 function updateActiveModeButtons(activeProfileId) {
-  btnModeM1.classList.toggle('active', activeProfileId === 'developer');
-  btnModeM2.classList.toggle('active', activeProfileId === 'media');
+  const m1 = document.getElementById('btnModeM1');
+  const m2 = document.getElementById('btnModeM2');
+  if (m1) m1.classList.toggle('active', activeProfileId === 'developer');
+  if (m2) m2.classList.toggle('active', activeProfileId === 'media');
 }
 
 function updatePageInfo(pageNum, totalPages, name) {
@@ -980,20 +1114,35 @@ btnPageNext.addEventListener('click', () => {
   }
 });
 
-// Mode buttons (M1 / M2)
-btnModeM1.addEventListener('click', () => {
-  triggerHaptic(20);
-  if (canEdit && ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: 'SET_PROFILE', profileId: 'developer' }));
-  }
-});
+// Workspace & Pin Navigation buttons (E3)
+if (btnModeM1) {
+  btnModeM1.addEventListener('click', () => {
+    triggerHaptic(20);
+    if (canEdit && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'SET_WORKSPACE', workspaceId: 'developer' }));
+      ws.send(JSON.stringify({ type: 'SET_PROFILE', profileId: 'developer' }));
+    }
+  });
+}
 
-btnModeM2.addEventListener('click', () => {
-  triggerHaptic(20);
-  if (canEdit && ws && ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: 'SET_PROFILE', profileId: 'media' }));
-  }
-});
+if (btnModeM2) {
+  btnModeM2.addEventListener('click', () => {
+    triggerHaptic(20);
+    if (canEdit && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'SET_WORKSPACE', workspaceId: 'media' }));
+      ws.send(JSON.stringify({ type: 'SET_PROFILE', profileId: 'media' }));
+    }
+  });
+}
+
+if (btnPinWorkspace) {
+  btnPinWorkspace.addEventListener('click', () => {
+    triggerHaptic(15);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: navigationState.pinned ? 'UNPIN' : 'PIN' }));
+    }
+  });
+}
 
 // Unlock Editor Modal Functions
 function openUnlockModal() {
