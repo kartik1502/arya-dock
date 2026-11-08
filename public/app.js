@@ -815,10 +815,19 @@ function updateNavigationUI(nav) {
   }
 }
 
+let renderedWorkspacesSignature = '';
+
 function renderWorkspaces(workspaces, activeWorkspaceId) {
   if (!workspaceSelector) return;
   if (!Array.isArray(workspaces) || workspaces.length === 0) return;
 
+  const newSig = workspaces.map(w => `${w.id}:${w.name}:${w.icon}`).join('|');
+  if (newSig === renderedWorkspacesSignature && workspaceSelector.children.length === workspaces.length) {
+    updateActiveModeButtons(activeWorkspaceId);
+    return;
+  }
+
+  renderedWorkspacesSignature = newSig;
   workspaceSelector.textContent = '';
 
   workspaces.forEach((wsItem, idx) => {
@@ -863,9 +872,6 @@ function renderWorkspaces(workspaces, activeWorkspaceId) {
       triggerHaptic(20);
       if (canEdit && ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'SET_WORKSPACE', workspaceId: wsItem.id }));
-        if (wsItem.id === 'developer' || wsItem.id === 'media') {
-          ws.send(JSON.stringify({ type: 'SET_PROFILE', profileId: wsItem.id }));
-        }
       }
     });
 
@@ -873,11 +879,13 @@ function renderWorkspaces(workspaces, activeWorkspaceId) {
   });
 }
 
-function updateActiveModeButtons(activeProfileId) {
-  const m1 = document.getElementById('btnModeM1');
-  const m2 = document.getElementById('btnModeM2');
-  if (m1) m1.classList.toggle('active', activeProfileId === 'developer');
-  if (m2) m2.classList.toggle('active', activeProfileId === 'media');
+function updateActiveModeButtons(activeWorkspaceId) {
+  if (!workspaceSelector) return;
+  const buttons = workspaceSelector.querySelectorAll('.m-mode-btn');
+  buttons.forEach(btn => {
+    const wsId = btn.dataset.workspace || btn.dataset.profile;
+    btn.classList.toggle('active', wsId === activeWorkspaceId);
+  });
 }
 
 function updatePageInfo(pageNum, totalPages, name) {
@@ -1120,7 +1128,6 @@ if (btnModeM1) {
     triggerHaptic(20);
     if (canEdit && ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'SET_WORKSPACE', workspaceId: 'developer' }));
-      ws.send(JSON.stringify({ type: 'SET_PROFILE', profileId: 'developer' }));
     }
   });
 }
@@ -1130,13 +1137,22 @@ if (btnModeM2) {
     triggerHaptic(20);
     if (canEdit && ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'SET_WORKSPACE', workspaceId: 'media' }));
-      ws.send(JSON.stringify({ type: 'SET_PROFILE', profileId: 'media' }));
     }
   });
 }
 
 if (btnPinWorkspace) {
   btnPinWorkspace.addEventListener('click', () => {
+    triggerHaptic(15);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: navigationState.pinned ? 'UNPIN' : 'PIN' }));
+    }
+  });
+}
+
+if (navStatusBadge) {
+  navStatusBadge.style.cursor = 'pointer';
+  navStatusBadge.addEventListener('click', () => {
     triggerHaptic(15);
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: navigationState.pinned ? 'UNPIN' : 'PIN' }));

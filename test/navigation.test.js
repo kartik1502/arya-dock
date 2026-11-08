@@ -288,3 +288,104 @@ test('Navigation Reducer: unknown action returns state unchanged', () => {
   assert.equal(navigationReducer(state, null), state);
   assert.equal(navigationReducer(state, {}), state);
 });
+
+test('Navigation: findWorkspaceForApp prevents false-positive substring matches and matches segments', () => {
+  const workspaces = [
+    {
+      id: 'media',
+      match: { apps: ['spotify', 'vlc'] }
+    },
+    {
+      id: 'developer',
+      match: { apps: ['org.gnome.ptyxis', 'jetbrains-idea', 'code'] }
+    },
+    {
+      id: 'desktop-tools',
+      match: { apps: ['desktop-editor'] }
+    }
+  ];
+
+  // False-positive substring matches must NOT match
+  assert.equal(findWorkspaceForApp(workspaces, 'pot'), null, "'pot' must not match 'spotify'");
+  assert.equal(findWorkspaceForApp(workspaces, 'spot'), null, "'spot' must not match 'spotify'");
+  assert.equal(findWorkspaceForApp(workspaces, 'top'), null, "'top' must not match 'desktop-editor'");
+
+  // Token / segment matching works cleanly
+  assert.equal(findWorkspaceForApp(workspaces, 'ptyxis'), 'developer', "'ptyxis' matches 'org.gnome.ptyxis' segment");
+  assert.equal(findWorkspaceForApp(workspaces, 'idea'), 'developer', "'idea' matches 'jetbrains-idea' segment");
+  assert.equal(findWorkspaceForApp(workspaces, 'com.visualstudio.code'), 'developer', "app containing rule matches");
+
+  // Path handling
+  assert.equal(findWorkspaceForApp(workspaces, '/path/to/spotify.desktop'), 'media');
+});
+
+test('Navigation Reducer: CONTEXT_CHANGED in same workspace preserves pageIndex, switches to auto', () => {
+  const state = {
+    mode: 'manual',
+    workspaceId: 'developer',
+    pageIndex: 2,
+    pinned: false
+  };
+
+  const next = navigationReducer(state, {
+    type: 'CONTEXT_CHANGED',
+    matchedWorkspaceId: 'developer'
+  });
+
+  assert.equal(next.mode, 'auto');
+  assert.equal(next.workspaceId, 'developer');
+  assert.equal(next.pageIndex, 2, 'Must not reset pageIndex to 0 when remaining in same workspace');
+});
+
+test('Navigation Reducer: USER_SELECT rejects invalid workspaceId when context.workspaces provided', () => {
+  const state = {
+    mode: 'auto',
+    workspaceId: 'developer',
+    pageIndex: 0,
+    pinned: false
+  };
+
+  const context = {
+    workspaces: [{ id: 'developer' }, { id: 'media' }]
+  };
+
+  const result = navigationReducer(
+    state,
+    { type: 'USER_SELECT', workspaceId: 'nonexistent-workspace' },
+    context
+  );
+
+  assert.equal(result, state, 'Must return original state if target workspace does not exist');
+});
+
+test('Navigation Reducer: PAGE_NEXT and PAGE_PREV derive totalPages from context.workspaces', () => {
+  const state = {
+    mode: 'auto',
+    workspaceId: 'developer',
+    pageIndex: 0,
+    pinned: false
+  };
+
+  const context = {
+    workspaces: [
+      { id: 'developer', pages: [{ buttons: [] }, { buttons: [] }, { buttons: [] }] }
+    ]
+  };
+
+  // PAGE_NEXT wraps from 0 -> 1 -> 2 -> 0 using context.workspaces
+  const p1 = navigationReducer(state, { type: 'PAGE_NEXT' }, context);
+  assert.equal(p1.pageIndex, 1);
+  const p2 = navigationReducer(p1, { type: 'PAGE_NEXT' }, context);
+  assert.equal(p2.pageIndex, 2);
+  const p0 = navigationReducer(p2, { type: 'PAGE_NEXT' }, context);
+  assert.equal(p0.pageIndex, 0);
+
+  // PAGE_PREV wraps from 0 -> 2
+  const prev = navigationReducer(state, { type: 'PAGE_PREV' }, context);
+  assert.equal(prev.pageIndex, 2);
+
+  // Negative pageIndex handles modulo correctly
+  const negativeState = { ...state, pageIndex: -2 };
+  const wrappedNext = navigationReducer(negativeState, { type: 'PAGE_NEXT', totalPages: 3 });
+  assert.ok(wrappedNext.pageIndex >= 0 && wrappedNext.pageIndex < 3);
+});

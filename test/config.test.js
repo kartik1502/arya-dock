@@ -462,6 +462,63 @@ test('Schema: validateWorkspace schema validation, repair, and rejection', () =>
   const repairedPages = validateWorkspace({ id: 'test', name: 'Test', pages: [] }, { repair: true });
   assert.equal(repairedPages.valid, true);
   assert.equal(repairedPages.workspace.pages.length, 1);
+
+  // Prototype pollution keys rejection vs repair
+  for (const badId of ['__proto__', 'constructor', 'prototype']) {
+    const rejected = validateWorkspace({ id: badId, name: 'Bad', pages: [{ buttons: [] }] }, { repair: false });
+    assert.equal(rejected.valid, false);
+    assert.match(rejected.error, /reserved prototype property/);
+
+    const repaired = validateWorkspace({ id: badId, name: 'Bad', pages: [{ buttons: [] }] }, { repair: true, defaultId: 'safe-ws' });
+    assert.equal(repaired.valid, true);
+    assert.equal(repaired.workspace.id, 'safe-ws');
+  }
+
+  // Invalid page elements rejection vs repair
+  const badPageItem = validateWorkspace({ id: 'test', name: 'Test', pages: ['string-page'] }, { repair: false });
+  assert.equal(badPageItem.valid, false);
+  const repairedPageItem = validateWorkspace({ id: 'test', name: 'Test', pages: ['string-page'] }, { repair: true });
+  assert.equal(repairedPageItem.valid, true);
+  assert.equal(typeof repairedPageItem.workspace.pages[0], 'object');
+
+  // Match apps validation (non-array apps rejection in repair: false)
+  const badMatchApps = validateWorkspace({ id: 'test', name: 'Test', pages: [{ buttons: [] }], match: { apps: 'bad' } }, { repair: false });
+  assert.equal(badMatchApps.valid, false);
+});
+
+test('Schema: saveConfigAtomic cleans up stale deleted profiles', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arya-stale-profiles-test-'));
+  const configPath = path.join(tmpDir, 'profiles.json');
+
+  try {
+    const configWithTwo = {
+      schemaVersion: 2,
+      workspaces: [
+        { id: 'ws1', name: 'Workspace 1', icon: '1', pages: [{ buttons: [] }], origin: 'user', match: { apps: [] } },
+        { id: 'ws2', name: 'Workspace 2', icon: '2', pages: [{ buttons: [] }], origin: 'user', match: { apps: [] } }
+      ]
+    };
+    saveConfigAtomic(configPath, configWithTwo);
+
+    // Verify both are in profiles dictionary
+    const saved1 = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    assert.ok(saved1.profiles.ws1);
+    assert.ok(saved1.profiles.ws2);
+
+    // Delete ws2 from workspaces and save
+    const configWithOne = {
+      schemaVersion: 2,
+      workspaces: [configWithTwo.workspaces[0]]
+    };
+    saveConfigAtomic(configPath, configWithOne);
+
+    // Verify ws2 was pruned and does NOT linger in profiles
+    const saved2 = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    assert.ok(saved2.profiles.ws1);
+    assert.equal(saved2.profiles.ws2, undefined, 'Stale deleted workspace must be removed from profiles dictionary');
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
 });
 
 test('Schema: sequential migrations v0 -> v1 -> v2 and v1 -> v2', () => {

@@ -193,6 +193,12 @@ test('Workspace & Navigation WebSocket Integration: Operator privilege enforceme
     assert.equal(errorMsg.type, 'ERROR');
     assert.ok(errorMsg.message.includes('editor privilege required'));
 
+    // Operator attempting WORKSPACE_DELETED must also be rejected
+    ws.send(JSON.stringify({ type: 'WORKSPACE_DELETED', workspaceId: 'media' }));
+    const errorDel = await nextMsg();
+    assert.equal(errorDel.type, 'ERROR');
+    assert.ok(errorDel.message.includes('editor privilege required'));
+
     // But operator CAN toggle PIN and navigate pages
     ws.send(JSON.stringify({ type: 'PIN' }));
     const pinUpdate = await nextMsg();
@@ -201,6 +207,47 @@ test('Workspace & Navigation WebSocket Integration: Operator privilege enforceme
     ws.send(JSON.stringify({ type: 'PAGE_NEXT' }));
     const pageUpdate = await nextMsg();
     assert.equal(pageUpdate.pageNumber, 2);
+
+    ws.close();
+  } finally {
+    await new Promise(resolve => app.close(resolve));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('Workspace & Navigation WebSocket Integration: WORKSPACE_DELETED by editor removes workspace', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arya-ws-del-integ-'));
+  const configPath = path.join(tmpDir, 'profiles.json');
+  const authPath = path.join(tmpDir, 'auth.json');
+
+  const app = createServer({ configPath, authPath });
+  const server = app.server;
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  const token = app.credentials.pairingToken;
+
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?token=${token}`, {
+    headers: { Origin: `http://127.0.0.1:${port}` }
+  });
+  const nextMsg = createMessageQueue(ws);
+  await new Promise(resolve => ws.on('open', resolve));
+
+  try {
+    const init = await nextMsg(); // INIT
+    assert.equal(init.workspaces.length, 2);
+
+    // Delete media workspace
+    ws.send(JSON.stringify({ type: 'WORKSPACE_DELETED', workspaceId: 'media' }));
+    const update = await nextMsg();
+    assert.equal(update.type, 'STATE_UPDATE');
+    assert.equal(update.workspaces.length, 1);
+    assert.equal(update.workspaces[0].id, 'developer');
+
+    // Attempting to delete the last remaining workspace must be rejected
+    ws.send(JSON.stringify({ type: 'WORKSPACE_DELETED', workspaceId: 'developer' }));
+    const errorMsg = await nextMsg();
+    assert.equal(errorMsg.type, 'ERROR');
+    assert.match(errorMsg.message, /Cannot delete the last remaining workspace/);
 
     ws.close();
   } finally {
