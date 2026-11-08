@@ -168,12 +168,15 @@ Arya Dock is fully configurable through environment variables and command-line f
 |---|---|---|
 | `HOST` | `0.0.0.0` | IP address to bind the HTTP and WebSocket server. Set to `127.0.0.1` for local-only workstation access. |
 | `PORT` | `3333` | Port for the HTTP and WebSocket service. |
-| `CONFIG_PATH` | `./config/profiles.json` | Filesystem path for profiles, buttons, pages, and key bindings. |
-| `AUTH_PATH` | `./config/auth.json` | Filesystem path for the persistent pairing token and editor key credentials. |
+| `ARYA_HOME` | `~/.config/arya-dock` | Base directory for user profiles and credentials outside the repository. |
+| `CONFIG_PATH` | `~/.config/arya-dock/profiles.json` | Filesystem path for profiles, buttons, pages, and key bindings. |
+| `AUTH_PATH` | `~/.config/arya-dock/auth.json` | Filesystem path for pairing token and editor key credentials (mode 0600). |
 | `TERMINAL` | Auto-detected | Preferred terminal emulator command or path override (e.g. `ptyxis`, `gnome-terminal`, `konsole`, `alacritty`, `kitty`, `xterm`). |
 | `ARYA_PAIRING_TOKEN` | Generated | Static 32-character hexadecimal token override instead of generating a random token on boot. |
 | `ARYA_EDITOR_KEY` | Generated | Static 32-character hexadecimal key override instead of generating a random key on boot. |
 | `ARYA_PLATFORM` | `linux` (auto-detected) | Modular OS platform adapter override (`linux`, `darwin`, `fake`). |
+| `--config <path>` | *CLI Flag* | Path override for profiles configuration file. |
+| `--auth <path>` | *CLI Flag* | Path override for authentication credentials file. |
 | `--rotate-credentials` | *CLI Flag* | Generates a new random pairing token and editor key, saves them to `auth.json`, prints them to stdout, and exits. *(Caveat: server restart required).* |
 | `--start` | *CLI Flag* | Combined with `--rotate-credentials` (`node server.js --rotate-credentials --start`), rotates credentials on disk and starts the server immediately with the new credentials. |
 
@@ -209,6 +212,7 @@ Arya Dock provides layered defense-in-depth protection to safeguard the host wor
 For in-depth architecture, configuration, and customization guides, see the dedicated documentation:
 
 * 🔒 **[Security Model & Architecture Guide](docs/security-model.md)**: Pairing tokens, Origin header verification, Operator vs. Editor role separation, localhost proxy caveats, credential rotation lifecycle, and Content Security Policy.
+* 🛠️ **[Configuration Architecture & Persistence Design](docs/config-design.md)**: Ownership model, XDG Base Directory layout, path precedence, first-boot legacy migration, debounced saves, and backup rotation with auto-recovery.
 * ⚙️ **[Configuration & Environment Reference](docs/configuration.md)**: Complete reference of all environment variables (`HOST`, `PORT`, `CONFIG_PATH`, `AUTH_PATH`, `TERMINAL`, `ARYA_*`), CLI flags (`--rotate-credentials`, `--start`), and custom config paths.
 * 🎛️ **[Usage & Deck Customization Guide](docs/usage-guide.md)**: Navigation modes (M1 Dev, M2 Media), dynamic tile count adjustments (`+`/`−`), drag & drop application catalog, terminal execution modes, multi-client synchronization, and data-loss protection.
 * 🎨 **[Motorsport Cockpit Design System](DESIGN.md)**: Design philosophy, pitch-black OLED canvas, container queries, and cockpit ergonomics.
@@ -224,6 +228,7 @@ For in-depth architecture, configuration, and customization guides, see the dedi
 arya-dock/
 ├── config/                   # Default templates and local configuration
 ├── docs/                     # In-depth architectural and configuration guides
+│   ├── config-design.md      # Configuration architecture, migration, and persistence
 │   ├── configuration.md      # Environment variables and CLI reference
 │   ├── security-model.md     # Security architecture, roles, and rotation
 │   ├── usage-guide.md        # Deck operation and tile customization

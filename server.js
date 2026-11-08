@@ -5,14 +5,15 @@ const qrcode = require('qrcode-terminal');
 const {
   loadConfig,
   saveConfigAtomic,
-  DEFAULT_CONFIG_PATH,
-  DEFAULT_EXAMPLE_PATH
+  getDefaultConfigPath,
+  DEFAULT_EXAMPLE_PATH,
+  migrateLegacyConfigAndAuth
 } = require('./lib/config');
 
 const {
   loadOrCreateAuth,
   rotateAuthCredentials,
-  DEFAULT_AUTH_PATH
+  getDefaultAuthPath
 } = require('./lib/auth');
 
 const {
@@ -27,30 +28,103 @@ const platform = require('./platform');
 
 const PORT = !isNaN(parseInt(process.env.PORT, 10)) ? parseInt(process.env.PORT, 10) : 3333;
 const HOST = process.env.HOST || '0.0.0.0';
-const CONFIG_PATH = process.env.CONFIG_PATH || DEFAULT_CONFIG_PATH;
-const AUTH_PATH = process.env.AUTH_PATH || DEFAULT_AUTH_PATH;
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
+function parseCliArgs() {
+  const args = process.argv.slice(2);
+  let configPath = null;
+  let authPath = null;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--config' && args[i + 1]) {
+      configPath = args[i + 1];
+      i++;
+    } else if (args[i].startsWith('--config=')) {
+      configPath = args[i].slice(9);
+    } else if (args[i] === '--auth' && args[i + 1]) {
+      authPath = args[i + 1];
+      i++;
+    } else if (args[i].startsWith('--auth=')) {
+      authPath = args[i].slice(7);
+    }
+  }
+  return { configPath, authPath };
+}
+
 function createServer(options = {}) {
-  const configPath = options.configPath || CONFIG_PATH;
-  const authPath = options.authPath || AUTH_PATH;
+  const cliArgs = parseCliArgs();
+  const configPath = options.configPath || process.env.CONFIG_PATH || cliArgs.configPath || getDefaultConfigPath();
+  const authPath = options.authPath || process.env.AUTH_PATH || cliArgs.authPath || getDefaultAuthPath();
   const publicDir = options.publicDir || PUBLIC_DIR;
+
+  // Run first boot migration if legacy config/auth exists and target does not exist
+  migrateLegacyConfigAndAuth({
+    configPath,
+    authPath,
+    silent: options.silent
+  });
 
   const platformAdapter = options.platformAdapter || (options.platform ? platform.getPlatform(options.platform, { logger: options.logger || console.warn, silent: options.silent }) : platform.getActivePlatform());
   if (options.platform || options.platformAdapter) {
     platform.setPlatform(platformAdapter);
   }
 
-  const credentials = loadOrCreateAuth(authPath);
-  let appConfig = loadConfig(configPath, DEFAULT_EXAMPLE_PATH);
+  const credentials = loadOrCreateAuth(authPath, { silent: options.silent });
+  let appConfig = loadConfig(configPath, DEFAULT_EXAMPLE_PATH, { silent: options.silent });
   let currentPageIndex = 0;
 
-  function saveConfig() {
+  // Persistence hardening: debounced writes and shutdown flushing
+  let saveTimer = null;
+  let hasPendingSave = false;
+  const debounceMs = options.debounceMs !== undefined ? options.debounceMs : 250;
+  const maxBackups = options.maxBackups !== undefined ? options.maxBackups : 5;
+
+  function flushConfigSync() {
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+      saveTimer = null;
+    }
+    if (!hasPendingSave) return;
     try {
-      saveConfigAtomic(configPath, appConfig);
+      saveConfigAtomic(configPath, appConfig, { maxBackups });
+      hasPendingSave = false;
     } catch (err) {
       console.error('[Arya Dock] Failed to save config:', err.message);
     }
+  }
+
+  function saveConfig(immediate = false) {
+    hasPendingSave = true;
+    if (immediate || debounceMs <= 0) {
+      flushConfigSync();
+      return;
+    }
+    if (saveTimer) {
+      clearTimeout(saveTimer);
+    }
+    saveTimer = setTimeout(() => {
+      saveTimer = null;
+      flushConfigSync();
+    }, debounceMs);
+  }
+
+  // Shutdown flush hooks (SIGINT, SIGTERM)
+  const shouldRegisterSignals = options.registerSignalHandlers ?? (require.main === module);
+  const onSigint = () => {
+    flushConfigSync();
+    if (options.exitOnSignal !== false) {
+      process.exit(0);
+    }
+  };
+  const onSigterm = () => {
+    flushConfigSync();
+    if (options.exitOnSignal !== false) {
+      process.exit(0);
+    }
+  };
+
+  if (shouldRegisterSignals) {
+    process.on('SIGINT', onSigint);
+    process.on('SIGTERM', onSigterm);
   }
 
   function getActiveProfile() {
@@ -96,7 +170,15 @@ function createServer(options = {}) {
     credentials,
     getConfig: () => appConfig,
     platform: platformAdapter,
+    saveConfig,
+    flushConfig: flushConfigSync,
+    hasPendingSave: () => hasPendingSave,
     close: (cb) => {
+      if (shouldRegisterSignals) {
+        process.removeListener('SIGINT', onSigint);
+        process.removeListener('SIGTERM', onSigterm);
+      }
+      flushConfigSync();
       wsManager.close();
       wsManager.wss.close(() => {
         server.close(cb);
@@ -107,8 +189,12 @@ function createServer(options = {}) {
 
 // Start standalone server when executed directly
 if (require.main === module) {
+  const cliArgs = parseCliArgs();
+  const authPath = process.env.AUTH_PATH || cliArgs.authPath || getDefaultAuthPath();
+  const configPath = process.env.CONFIG_PATH || cliArgs.configPath || getDefaultConfigPath();
+
   if (process.argv.includes('--rotate-credentials')) {
-    const rotated = rotateAuthCredentials(AUTH_PATH);
+    const rotated = rotateAuthCredentials(authPath);
     console.log('[Arya Dock] Credentials rotated successfully:');
     console.log(`• New Pairing Token: ${rotated.pairingToken}`);
     console.log(`• New Editor Key:    ${rotated.editorKey}`);
@@ -118,7 +204,7 @@ if (require.main === module) {
     }
   }
 
-  const instance = createServer();
+  const instance = createServer({ configPath, authPath, registerSignalHandlers: true });
   const { server, credentials } = instance;
 
   server.listen(PORT, HOST, () => {
