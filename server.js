@@ -31,7 +31,7 @@ const {
 
 const { getNetworkInterfaces } = require('./lib/network');
 const { createHttpHandler } = require('./lib/http');
-const { setupWebSocketServer } = require('./lib/ws');
+const { setupWebSocketServer, broadcastState } = require('./lib/ws');
 const platform = require('./platform');
 
 const PORT = !isNaN(parseInt(process.env.PORT, 10)) ? parseInt(process.env.PORT, 10) : 3333;
@@ -56,6 +56,67 @@ function parseCliArgs() {
     }
   }
   return { configPath, authPath };
+}
+
+class ActiveWindowWatcher {
+  constructor(platformAdapter, onChange) {
+    this.platform = platformAdapter;
+    this.onChange = onChange;
+    this.stream = null;
+    this.teardownTimer = null;
+    this.consecutiveFailures = 0;
+  }
+
+  handleClientConnected() {
+    if (this.teardownTimer) {
+      clearTimeout(this.teardownTimer);
+      this.teardownTimer = null;
+    }
+    if (!this.stream && this.platform && typeof this.platform.capabilities === 'function' && this.platform.capabilities().activeWindow) {
+      this.start();
+    }
+  }
+
+  handleClientDisconnected(clientCount) {
+    if (clientCount === 0 && this.stream) {
+      if (this.teardownTimer) clearTimeout(this.teardownTimer);
+      this.teardownTimer = setTimeout(() => {
+        this.stop();
+        this.teardownTimer = null;
+      }, 3000); // 3-second grace period
+    }
+  }
+
+  start() {
+    if (!this.platform || typeof this.platform.createActiveWindowStream !== 'function') {
+      return;
+    }
+    this.stream = this.platform.createActiveWindowStream(
+      (appId) => {
+        this.consecutiveFailures = 0;
+        this.onChange(appId);
+      },
+      (err) => {
+        this.consecutiveFailures++;
+        if (this.consecutiveFailures <= 3) {
+          console.warn('[Arya Dock] Active window watcher warning:', err?.message || err);
+        }
+      }
+    );
+  }
+
+  stop() {
+    if (this.teardownTimer) {
+      clearTimeout(this.teardownTimer);
+      this.teardownTimer = null;
+    }
+    if (this.stream) {
+      if (typeof this.stream.stop === 'function') {
+        this.stream.stop();
+      }
+      this.stream = null;
+    }
+  }
 }
 
 function createServer(options = {}) {
@@ -115,12 +176,18 @@ function createServer(options = {}) {
     const context = {
       workspaces: appConfig.workspaces,
       totalPages,
-      findWorkspaceForApp: (appId) => findWorkspaceForApp(appConfig.workspaces, appId)
+      findWorkspaceForApp: (workspaces, appId) => {
+        if (typeof appId === 'string') {
+          return findWorkspaceForApp(workspaces || appConfig.workspaces, appId);
+        }
+        return findWorkspaceForApp(appConfig.workspaces, workspaces);
+      }
     };
     const nextState = navigationReducer(navState, event, context);
     if (nextState !== navState) {
       navState = nextState;
-      if (appConfig.activeWorkspaceId !== navState.workspaceId) {
+      // Only persist active workspace on explicit user manual selection, NEVER on automated context changes
+      if (event?.type === 'USER_SELECT' && appConfig.activeWorkspaceId !== navState.workspaceId) {
         appConfig.activeWorkspaceId = navState.workspaceId;
         appConfig.activeProfile = navState.workspaceId;
       }
@@ -205,7 +272,19 @@ function createServer(options = {}) {
 
   const server = http.createServer(httpHandler);
 
-  const wsManager = setupWebSocketServer(server, {
+  let wsManager = null;
+
+  const activeWatcher = new ActiveWindowWatcher(platformAdapter, (appId) => {
+    if (appId) {
+      const prevWs = navState.workspaceId;
+      const nextNav = dispatchNav({ type: 'CONTEXT_CHANGED', appId });
+      if (nextNav && nextNav.workspaceId !== prevWs && wsManager && wsManager.wss) {
+        broadcastState(wsManager.wss, wsContext);
+      }
+    }
+  });
+
+  const wsContext = {
     credentials,
     getConfig: () => appConfig,
     saveConfig,
@@ -219,8 +298,12 @@ function createServer(options = {}) {
       dispatchNav({ type: 'USER_SELECT', workspaceId: navState.workspaceId, pageIndex: idx });
     },
     mockClientIp: options.mockClientIp,
-    host: HOST
-  });
+    host: HOST,
+    onClientConnect: (count) => activeWatcher.handleClientConnected(),
+    onClientDisconnect: (count) => activeWatcher.handleClientDisconnected(count)
+  };
+
+  wsManager = setupWebSocketServer(server, wsContext);
 
   return {
     server,
@@ -232,6 +315,7 @@ function createServer(options = {}) {
     getActiveWorkspace,
     getActiveProfile,
     platform: platformAdapter,
+    activeWatcher,
     saveConfig,
     flushConfig: flushConfigSync,
     hasPendingSave: () => hasPendingSave,
@@ -241,6 +325,7 @@ function createServer(options = {}) {
         process.removeListener('SIGTERM', onSigterm);
         process.removeListener('beforeExit', onBeforeExit);
       }
+      activeWatcher.stop();
       flushConfigSync();
       wsManager.close();
       wsManager.wss.close(() => {
@@ -322,5 +407,6 @@ if (require.main === module) {
 }
 
 module.exports = {
-  createServer
+  createServer,
+  ActiveWindowWatcher
 };

@@ -45,7 +45,8 @@ test('Reticle: Predefined flow definitions exist and conform to Reticle v2 schem
     'app-catalog-drawer.json',
     'editor-mode-security.json',
     'category-lens-switching.json',
-    'workspace-settings-modal.json'
+    'workspace-settings-modal.json',
+    'active-window-auto-switching.json'
   ];
 
   for (const flowFileName of requiredFlows) {
@@ -449,6 +450,77 @@ test('Reticle Predefined Flow Replay: Workspace Settings Modal & Segregation Tog
     const activeWsOff = savedConfigOff.workspaces.find(w => w.id === (savedConfigOff.activeWorkspaceId || 'developer'));
     assert.ok(activeWsOff, 'Active workspace found');
     assert.equal(activeWsOff.segregation.enabled, false);
+
+    ws.close();
+  } finally {
+    await new Promise(resolve => app.close(resolve));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('Reticle Predefined Flow Replay: Active Window Auto-Switching & Pinning (active-window-auto-switching)', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'reticle-active-win-test-'));
+  const configPath = path.join(tmpDir, 'profiles.json');
+  const authPath = path.join(tmpDir, 'auth.json');
+
+  let activeWindowEmitter = null;
+  const fakeAdapter = require('../platform').adapters.fake.createFakeAdapter({
+    createActiveWindowStream: (onChange) => {
+      activeWindowEmitter = onChange;
+      return { stop: () => {} };
+    }
+  });
+  fakeAdapter.capabilities = () => ({ activeWindow: true, media: true, applications: true });
+
+  const app = createServer({
+    configPath,
+    authPath,
+    platformAdapter: fakeAdapter,
+    debounceMs: 0
+  });
+  const server = app.server;
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  const token = app.credentials.pairingToken;
+
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?token=${token}`, {
+    headers: { Origin: `http://127.0.0.1:${port}` }
+  });
+  const nextMsg = createMessageQueue(ws);
+  await new Promise(resolve => ws.on('open', resolve));
+
+  try {
+    const initMsg = await nextMsg();
+    assert.equal(initMsg.type, 'INIT');
+    assert.equal(initMsg.workspaceId, 'developer');
+
+    // Step 1: Pin workspace via WebSocket PIN action
+    ws.send(JSON.stringify({ type: 'PIN' }));
+    const pinUpdate = await nextMsg();
+    assert.equal(pinUpdate.type, 'STATE_UPDATE');
+    assert.equal(pinUpdate.navigation.pinned, true);
+    assert.equal(pinUpdate.navigation.mode, 'manual');
+
+    // Step 2: Switch to M2 Media workspace manually
+    ws.send(JSON.stringify({ type: 'SET_WORKSPACE', workspaceId: 'media' }));
+    const wsUpdate = await nextMsg();
+    assert.equal(wsUpdate.type, 'STATE_UPDATE');
+    assert.equal(wsUpdate.workspaceId, 'media');
+
+    // Step 3: Unpin workspace to restore auto-switching
+    ws.send(JSON.stringify({ type: 'UNPIN' }));
+    const unpinUpdate = await nextMsg();
+    assert.equal(unpinUpdate.type, 'STATE_UPDATE');
+    assert.equal(unpinUpdate.navigation.pinned, false);
+    assert.equal(unpinUpdate.navigation.mode, 'auto');
+
+    // Step 4: Focus shift to code automatically navigates to developer
+    assert.ok(activeWindowEmitter, 'Watcher emitter must be active');
+    activeWindowEmitter('code');
+    const autoUpdate = await nextMsg();
+    assert.equal(autoUpdate.type, 'STATE_UPDATE');
+    assert.equal(autoUpdate.workspaceId, 'developer');
+    assert.equal(autoUpdate.navigation.workspaceId, 'developer');
 
     ws.close();
   } finally {

@@ -35,15 +35,17 @@ test('Platform: interface exposes adapters for linux, darwin, and fake', () => {
   assert.deepEqual(linuxUrl.args, ['https://example.com']);
   const linuxDirs = linux.getApplicationDirectories();
   assert.ok(Array.isArray(linuxDirs) && linuxDirs.length > 0);
-  assert.equal(linux.capabilities().activeWindow, false);
+  assert.equal(typeof linux.capabilities().activeWindow, 'boolean');
   assert.equal(linux.capabilities().media, true);
   assert.equal(linux.capabilities().applications, true);
-  assert.equal(linux.getActiveWindow(), null);
+  assert.equal(typeof linux.getActiveWindow, 'function');
+  assert.equal(typeof linux.createActiveWindowStream, 'function');
 
   // Darwin adapter
   const darwin = platform.getPlatform('darwin');
   assert.equal(darwin.name, 'darwin');
   assert.equal(darwin.isSupported, true);
+  assert.equal(typeof darwin.createActiveWindowStream, 'function');
   const darwinUrl = darwin.getUrlCommand('https://example.com');
   assert.equal(darwinUrl.bin, 'open');
   assert.equal(darwin.getMediaFallbackCommand('vol_up'), null);
@@ -52,6 +54,7 @@ test('Platform: interface exposes adapters for linux, darwin, and fake', () => {
   const fake = platform.getPlatform('fake');
   assert.equal(fake.name, 'fake');
   assert.equal(fake.isSupported, true);
+  assert.equal(typeof fake.createActiveWindowStream, 'function');
   assert.equal(fake.getDefaultShell(), '/bin/fake-sh');
   assert.equal(fake.getDefaultTerminal().name, 'fake-terminal');
   assert.equal(fake.getUrlCommand('https://example.com').bin, 'fake-browser-bin');

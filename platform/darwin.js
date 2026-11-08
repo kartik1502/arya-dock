@@ -60,5 +60,11 @@ module.exports = {
 
   getActiveWindow() {
     return null;
+  },
+
+  createActiveWindowStream() {
+    return {
+      stop() {}
+    };
   }
 };

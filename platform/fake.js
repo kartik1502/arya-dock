@@ -68,6 +68,20 @@ function createFakeAdapter(overrides = {}) {
 
     getActiveWindow() {
       return overrides.activeWindow || { app: 'fake-app', wmClass: 'fake-class' };
+    },
+
+    createActiveWindowStream(onChange, onError) {
+      calls.createActiveWindowStream = calls.createActiveWindowStream || [];
+      calls.createActiveWindowStream.push(Date.now());
+      if (overrides.createActiveWindowStream) {
+        return overrides.createActiveWindowStream(onChange, onError);
+      }
+      return {
+        stop() {
+          calls.stopActiveWindowStream = calls.stopActiveWindowStream || [];
+          calls.stopActiveWindowStream.push(Date.now());
+        }
+      };
     }
   };
 }
