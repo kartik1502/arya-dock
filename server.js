@@ -6,6 +6,7 @@ const {
   loadConfig,
   saveConfigAtomic,
   getDefaultConfigPath,
+  resolveConfigPath,
   DEFAULT_EXAMPLE_PATH,
   migrateLegacyConfigAndAuth
 } = require('./lib/config');
@@ -13,7 +14,8 @@ const {
 const {
   loadOrCreateAuth,
   rotateAuthCredentials,
-  getDefaultAuthPath
+  getDefaultAuthPath,
+  resolvePath
 } = require('./lib/auth');
 
 const {
@@ -52,8 +54,11 @@ function parseCliArgs() {
 
 function createServer(options = {}) {
   const cliArgs = parseCliArgs();
-  const configPath = options.configPath || process.env.CONFIG_PATH || cliArgs.configPath || getDefaultConfigPath();
-  const authPath = options.authPath || process.env.AUTH_PATH || cliArgs.authPath || getDefaultAuthPath();
+  const cliConfig = cliArgs.configPath ? resolveConfigPath(cliArgs.configPath) : null;
+  const cliAuth = cliArgs.authPath ? resolvePath(cliArgs.authPath) : null;
+
+  const configPath = options.configPath || cliConfig || (process.env.CONFIG_PATH ? resolveConfigPath(process.env.CONFIG_PATH) : getDefaultConfigPath());
+  const authPath = options.authPath || cliAuth || (process.env.AUTH_PATH ? resolvePath(process.env.AUTH_PATH) : getDefaultAuthPath());
   const publicDir = options.publicDir || PUBLIC_DIR;
 
   // Run first boot migration if legacy config/auth exists and target does not exist
@@ -107,7 +112,7 @@ function createServer(options = {}) {
     }, debounceMs);
   }
 
-  // Shutdown flush hooks (SIGINT, SIGTERM)
+  // Shutdown flush hooks (SIGINT, SIGTERM, beforeExit)
   const shouldRegisterSignals = options.registerSignalHandlers ?? (require.main === module);
   const onSigint = () => {
     flushConfigSync();
@@ -121,10 +126,14 @@ function createServer(options = {}) {
       process.exit(0);
     }
   };
+  const onBeforeExit = () => {
+    flushConfigSync();
+  };
 
   if (shouldRegisterSignals) {
     process.on('SIGINT', onSigint);
     process.on('SIGTERM', onSigterm);
+    process.on('beforeExit', onBeforeExit);
   }
 
   function getActiveProfile() {
@@ -177,11 +186,16 @@ function createServer(options = {}) {
       if (shouldRegisterSignals) {
         process.removeListener('SIGINT', onSigint);
         process.removeListener('SIGTERM', onSigterm);
+        process.removeListener('beforeExit', onBeforeExit);
       }
       flushConfigSync();
       wsManager.close();
       wsManager.wss.close(() => {
-        server.close(cb);
+        if (server.listening) {
+          server.close(cb);
+        } else if (typeof cb === 'function') {
+          process.nextTick(cb);
+        }
       });
     }
   };
@@ -190,8 +204,10 @@ function createServer(options = {}) {
 // Start standalone server when executed directly
 if (require.main === module) {
   const cliArgs = parseCliArgs();
-  const authPath = process.env.AUTH_PATH || cliArgs.authPath || getDefaultAuthPath();
-  const configPath = process.env.CONFIG_PATH || cliArgs.configPath || getDefaultConfigPath();
+  const cliConfig = cliArgs.configPath ? resolveConfigPath(cliArgs.configPath) : null;
+  const cliAuth = cliArgs.authPath ? resolvePath(cliArgs.authPath) : null;
+  const authPath = cliAuth || (process.env.AUTH_PATH ? resolvePath(process.env.AUTH_PATH) : getDefaultAuthPath());
+  const configPath = cliConfig || (process.env.CONFIG_PATH ? resolveConfigPath(process.env.CONFIG_PATH) : getDefaultConfigPath());
 
   if (process.argv.includes('--rotate-credentials')) {
     const rotated = rotateAuthCredentials(authPath);

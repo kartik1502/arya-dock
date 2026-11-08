@@ -83,7 +83,12 @@ test('Platform: selecting an unsupported platform yields a clear startup message
 
   // Starting server with an unsupported platform outputs clear message and runs without crash
   const serverWarnings = [];
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arya-platform-unsupported-'));
+  const configPath = path.join(tmpDir, 'profiles.json');
+  const authPath = path.join(tmpDir, 'auth.json');
   const serverInstance = createServer({
+    configPath,
+    authPath,
     platform: 'unsupported-os',
     logger: (msg) => serverWarnings.push(msg),
     silent: false
@@ -96,6 +101,7 @@ test('Platform: selecting an unsupported platform yields a clear startup message
   } finally {
     serverInstance.close();
     platform.resetPlatform();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
 
@@ -106,8 +112,14 @@ test('Platform: server runs with a fake adapter without real OS access', () => {
     applicationDirectories: ['/mock/apps']
   });
 
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arya-platform-fake-'));
+  const configPath = path.join(tmpDir, 'profiles.json');
+  const authPath = path.join(tmpDir, 'auth.json');
   const serverInstance = createServer({
-    platformAdapter: fakeAdapter
+    configPath,
+    authPath,
+    platformAdapter: fakeAdapter,
+    silent: true
   });
 
   try {
@@ -134,6 +146,7 @@ test('Platform: server runs with a fake adapter without real OS access', () => {
     serverInstance.close();
     // Reset active platform back to default
     platform.resetPlatform();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
 

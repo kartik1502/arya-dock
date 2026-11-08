@@ -870,3 +870,129 @@ test('Persistence: Debounced saves batch multiple rapid mutations and flush on s
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
+
+test('Config & Auth: CLI flag precedence over environment variables (--config, --auth, ~ expansion)', async () => {
+  const origEnv = { ...process.env };
+  const origArgv = [...process.argv];
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arya-cliprecedence-test-'));
+
+  const cliConfig = path.join(tmpDir, 'cli-profiles.json');
+  const cliAuth = path.join(tmpDir, 'cli-auth.json');
+  const envConfig = path.join(tmpDir, 'env-profiles.json');
+  const envAuth = path.join(tmpDir, 'env-auth.json');
+
+  const cliProfileData = {
+    schemaVersion: 1,
+    activeProfile: 'cli_winner',
+    profiles: { cli_winner: { name: 'CLI Winner', pages: [{ buttons: [] }] } }
+  };
+  const envProfileData = {
+    schemaVersion: 1,
+    activeProfile: 'env_loser',
+    profiles: { env_loser: { name: 'ENV Loser', pages: [{ buttons: [] }] } }
+  };
+
+  fs.writeFileSync(cliConfig, JSON.stringify(cliProfileData, null, 2));
+  fs.writeFileSync(envConfig, JSON.stringify(envProfileData, null, 2));
+  fs.writeFileSync(cliAuth, JSON.stringify({ pairingToken: 'cli_tok_123', editorKey: 'cli_key_123' }, null, 2), { mode: 0o600 });
+  fs.writeFileSync(envAuth, JSON.stringify({ pairingToken: 'env_tok_456', editorKey: 'env_key_456' }, null, 2), { mode: 0o600 });
+
+  try {
+    process.env.CONFIG_PATH = envConfig;
+    process.env.AUTH_PATH = envAuth;
+    process.argv = ['node', 'server.js', '--config', cliConfig, '--auth', cliAuth];
+
+    const instance = createServer({ silent: true, registerSignalHandlers: false });
+    try {
+      assert.equal(instance.getConfig().activeProfile, 'cli_winner', 'CLI flag --config must take precedence over CONFIG_PATH');
+      assert.equal(instance.credentials.pairingToken, 'cli_tok_123', 'CLI flag --auth must take precedence over AUTH_PATH');
+    } finally {
+      await new Promise(resolve => instance.close(resolve));
+    }
+  } finally {
+    process.env = origEnv;
+    process.argv = origArgv;
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('Config & Auth: migrateLegacyConfigAndAuth respects AUTH_PATH environment variable', () => {
+  const origEnv = { ...process.env };
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arya-auth-env-test-'));
+
+  const legacyConfig = path.join(tmpDir, 'legacy-profiles.json');
+  const legacyAuth = path.join(tmpDir, 'legacy-auth.json');
+  const targetConfig = path.join(tmpDir, 'target-profiles.json');
+  const targetAuth = path.join(tmpDir, 'custom-env-auth.json');
+
+  fs.writeFileSync(legacyConfig, JSON.stringify({ schemaVersion: 1, profiles: { test: { name: 'T', pages: [] } } }));
+  fs.writeFileSync(legacyAuth, JSON.stringify({ pairingToken: 'legacy_t', editorKey: 'legacy_e' }), { mode: 0o644 });
+
+  try {
+    process.env.AUTH_PATH = targetAuth;
+    delete process.env.CONFIG_PATH;
+
+    const res = migrateLegacyConfigAndAuth({
+      configPath: targetConfig,
+      legacyConfigPath: legacyConfig,
+      legacyAuthPath: legacyAuth,
+      silent: true
+    });
+
+    assert.equal(res.migratedConfig, true);
+    assert.equal(res.migratedAuth, true);
+    assert.equal(fs.existsSync(targetAuth), true, 'Target auth must be migrated to configured AUTH_PATH');
+
+    const authContent = JSON.parse(fs.readFileSync(targetAuth, 'utf-8'));
+    assert.equal(authContent.pairingToken, 'legacy_t');
+  } finally {
+    process.env = origEnv;
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('Persistence: Backup timestamp parsing, zero and negative maxBackups, and recovery diagnostics in _warnings', () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arya-backup-edge-test-'));
+  const configPath = path.join(tmpDir, 'profiles.json');
+
+  try {
+    // 1. Zero maxBackups does not retain timestamped backups
+    const sampleConfig = {
+      schemaVersion: 1,
+      activeProfile: 'active',
+      profiles: { active: { name: 'A', pages: [{ buttons: [] }] } }
+    };
+    saveConfigAtomic(configPath, sampleConfig, { maxBackups: 0, createBackup: false });
+    saveConfigAtomic(configPath, { ...sampleConfig, v: 2 }, { maxBackups: 0 });
+    const zeroBackups = getBackups(configPath).filter(b => b.filename.startsWith('profiles.json.bak.'));
+    assert.equal(zeroBackups.length, 0);
+
+    // 2. Negative maxBackups is defensively bounded to 0
+    saveConfigAtomic(configPath, { ...sampleConfig, v: 3 }, { maxBackups: 2 });
+    assert.ok(getBackups(configPath).length > 0);
+    const prunedNegative = rotateBackups(configPath, -1);
+    assert.ok(Array.isArray(prunedNegative));
+
+    // 3. Auto-recovery records warning in config._warnings
+    saveConfigAtomic(configPath, sampleConfig, { maxBackups: 3 });
+    fs.writeFileSync(configPath, 'TRUNCATED_BROKEN_JSON');
+
+    const recovered = loadConfig(configPath, DEFAULT_EXAMPLE_PATH, { silent: true });
+    assert.ok(Array.isArray(recovered._warnings));
+    assert.ok(recovered._warnings.some(w => /corrupted or truncated/i.test(w) && /Auto-recovering/i.test(w)),
+      'Auto-recovery warning must be recorded in config._warnings');
+
+    // 4. Candidate backup with profiles as an Array is rejected
+    const corruptedBackupPath = path.join(tmpDir, `profiles.json.bak.${Date.now() + 10000}-99`);
+    fs.writeFileSync(corruptedBackupPath, JSON.stringify({
+      schemaVersion: 1,
+      activeProfile: 'invalid_array',
+      profiles: ['not-an-object']
+    }));
+    fs.writeFileSync(configPath, 'BROKEN');
+    const recoveredAfterInvalidBackup = loadConfig(configPath, DEFAULT_EXAMPLE_PATH, { silent: true });
+    assert.equal(recoveredAfterInvalidBackup.activeProfile, 'active', 'Must skip backup where profiles is an Array');
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
