@@ -927,20 +927,10 @@ function updateDynamicGridSizing(totalCount) {
   const isLandscape = window.innerWidth >= window.innerHeight;
   const { cols, rows } = getOptimalGridDimensions(totalCount, isLandscape);
 
-  const bezelExtraHeight = 110; // Top status bar (~28px) + paddle console (~46px) + gaps/padding (~36px)
-  const maxAvailHeight = Math.max(260, window.innerHeight - 170);
-  const maxAvailWidth = Math.max(260, window.innerWidth - 32);
-
-  const maxGridHeight = maxAvailHeight - bezelExtraHeight;
-  const widthByHeight = maxGridHeight * (cols / rows);
-  const width = Math.min(maxAvailWidth, widthByHeight, 820);
-  const gridHeight = width * (rows / cols);
-  const totalBezelHeight = gridHeight + bezelExtraHeight;
-
   document.documentElement.style.setProperty('--grid-cols', cols);
   document.documentElement.style.setProperty('--grid-rows', rows);
-  document.documentElement.style.setProperty('--bezel-width', `${Math.round(width)}px`);
-  document.documentElement.style.setProperty('--bezel-height', `${Math.round(totalBezelHeight)}px`);
+  document.documentElement.style.setProperty('--bezel-width', '100%');
+  document.documentElement.style.setProperty('--bezel-height', '100%');
   document.documentElement.style.setProperty('--bezel-ratio', `${cols} / ${rows}`);
 }
 

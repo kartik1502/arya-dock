@@ -547,30 +547,32 @@ body {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: clamp(8px, 1.8vmin, 18px);
+  align-items: stretch;
+  justify-content: stretch;
+  padding: clamp(6px, 1.2vmin, 12px);
   background: radial-gradient(ellipse at 50% 35%, rgba(15, 23, 42, 0.6) 0%, rgba(4, 6, 11, 0) 80%);
-  gap: clamp(8px, 1.4vmin, 14px);
+  gap: clamp(6px, 1vmin, 10px);
   overflow: hidden;
   width: 100%;
+  height: 100%;
 }
 
 /* Keypad Bezel: Tactile hardware-free console chassis */
 .m-keypad-bezel {
-  width: var(--bezel-width, min(calc(100vw - 24px), 480px));
-  height: var(--bezel-height, auto);
-  max-width: 860px;
-  max-height: calc(100dvh - 140px);
+  width: 100%;
+  height: 100%;
+  flex: 1;
+  min-height: 0;
+  max-width: none;
+  max-height: none;
   background: var(--m-deck-grad);
   border: 2px solid var(--m-hairline);
-  border-radius: clamp(18px, 2.8vmin, 28px);
-  padding: clamp(12px, 2vmin, 20px);
+  border-radius: clamp(12px, 1.8vmin, 20px);
+  padding: clamp(8px, 1.4vmin, 16px);
   box-shadow: 0 24px 50px -10px rgba(0, 0, 0, 0.8), inset 0 0 0 1px var(--m-hairline-strong), inset 0 1px 0 rgba(255, 255, 255, 0.12);
   display: flex;
   flex-direction: column;
-  gap: clamp(8px, 1.4vmin, 14px);
-  transition: width 0.25s ease, height 0.25s ease;
+  gap: clamp(6px, 1.2vmin, 10px);
   box-sizing: border-box;
 }
 
@@ -615,9 +617,9 @@ body {
 
 .m-keypad-grid {
   display: grid;
-  grid-template-columns: repeat(var(--grid-cols, 3), 1fr);
-  grid-template-rows: repeat(var(--grid-rows, 3), 1fr);
-  gap: clamp(8px, 1.4vmin, 14px);
+  grid-template-columns: repeat(var(--grid-cols, 3), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--grid-rows, 3), minmax(0, 1fr));
+  gap: clamp(6px, 1.2vmin, 12px);
   width: 100%;
   height: 100%;
   flex: 1;
@@ -635,7 +637,7 @@ body {
   background-color: var(--key-accent, #1c69d4);
   background-image: var(--m-key-glass);
   border: 1.5px solid color-mix(in srgb, var(--key-accent, #1c69d4) 60%, #ffffff 40%);
-  border-radius: clamp(10px, 2.8cqw, 15px);
+  border-radius: clamp(8px, 2.2cqw, 15px);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -644,9 +646,10 @@ body {
   cursor: pointer;
   transition: transform 0.1s cubic-bezier(0.2, 0, 0, 1), filter 0.15s ease, box-shadow 0.15s ease;
   overflow: hidden;
+  width: 100%;
+  height: 100%;
   min-width: 0;
   min-height: 0;
-  aspect-ratio: 1 / 1;
   box-shadow: 0 8px 18px -4px rgba(0, 0, 0, 0.7), inset 0 1px 1px 0 rgba(255, 255, 255, 0.35), inset 0 -3px 4px 0 rgba(0, 0, 0, 0.38);
 }
 
