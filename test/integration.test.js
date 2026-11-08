@@ -237,14 +237,26 @@ test('Integration: WebSocket authentication, Origin check, operator and editor r
     }));
     await getNextMessage();
 
-    // DELETE_BUTTON when only 1 button remains must be rejected
+    // DELETE_BUTTON when 1 button remains on Page 1 (and Page 2 exists) prunes Page 1, renumbers Page 2 to Page 1, and stays on pageIndex 0
     ws.send(JSON.stringify({
       type: 'DELETE_BUTTON',
       buttonId: countSuccess.buttons[0].id
     }));
-    const delReject = await getNextMessage();
-    assert.equal(delReject.type, 'ERROR');
-    assert.ok(delReject.message.includes('Cannot delete the last remaining button'));
+    const delSuccess = await getNextMessage();
+    assert.equal(delSuccess.type, 'STATE_UPDATE');
+    assert.equal(delSuccess.totalPages, 1);
+    assert.equal(delSuccess.pageNumber, 1);
+    assert.equal(delSuccess.navigation.pageIndex, 0);
+    assert.equal(delSuccess.buttons.length, 5);
+
+    // Deleting a non-existent button returns ERROR
+    ws.send(JSON.stringify({
+      type: 'DELETE_BUTTON',
+      buttonId: 999
+    }));
+    const notFoundError = await getNextMessage();
+    assert.equal(notFoundError.type, 'ERROR');
+    assert.equal(notFoundError.message, 'Button not found');
 
     ws.close();
   } finally {

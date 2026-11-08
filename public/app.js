@@ -1261,7 +1261,7 @@ if (btnRemoveTile) {
   btnRemoveTile.addEventListener('click', () => {
     if (!canEdit) return;
     triggerHaptic(20);
-    if (currentButtons.length > 1 && ws && ws.readyState === WebSocket.OPEN) {
+    if (currentButtons.length > 0 && ws && ws.readyState === WebSocket.OPEN) {
       const lastBtn = currentButtons[currentButtons.length - 1];
       const isConfigured = Boolean(
         (lastBtn.command && lastBtn.command.trim()) ||
