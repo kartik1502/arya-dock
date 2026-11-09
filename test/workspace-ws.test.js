@@ -196,6 +196,18 @@ test('Workspace & Navigation WebSocket Integration: Operator local navigation & 
     // Server disk/default workspace was NOT mutated by operator navigation
     assert.notEqual(app.getConfig().activeWorkspaceId, 'media');
 
+    // Operator attempting CREATE_WORKSPACE must be rejected
+    ws.send(JSON.stringify({ type: 'CREATE_WORKSPACE', name: 'Hacker Deck' }));
+    const errorCreate = await nextMsg();
+    assert.equal(errorCreate.type, 'ERROR');
+    assert.equal(errorCreate.code, 'EDITOR_REQUIRED');
+
+    // Operator attempting UPDATE_WORKSPACE must be rejected
+    ws.send(JSON.stringify({ type: 'UPDATE_WORKSPACE', workspaceId: 'developer', name: 'Pwned' }));
+    const errorUpdate = await nextMsg();
+    assert.equal(errorUpdate.type, 'ERROR');
+    assert.equal(errorUpdate.code, 'EDITOR_REQUIRED');
+
     // Operator attempting destructive WORKSPACE_DELETED must be rejected
     ws.send(JSON.stringify({ type: 'WORKSPACE_DELETED', workspaceId: 'media' }));
     const errorDel = await nextMsg();
@@ -224,8 +236,8 @@ test('Workspace & Navigation WebSocket Integration: Operator local navigation & 
   }
 });
 
-test('Workspace & Navigation WebSocket Integration: WORKSPACE_DELETED by editor removes workspace', async () => {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arya-ws-del-integ-'));
+test('Workspace & Navigation WebSocket Integration: CREATE_WORKSPACE, UPDATE_WORKSPACE, and WORKSPACE_DELETED lifecycle', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arya-ws-lifecycle-integ-'));
   const configPath = path.join(tmpDir, 'profiles.json');
   const authPath = path.join(tmpDir, 'auth.json');
 
@@ -244,19 +256,77 @@ test('Workspace & Navigation WebSocket Integration: WORKSPACE_DELETED by editor 
   try {
     const init = await nextMsg(); // INIT
     assert.equal(init.workspaces.length, 2);
+    assert.deepEqual(init.workspaces.map(w => w.id), ['developer', 'media']);
 
-    // Delete media workspace
-    ws.send(JSON.stringify({ type: 'WORKSPACE_DELETED', workspaceId: 'media' }));
-    const update = await nextMsg();
-    assert.equal(update.type, 'STATE_UPDATE');
-    assert.equal(update.workspaces.length, 1);
-    assert.equal(update.workspaces[0].id, 'developer');
-
-    // Attempting to delete the last remaining workspace must be rejected
+    // 1. Built-in workspaces cannot be deleted
     ws.send(JSON.stringify({ type: 'WORKSPACE_DELETED', workspaceId: 'developer' }));
-    const errorMsg = await nextMsg();
-    assert.equal(errorMsg.type, 'ERROR');
-    assert.match(errorMsg.message, /Cannot delete the last remaining workspace/);
+    const errDelBuiltin1 = await nextMsg();
+    assert.equal(errDelBuiltin1.type, 'ERROR');
+    assert.equal(errDelBuiltin1.code, 'BUILTIN_IMMUTABLE');
+
+    ws.send(JSON.stringify({ type: 'WORKSPACE_DELETED', workspaceId: 'media' }));
+    const errDelBuiltin2 = await nextMsg();
+    assert.equal(errDelBuiltin2.type, 'ERROR');
+    assert.equal(errDelBuiltin2.code, 'BUILTIN_IMMUTABLE');
+
+    // 2. CREATE_WORKSPACE creates user workspace, safe slug, and syncs host navigation
+    ws.send(JSON.stringify({
+      type: 'CREATE_WORKSPACE',
+      name: 'DevOps Cockpit',
+      icon: '🚀',
+      matchApps: ['kubectl', 'docker', 'k9s']
+    }));
+    const updateCreated = await nextMsg();
+    assert.equal(updateCreated.type, 'STATE_UPDATE');
+    assert.equal(updateCreated.workspaces.length, 3);
+    const createdWs = updateCreated.workspaces.find(w => w.name === 'DevOps Cockpit');
+    assert.ok(createdWs, 'New workspace must be projected');
+    assert.equal(createdWs.id, 'ws-devops-cockpit');
+    assert.equal(createdWs.icon, '🚀');
+    assert.equal(createdWs.origin, 'user');
+    assert.deepEqual(createdWs.match.apps, ['kubectl', 'docker', 'k9s']);
+    assert.equal(updateCreated.workspaceId, 'ws-devops-cockpit');
+    assert.equal(updateCreated.navigation.workspaceId, 'ws-devops-cockpit');
+
+    // Verify disk persistence immediately synchronized
+    const savedConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    assert.ok(savedConfig.workspaces.some(w => w.id === 'ws-devops-cockpit'));
+    assert.ok(savedConfig.profiles['ws-devops-cockpit'], 'Profile dictionary must be synchronized');
+    assert.equal(savedConfig.activeWorkspaceId, 'ws-devops-cockpit');
+
+    // 3. UPDATE_WORKSPACE updates name, icon, and match apps
+    ws.send(JSON.stringify({
+      type: 'UPDATE_WORKSPACE',
+      workspaceId: 'ws-devops-cockpit',
+      name: 'DevOps & Cloud',
+      icon: '☁️',
+      matchApps: ['kubectl', 'helm']
+    }));
+    const updatePatched = await nextMsg();
+    assert.equal(updatePatched.type, 'STATE_UPDATE');
+    const patchedWs = updatePatched.workspaces.find(w => w.id === 'ws-devops-cockpit');
+    assert.equal(patchedWs.name, 'DevOps & Cloud');
+    assert.equal(patchedWs.icon, '☁️');
+    assert.deepEqual(patchedWs.match.apps, ['kubectl', 'helm']);
+
+    // 4. WORKSPACE_DELETED on user workspace removes it, cleans profiles, and falls back
+    ws.send(JSON.stringify({ type: 'WORKSPACE_DELETED', workspaceId: 'ws-devops-cockpit' }));
+    const updateDeleted = await nextMsg();
+    assert.equal(updateDeleted.type, 'STATE_UPDATE');
+    assert.equal(updateDeleted.workspaces.length, 2);
+    assert.ok(!updateDeleted.workspaces.some(w => w.id === 'ws-devops-cockpit'));
+    assert.equal(updateDeleted.workspaceId, 'developer');
+
+    // Verify disk sync cleaned up profile
+    const savedConfigAfterDel = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    assert.ok(!savedConfigAfterDel.profiles['ws-devops-cockpit']);
+    assert.equal(savedConfigAfterDel.activeWorkspaceId, 'developer');
+
+    // 5. Attempting to delete non-existent workspace returns WORKSPACE_NOT_FOUND
+    ws.send(JSON.stringify({ type: 'WORKSPACE_DELETED', workspaceId: 'ws-nonexistent' }));
+    const errNotFound = await nextMsg();
+    assert.equal(errNotFound.type, 'ERROR');
+    assert.equal(errNotFound.code, 'WORKSPACE_NOT_FOUND');
 
     ws.close();
   } finally {
@@ -310,6 +380,12 @@ test('Workspace & Navigation: Prototype pollution injection rejection on TOGGLE_
       const errDel = await nextMsg();
       assert.equal(errDel.type, 'ERROR');
       assert.match(errDel.message, /Invalid workspace id/);
+
+      // 5. UPDATE_WORKSPACE injection attempt
+      ws.send(JSON.stringify({ type: 'UPDATE_WORKSPACE', workspaceId: evilKey, name: 'Evil' }));
+      const errUpd = await nextMsg();
+      assert.equal(errUpd.type, 'ERROR');
+      assert.equal(errUpd.code, 'INVALID_WORKSPACE_ID');
     }
 
     ws.close();

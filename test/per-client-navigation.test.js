@@ -281,18 +281,24 @@ test('Per-Client Navigation: WORKSPACE_DELETED fan-out transitions affected view
     await nextMsgA();
     await nextMsgB();
 
-    // Client A navigates to media
-    wsA.send(JSON.stringify({ type: 'SET_WORKSPACE', workspaceId: 'media' }));
+    // Editor creates a temporary user workspace
+    wsB.send(JSON.stringify({ type: 'CREATE_WORKSPACE', name: 'Temporary Workspace' }));
+    await nextMsgA(); // receive state update on client A
+    const createB = await nextMsgB(); // receive state update on client B
+    const createdId = createB.workspaceId;
+
+    // Client A navigates to the temporary workspace
+    wsA.send(JSON.stringify({ type: 'SET_WORKSPACE', workspaceId: createdId }));
     await nextMsgA();
 
-    // Editor deletes workspace 'media'
-    wsB.send(JSON.stringify({ type: 'WORKSPACE_DELETED', workspaceId: 'media' }));
+    // Editor deletes the temporary user workspace
+    wsB.send(JSON.stringify({ type: 'WORKSPACE_DELETED', workspaceId: createdId }));
 
     // Both clients receive state update
     const updateA = await nextMsgA();
     const updateB = await nextMsgB();
 
-    // Client A was viewing media which got deleted -> migrated to fallback workspace 'developer'
+    // Client A was viewing temporary workspace which got deleted -> migrated to fallback workspace 'developer'
     assert.equal(updateA.type, 'STATE_UPDATE');
     assert.equal(updateA.workspaceId, 'developer');
 
@@ -300,9 +306,9 @@ test('Per-Client Navigation: WORKSPACE_DELETED fan-out transitions affected view
     assert.equal(updateB.type, 'STATE_UPDATE');
     assert.equal(updateB.workspaceId, 'developer');
 
-    // Media workspace is no longer in workspaces list for either client
-    assert.ok(!updateA.workspaces.some(w => w.id === 'media'));
-    assert.ok(!updateB.workspaces.some(w => w.id === 'media'));
+    // Temporary workspace is no longer in workspaces list for either client
+    assert.ok(!updateA.workspaces.some(w => w.id === createdId));
+    assert.ok(!updateB.workspaces.some(w => w.id === createdId));
 
     wsA.close();
     wsB.close();

@@ -115,7 +115,7 @@ body {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
   gap: 12px;
   flex-shrink: 0;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   position: relative;
   z-index: 10;
 }
@@ -204,7 +204,7 @@ body {
   flex-shrink: 0;
 }
 
-/* M Drive Mode Selector (M1 / M2 Buttons) */
+/* M Drive Mode Selector & Dynamic Scalable Switcher (E3-1 & E6-3) */
 .m-mode-selector {
   display: flex;
   gap: 6px;
@@ -212,6 +212,17 @@ body {
   padding: 4px;
   border: 1.5px solid var(--m-hairline-strong);
   border-radius: var(--m-radius-md);
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  white-space: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.m-mode-selector::-webkit-scrollbar {
+  display: none;
 }
 
 .m-mode-btn {
@@ -225,6 +236,29 @@ body {
   align-items: center;
   gap: 8px;
   transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+#btnAddWorkspace,
+.m-add-ws-btn {
+  background: rgba(30, 41, 59, 0.4);
+  border: 1px dashed var(--m-hairline-strong);
+  border-radius: var(--m-radius-sm);
+  color: var(--m-cyan);
+  padding: 6px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+#btnAddWorkspace:hover,
+.m-add-ws-btn:hover {
+  background: rgba(14, 165, 233, 0.15);
+  border-color: var(--m-cyan);
+  color: var(--m-primary);
 }
 
 .m-mode-label {
@@ -1567,4 +1601,205 @@ body {
   line-height: 1.4;
   color: var(--m-body);
   margin: 0;
+}
+
+/* Workspace Management & CRUD Form (E6-2) */
+.m-ws-manage-section,
+.m-ws-form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--m-surface-card);
+  border: 1px solid var(--m-hairline);
+  border-radius: var(--m-radius-md);
+  padding: 14px;
+}
+
+.m-ws-section-header h4 {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--m-primary);
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.m-ws-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.m-ws-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--m-hairline);
+  border-radius: var(--m-radius-sm);
+  gap: 10px;
+}
+
+.m-ws-item-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.m-ws-item-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.m-ws-item-details {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.m-ws-item-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--m-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.m-ws-item-meta {
+  font-size: 10px;
+  color: var(--m-body-dim, #64748b);
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.m-ws-badge {
+  font-size: 9px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.m-ws-badge.builtin {
+  background: rgba(99, 102, 241, 0.2);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.m-ws-badge.user {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.m-ws-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.m-ws-action-btn {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid var(--m-hairline);
+  border-radius: var(--m-radius-sm);
+  color: var(--m-body);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.m-ws-action-btn:hover:not(:disabled) {
+  background: var(--m-surface-elevated);
+  color: var(--m-primary);
+}
+
+.m-ws-action-btn.delete:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.m-ws-action-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.m-error-banner {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #fca5a5;
+  border-radius: var(--m-radius-sm);
+  padding: 6px 10px;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+/* Empty Keypad State (E6-2) */
+.m-keypad-empty-state {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  padding: 24px 16px;
+  background: rgba(15, 23, 42, 0.4);
+  border: 1.5px dashed var(--m-hairline-strong);
+  border-radius: var(--m-radius-md);
+  text-align: center;
+  gap: 12px;
+}
+
+.m-keypad-empty-icon {
+  font-size: 36px;
+  opacity: 0.8;
+}
+
+.m-keypad-empty-title {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: var(--m-primary);
+  text-transform: uppercase;
+}
+
+.m-keypad-empty-desc {
+  font-size: 11px;
+  color: var(--m-body-dim, #64748b);
+  max-width: 320px;
+  line-height: 1.4;
+}
+
+.m-keypad-empty-btn {
+  margin-top: 4px;
+  padding: 8px 16px;
+  background: var(--m-surface-card);
+  border: 1px solid var(--m-cyan);
+  border-radius: var(--m-radius-sm);
+  color: var(--m-cyan);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.15s ease;
+}
+
+.m-keypad-empty-btn:hover {
+  background: rgba(14, 165, 233, 0.2);
+  color: #fff;
+  box-shadow: 0 0 12px rgba(14, 165, 233, 0.4);
 }

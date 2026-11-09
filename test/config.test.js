@@ -19,6 +19,8 @@ const {
   resolveWorkingDir,
   validateButton,
   validateWorkspace,
+  countGraphemes,
+  generateSafeWorkspaceId,
   migrateV0ToV1,
   migrateV1ToV2,
   migrateConfig,
@@ -486,6 +488,53 @@ test('Schema: validateWorkspace schema validation, repair, and rejection', () =>
   // Match apps validation (non-array apps rejection in repair: false)
   const badMatchApps = validateWorkspace({ id: 'test', name: 'Test', pages: [{ buttons: [] }], match: { apps: 'bad' } }, { repair: false });
   assert.equal(badMatchApps.valid, false);
+});
+
+test('Config: countGraphemes accurately counts Unicode grapheme clusters and emojis', () => {
+  assert.equal(countGraphemes(''), 0);
+  assert.equal(countGraphemes(null), 0);
+  assert.equal(countGraphemes(undefined), 0);
+  assert.equal(countGraphemes(123), 0);
+  assert.equal(countGraphemes('A'), 1);
+  assert.equal(countGraphemes('Hello'), 5);
+  assert.equal(countGraphemes('⚡'), 1);
+  assert.equal(countGraphemes('🚀'), 1);
+  assert.equal(countGraphemes('💻🎵'), 2);
+  // Compound emojis with ZWJ and skin-tone modifiers
+  assert.equal(countGraphemes('🧑‍💻'), 1);
+  assert.equal(countGraphemes('👨‍👩‍👧‍👦'), 1);
+  assert.equal(countGraphemes('👋🏽'), 1);
+  assert.equal(countGraphemes('⚡🚀🔥'), 3);
+});
+
+test('Config: generateSafeWorkspaceId creates safe slugs and avoids collisions and prototype pollution', () => {
+  // Simple slugification
+  assert.equal(generateSafeWorkspaceId('DevOps Cockpit'), 'ws-devops-cockpit');
+  assert.equal(generateSafeWorkspaceId('Audio & Video Production!'), 'ws-audio-video-production');
+
+  // Accented characters stripped via NFKD
+  assert.equal(generateSafeWorkspaceId('Café Crème Déck'), 'ws-cafe-creme-deck');
+
+  // Empty or non-alphanumeric input falls back to ws-deck
+  assert.equal(generateSafeWorkspaceId(''), 'ws-deck');
+  assert.equal(generateSafeWorkspaceId('   '), 'ws-deck');
+  assert.equal(generateSafeWorkspaceId('!@#$%^&*()'), 'ws-deck');
+  assert.equal(generateSafeWorkspaceId(null), 'ws-deck');
+
+  // Collision handling with existing workspaces
+  const existingWorkspaces = [
+    { id: 'ws-devops', name: 'DevOps' },
+    { id: 'ws-devops-2', name: 'DevOps 2' },
+    'ws-deck'
+  ];
+  assert.equal(generateSafeWorkspaceId('DevOps', existingWorkspaces), 'ws-devops-3');
+  assert.equal(generateSafeWorkspaceId('', existingWorkspaces), 'ws-deck-2');
+
+  // Prototype pollution keys safe handling
+  assert.equal(generateSafeWorkspaceId('toString'), 'ws-tostring');
+  assert.equal(generateSafeWorkspaceId('valueOf'), 'ws-valueof');
+  assert.equal(generateSafeWorkspaceId('__proto__'), 'ws-proto');
+  assert.equal(generateSafeWorkspaceId('constructor'), 'ws-constructor');
 });
 
 test('Schema: saveConfigAtomic cleans up stale deleted profiles', () => {

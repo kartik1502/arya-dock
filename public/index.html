@@ -107,15 +107,21 @@
         </div>
       </div>
 
-      <!-- M Drive Workspace Selector (E3-1) -->
-      <div class="m-mode-selector" id="workspaceSelector">
-        <button id="btnModeM1" class="m-mode-btn active" data-workspace="developer" data-profile="developer">
-          <span class="m-mode-label">M1</span>
-          <span class="m-mode-sub">DEV COCKPIT</span>
-        </button>
-        <button id="btnModeM2" class="m-mode-btn" data-workspace="media" data-profile="media">
-          <span class="m-mode-label">M2</span>
-          <span class="m-mode-sub">MEDIA & TELEMETRY</span>
+      <!-- M Drive Workspace Selector (E3-1 & E6-3) -->
+      <div class="m-mode-selector-wrap" style="display: flex; align-items: center; gap: 6px; flex: 1 1 0; min-width: 0;">
+        <div class="m-mode-selector" id="workspaceSelector" role="tablist">
+          <button id="btnModeM1" class="m-mode-btn active" data-workspace="developer" data-profile="developer">
+            <span class="m-mode-label">M1</span>
+            <span class="m-mode-sub">DEV COCKPIT</span>
+          </button>
+          <button id="btnModeM2" class="m-mode-btn" data-workspace="media" data-profile="media">
+            <span class="m-mode-label">M2</span>
+            <span class="m-mode-sub">MEDIA & TELEMETRY</span>
+          </button>
+        </div>
+        <button id="btnAddWorkspace" class="m-mode-btn m-add-ws-btn" title="Add New Workspace" aria-label="Add Workspace">
+          <span class="m-mode-label">+</span>
+          <span class="m-mode-sub">NEW</span>
         </button>
       </div>
 
@@ -422,7 +428,7 @@
 
   <!-- WORKSPACE SETTINGS MODAL -->
   <div id="workspaceSettingsModal" class="m-modal-backdrop hidden">
-    <div class="m-modal-card" style="max-width: 480px;">
+    <div class="m-modal-card" style="max-width: 540px; max-height: 90vh; display: flex; flex-direction: column;">
       <div class="m-modal-header">
         <div class="m-modal-title-wrap">
           <div class="m-tricolor-mini"><span></span><span></span><span></span></div>
@@ -430,7 +436,46 @@
         </div>
         <button id="btnSettingsModalClose" class="m-modal-close-btn">&times;</button>
       </div>
-      <div class="m-modal-body">
+      <div class="m-modal-body" style="overflow-y: auto; display: flex; flex-direction: column; gap: 16px;">
+        <!-- Workspaces Management Section -->
+        <div class="m-ws-manage-section">
+          <div class="m-ws-section-header">
+            <h4>ACTIVE WORKSPACES</h4>
+          </div>
+          <div id="workspaceListContainer" class="m-ws-list">
+            <!-- Dynamically populated rows -->
+          </div>
+        </div>
+
+        <!-- Add / Edit Workspace Form -->
+        <div class="m-ws-form-section">
+          <div class="m-ws-section-header">
+            <h4 id="wsFormTitle">ADD WORKSPACE</h4>
+          </div>
+          <input type="hidden" id="inputWsId">
+          <div class="m-field-group">
+            <label for="inputWsName">WORKSPACE NAME</label>
+            <input type="text" id="inputWsName" placeholder="e.g. DevOps Cockpit" maxlength="64" autocomplete="off">
+          </div>
+          <div class="m-field-row" style="display: flex; gap: 10px;">
+            <div class="m-field-group" style="width: 80px; flex-shrink: 0;">
+              <label for="inputWsIcon">ICON</label>
+              <input type="text" id="inputWsIcon" placeholder="⚡" maxlength="4" value="⚡" style="text-align: center;">
+            </div>
+            <div class="m-field-group" style="flex: 1;">
+              <label for="inputWsMatchApps">AUTO-MATCH APPS (COMMA-SEPARATED)</label>
+              <input type="text" id="inputWsMatchApps" placeholder="e.g. kubectl, docker, k9s" autocomplete="off">
+            </div>
+          </div>
+          <div id="workspaceSettingsError" class="m-error-banner" style="display: none;"></div>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <button id="btnCreateWorkspace" class="m-btn m-btn-primary" style="flex: 1;">ADD WORKSPACE</button>
+            <button id="btnSaveWorkspaceEdit" class="m-btn m-btn-primary" style="flex: 1; display: none;">SAVE CHANGES</button>
+            <button id="btnCancelWorkspaceEdit" class="m-btn m-btn-secondary" style="display: none;">CANCEL</button>
+          </div>
+        </div>
+
+        <!-- Category Segregation Section -->
         <div class="m-settings-row">
           <label class="m-checkbox-container" title="Automatically organize shortcuts into dedicated category views">
             <input type="checkbox" id="toggleSegregation">
@@ -442,7 +487,7 @@
         </div>
       </div>
       <div class="m-modal-footer">
-        <button id="btnSettingsModalDone" class="m-btn m-btn-primary">DONE</button>
+        <button id="btnSettingsModalDone" class="m-btn m-btn-secondary">DONE</button>
       </div>
     </div>
   </div>

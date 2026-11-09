@@ -200,6 +200,17 @@ const workspaceSettingsModal = document.getElementById('workspaceSettingsModal')
 const btnSettingsModalClose = document.getElementById('btnSettingsModalClose');
 const btnSettingsModalDone = document.getElementById('btnSettingsModalDone');
 const toggleSegregation = document.getElementById('toggleSegregation');
+const btnAddWorkspace = document.getElementById('btnAddWorkspace');
+const workspaceListContainer = document.getElementById('workspaceListContainer');
+const wsFormTitle = document.getElementById('wsFormTitle');
+const inputWsId = document.getElementById('inputWsId');
+const inputWsName = document.getElementById('inputWsName');
+const inputWsIcon = document.getElementById('inputWsIcon');
+const inputWsMatchApps = document.getElementById('inputWsMatchApps');
+const workspaceSettingsError = document.getElementById('workspaceSettingsError');
+const btnCreateWorkspace = document.getElementById('btnCreateWorkspace');
+const btnSaveWorkspaceEdit = document.getElementById('btnSaveWorkspaceEdit');
+const btnCancelWorkspaceEdit = document.getElementById('btnCancelWorkspaceEdit');
 const categoryLensStrip = document.getElementById('categoryLensStrip');
 const commandGroup = document.getElementById('commandGroup');
 const urlGroup = document.getElementById('urlGroup');
@@ -279,6 +290,7 @@ function updateEditorUI() {
     if (tileControls) tileControls.style.display = 'none';
     if (btnOpenDrawer) btnOpenDrawer.style.display = 'none';
     if (dragBanner) dragBanner.style.display = 'none';
+    if (btnAddWorkspace) btnAddWorkspace.style.display = 'none';
   } else {
     if (btnEdit) {
       btnEdit.style.display = '';
@@ -288,6 +300,7 @@ function updateEditorUI() {
     if (tileControls) tileControls.style.display = '';
     if (btnOpenDrawer) btnOpenDrawer.style.display = '';
     if (dragBanner) dragBanner.style.display = '';
+    if (btnAddWorkspace) btnAddWorkspace.style.display = '';
   }
 }
 
@@ -849,6 +862,9 @@ function handleServerMessage(data) {
 
       renderWorkspaces(currentWorkspaces, activeWsId);
       updateActiveModeButtons(activeWsId);
+      if (workspaceSettingsModal && !workspaceSettingsModal.classList.contains('hidden')) {
+        renderWorkspaceList();
+      }
       renderKeypadState();
       updateConnectionUI('connected');
       break;
@@ -879,6 +895,10 @@ function handleServerMessage(data) {
       if (unlockModal && !unlockModal.classList.contains('hidden') && unlockModalError) {
         unlockModalError.textContent = data.message || 'Authentication failed';
         unlockModalError.style.display = 'block';
+      }
+      if (workspaceSettingsModal && !workspaceSettingsModal.classList.contains('hidden') && workspaceSettingsError) {
+        workspaceSettingsError.textContent = data.message || 'Operation failed';
+        workspaceSettingsError.style.display = 'block';
       }
       break;
   }
@@ -923,7 +943,8 @@ function renderWorkspaces(workspaces, activeWorkspaceId) {
   if (!Array.isArray(workspaces) || workspaces.length === 0) return;
 
   const newSig = workspaces.map(w => `${w.id}:${w.name}:${w.icon}`).join('|');
-  if (newSig === renderedWorkspacesSignature && workspaceSelector.children.length === workspaces.length) {
+  const existingButtons = workspaceSelector.querySelectorAll('.m-mode-btn');
+  if (newSig === renderedWorkspacesSignature && existingButtons.length === workspaces.length) {
     updateActiveModeButtons(activeWorkspaceId);
     return;
   }
@@ -948,14 +969,17 @@ function renderWorkspaces(workspaces, activeWorkspaceId) {
       btn.id = 'btnModeM1';
       modeLabel = 'M1';
       modeSub = 'DEV COCKPIT';
+      btn.setAttribute('aria-label', 'DEV COCKPIT');
     } else if (wsItem.id === 'media') {
       btn.id = 'btnModeM2';
       modeLabel = 'M2';
       modeSub = 'MEDIA & TELEMETRY';
+      btn.setAttribute('aria-label', 'MEDIA & TELEMETRY');
     } else {
       btn.id = `btnWorkspace_${wsItem.id}`;
       modeLabel = wsItem.icon || `M${idx + 1}`;
       modeSub = (wsItem.name || wsItem.id).toUpperCase();
+      btn.setAttribute('aria-label', (wsItem.name || wsItem.id).toUpperCase());
     }
 
     const labelSpan = document.createElement('span');
@@ -985,7 +1009,11 @@ function updateActiveModeButtons(activeWorkspaceId) {
   const buttons = workspaceSelector.querySelectorAll('.m-mode-btn');
   buttons.forEach(btn => {
     const wsId = btn.dataset.workspace || btn.dataset.profile;
-    btn.classList.toggle('active', wsId === activeWorkspaceId);
+    const isActive = (wsId === activeWorkspaceId);
+    btn.classList.toggle('active', isActive);
+    if (isActive && typeof btn.scrollIntoView === 'function') {
+      btn.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    }
   });
 }
 
@@ -1037,6 +1065,48 @@ function renderButtons(buttons) {
 
   updateDynamicGridSizing(Math.max(1, displayCount));
   keypadGrid.textContent = '';
+
+  if (currentButtons.length === 0 && !showAddTile) {
+    const emptyWrap = document.createElement('div');
+    emptyWrap.className = 'm-keypad-empty-state';
+
+    const iconEl = document.createElement('div');
+    iconEl.className = 'm-keypad-empty-icon';
+    iconEl.textContent = '⚡';
+
+    const titleEl = document.createElement('div');
+    titleEl.className = 'm-keypad-empty-title';
+    titleEl.textContent = 'NO SHORTCUTS CONFIGURED';
+
+    const descEl = document.createElement('div');
+    descEl.className = 'm-keypad-empty-desc';
+    descEl.textContent = canEdit
+      ? 'This workspace is empty. Add your first shortcut from the catalog or presets to get started.'
+      : 'This companion workspace has no shortcuts configured yet.';
+
+    emptyWrap.appendChild(iconEl);
+    emptyWrap.appendChild(titleEl);
+    emptyWrap.appendChild(descEl);
+
+    if (canEdit) {
+      const addBtn = document.createElement('button');
+      addBtn.className = 'm-keypad-empty-btn';
+      addBtn.id = 'btnEmptyAddShortcut';
+      addBtn.textContent = '+ ADD FIRST SHORTCUT';
+      addBtn.addEventListener('click', () => {
+        triggerHaptic(25);
+        if (typeof openDrawer === 'function') {
+          openDrawer();
+        } else if (btnOpenDrawer) {
+          btnOpenDrawer.click();
+        }
+      });
+      emptyWrap.appendChild(addBtn);
+    }
+
+    keypadGrid.appendChild(emptyWrap);
+    return;
+  }
 
   currentButtons.forEach((btnData, i) => {
     const keyEl = document.createElement('div');
@@ -1565,24 +1635,227 @@ if (categoryLensStrip) {
   });
 }
 
-// Workspace Settings Modal Controls
+// Workspace Settings Modal & CRUD Handlers (E6-2)
+function setWorkspaceFormMode(mode, targetWs = null) {
+  if (workspaceSettingsError) {
+    workspaceSettingsError.style.display = 'none';
+    workspaceSettingsError.textContent = '';
+  }
+
+  if (mode === 'edit' && targetWs) {
+    if (wsFormTitle) wsFormTitle.textContent = `EDIT WORKSPACE: ${targetWs.name || targetWs.id}`;
+    if (inputWsId) inputWsId.value = targetWs.id;
+    if (inputWsName) inputWsName.value = targetWs.name || '';
+    if (inputWsIcon) inputWsIcon.value = targetWs.icon || '⚡';
+    if (inputWsMatchApps) {
+      const apps = (targetWs.match && Array.isArray(targetWs.match.apps)) ? targetWs.match.apps : [];
+      inputWsMatchApps.value = apps.join(', ');
+    }
+    if (btnCreateWorkspace) btnCreateWorkspace.style.display = 'none';
+    if (btnSaveWorkspaceEdit) btnSaveWorkspaceEdit.style.display = '';
+    if (btnCancelWorkspaceEdit) btnCancelWorkspaceEdit.style.display = '';
+  } else {
+    if (wsFormTitle) wsFormTitle.textContent = 'ADD WORKSPACE';
+    if (inputWsId) inputWsId.value = '';
+    if (inputWsName) inputWsName.value = '';
+    if (inputWsIcon) inputWsIcon.value = '⚡';
+    if (inputWsMatchApps) inputWsMatchApps.value = '';
+    if (btnCreateWorkspace) btnCreateWorkspace.style.display = '';
+    if (btnSaveWorkspaceEdit) btnSaveWorkspaceEdit.style.display = 'none';
+    if (btnCancelWorkspaceEdit) btnCancelWorkspaceEdit.style.display = 'none';
+  }
+}
+
+function renderWorkspaceList() {
+  if (!workspaceListContainer) return;
+  workspaceListContainer.textContent = '';
+
+  if (!Array.isArray(currentWorkspaces) || currentWorkspaces.length === 0) {
+    const emptyRow = document.createElement('div');
+    emptyRow.style.color = 'var(--m-body-dim, #64748b)';
+    emptyRow.style.fontSize = '11px';
+    emptyRow.style.padding = '8px';
+    emptyRow.textContent = 'No workspaces available.';
+    workspaceListContainer.appendChild(emptyRow);
+    return;
+  }
+
+  currentWorkspaces.forEach(wsItem => {
+    const itemEl = document.createElement('div');
+    itemEl.className = 'm-ws-list-item';
+
+    const infoEl = document.createElement('div');
+    infoEl.className = 'm-ws-item-info';
+
+    const iconEl = document.createElement('div');
+    iconEl.className = 'm-ws-item-icon';
+    iconEl.textContent = wsItem.icon || '⚡';
+
+    const detailsEl = document.createElement('div');
+    detailsEl.className = 'm-ws-item-details';
+
+    const nameEl = document.createElement('div');
+    nameEl.className = 'm-ws-item-name';
+    nameEl.textContent = wsItem.name || wsItem.id;
+
+    const metaEl = document.createElement('div');
+    metaEl.className = 'm-ws-item-meta';
+
+    const originBadge = document.createElement('span');
+    const isBuiltin = wsItem.origin === 'builtin';
+    originBadge.className = `m-ws-badge ${isBuiltin ? 'builtin' : 'user'}`;
+    originBadge.textContent = isBuiltin ? 'BUILT-IN' : 'USER';
+    metaEl.appendChild(originBadge);
+
+    const apps = (wsItem.match && Array.isArray(wsItem.match.apps)) ? wsItem.match.apps : [];
+    if (apps.length > 0) {
+      const appsSpan = document.createElement('span');
+      appsSpan.textContent = `• Apps: ${apps.slice(0, 3).join(', ')}${apps.length > 3 ? '...' : ''}`;
+      metaEl.appendChild(appsSpan);
+    }
+
+    detailsEl.appendChild(nameEl);
+    detailsEl.appendChild(metaEl);
+
+    infoEl.appendChild(iconEl);
+    infoEl.appendChild(detailsEl);
+
+    const actionsEl = document.createElement('div');
+    actionsEl.className = 'm-ws-item-actions';
+
+    const editBtn = document.createElement('button');
+    editBtn.className = 'm-ws-action-btn edit';
+    editBtn.textContent = 'EDIT';
+    editBtn.title = `Edit ${wsItem.name}`;
+    editBtn.addEventListener('click', () => {
+      triggerHaptic(15);
+      setWorkspaceFormMode('edit', wsItem);
+      if (inputWsName) inputWsName.focus();
+    });
+    actionsEl.appendChild(editBtn);
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'm-ws-action-btn delete';
+    delBtn.textContent = 'DELETE';
+    if (isBuiltin) {
+      delBtn.disabled = true;
+      delBtn.title = 'Built-in workspaces cannot be deleted';
+    } else {
+      delBtn.title = `Delete ${wsItem.name}`;
+      delBtn.addEventListener('click', () => {
+        triggerHaptic(25);
+        if (confirm(`Are you sure you want to delete workspace "${wsItem.name}"?`)) {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'WORKSPACE_DELETED', workspaceId: wsItem.id }));
+          }
+        }
+      });
+    }
+    actionsEl.appendChild(delBtn);
+
+    itemEl.appendChild(infoEl);
+    itemEl.appendChild(actionsEl);
+
+    workspaceListContainer.appendChild(itemEl);
+  });
+}
+
+function openWorkspaceSettingsModal(mode = 'create', targetWs = null) {
+  if (!canEdit) {
+    if (typeof openUnlockModal === 'function') {
+      openUnlockModal();
+    } else {
+      alert('Editor privilege required to configure workspace settings.');
+    }
+    return;
+  }
+  triggerHaptic(15);
+  if (toggleSegregation) {
+    toggleSegregation.checked = Boolean(currentWorkspaceSegregation && currentWorkspaceSegregation.enabled);
+  }
+  setWorkspaceFormMode(mode, targetWs);
+  renderWorkspaceList();
+  if (workspaceSettingsModal) {
+    workspaceSettingsModal.classList.remove('hidden');
+  }
+}
+
+if (btnAddWorkspace) {
+  btnAddWorkspace.addEventListener('click', () => {
+    openWorkspaceSettingsModal('create');
+    if (inputWsName) inputWsName.focus();
+  });
+}
+
 if (btnWorkspaceSettings) {
   btnWorkspaceSettings.addEventListener('click', () => {
-    if (!canEdit) {
-      if (typeof openUnlockModal === 'function') {
-        openUnlockModal();
-      } else {
-        alert('Editor privilege required to configure workspace settings.');
+    openWorkspaceSettingsModal('create');
+  });
+}
+
+if (btnCreateWorkspace) {
+  btnCreateWorkspace.addEventListener('click', () => {
+    if (!canEdit) return;
+    const name = inputWsName ? inputWsName.value.trim() : '';
+    if (!name) {
+      if (workspaceSettingsError) {
+        workspaceSettingsError.textContent = 'Workspace name is required.';
+        workspaceSettingsError.style.display = 'block';
       }
       return;
     }
-    triggerHaptic(15);
-    if (toggleSegregation) {
-      toggleSegregation.checked = Boolean(currentWorkspaceSegregation && currentWorkspaceSegregation.enabled);
+    const icon = inputWsIcon ? inputWsIcon.value.trim() : '⚡';
+    const matchAppsStr = inputWsMatchApps ? inputWsMatchApps.value : '';
+    const matchApps = matchAppsStr.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+
+    triggerHaptic(20);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'CREATE_WORKSPACE',
+        name,
+        icon: icon || '⚡',
+        matchApps
+      }));
     }
     if (workspaceSettingsModal) {
-      workspaceSettingsModal.classList.remove('hidden');
+      workspaceSettingsModal.classList.add('hidden');
     }
+  });
+}
+
+if (btnSaveWorkspaceEdit) {
+  btnSaveWorkspaceEdit.addEventListener('click', () => {
+    if (!canEdit) return;
+    const workspaceId = inputWsId ? inputWsId.value : '';
+    const name = inputWsName ? inputWsName.value.trim() : '';
+    if (!workspaceId || !name) {
+      if (workspaceSettingsError) {
+        workspaceSettingsError.textContent = 'Workspace name is required.';
+        workspaceSettingsError.style.display = 'block';
+      }
+      return;
+    }
+    const icon = inputWsIcon ? inputWsIcon.value.trim() : '⚡';
+    const matchAppsStr = inputWsMatchApps ? inputWsMatchApps.value : '';
+    const matchApps = matchAppsStr.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+
+    triggerHaptic(20);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'UPDATE_WORKSPACE',
+        workspaceId,
+        name,
+        icon: icon || '⚡',
+        matchApps
+      }));
+    }
+    setWorkspaceFormMode('create');
+  });
+}
+
+if (btnCancelWorkspaceEdit) {
+  btnCancelWorkspaceEdit.addEventListener('click', () => {
+    setWorkspaceFormMode('create');
   });
 }
 

@@ -46,6 +46,7 @@ test('Reticle: Predefined flow definitions exist and conform to Reticle v2 schem
     'editor-mode-security.json',
     'category-lens-switching.json',
     'workspace-settings-modal.json',
+    'workspace-lifecycle.json',
     'active-window-auto-switching.json',
     'companion-deck-state.json'
   ];
@@ -579,6 +580,64 @@ test('Reticle: companion-deck-state replay passes against Arya Dock live backend
     const unpinUpdate = await nextMsg();
     assert.equal(unpinUpdate.type, 'STATE_UPDATE');
     assert.equal(unpinUpdate.navigation.pinned, false);
+
+    ws.close();
+  } finally {
+    await new Promise(resolve => app.close(resolve));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('Reticle Predefined Flow Replay: Workspace Lifecycle Management (workspace-lifecycle)', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'reticle-lifecycle-test-'));
+  const configPath = path.join(tmpDir, 'profiles.json');
+  const authPath = path.join(tmpDir, 'auth.json');
+
+  const app = createServer({
+    configPath,
+    authPath,
+    debounceMs: 0
+  });
+  const server = app.server;
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  const token = app.credentials.pairingToken;
+
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?token=${token}`, {
+    headers: { Origin: `http://127.0.0.1:${port}` }
+  });
+  const nextMsg = createMessageQueue(ws);
+  await new Promise(resolve => ws.on('open', resolve));
+
+  try {
+    const initMsg = await nextMsg();
+    assert.equal(initMsg.role, 'editor');
+
+    // Step 1: Create new workspace 'DevOps Cockpit'
+    ws.send(JSON.stringify({
+      type: 'CREATE_WORKSPACE',
+      name: 'DevOps Cockpit',
+      icon: '🚀',
+      matchApps: ['kubectl', 'docker', 'k9s']
+    }));
+
+    const createMsg = await nextMsg();
+    assert.equal(createMsg.type, 'STATE_UPDATE');
+    assert.equal(createMsg.workspaceName, 'DevOps Cockpit');
+    assert.equal(createMsg.workspaceId, 'ws-devops-cockpit');
+    assert.equal(createMsg.workspaceIcon, '🚀');
+    assert.equal(createMsg.buttons.length, 0, 'New workspace initializes with 0 buttons');
+
+    // Step 2: Verify disk persistence
+    const savedConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    assert.equal(savedConfig.activeWorkspaceId, 'ws-devops-cockpit');
+    assert.ok(savedConfig.workspaces.some(w => w.id === 'ws-devops-cockpit'));
+
+    // Step 3: Switch back to developer workspace
+    ws.send(JSON.stringify({ type: 'SET_WORKSPACE', workspaceId: 'developer' }));
+    const devMsg = await nextMsg();
+    assert.equal(devMsg.type, 'STATE_UPDATE');
+    assert.equal(devMsg.workspaceId, 'developer');
 
     ws.close();
   } finally {

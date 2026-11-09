@@ -1,0 +1,92 @@
+{
+  "version": 2,
+  "name": "workspace-lifecycle",
+  "projectId": "arya-dock-4f274f15",
+  "createdAt": 1793560700000,
+  "steps": [
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "button",
+        "name": "Add Workspace"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "text",
+        "contains": "ADD WORKSPACE"
+      },
+      "page": "/"
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "element",
+        "query": {
+          "selector": "#inputWsName"
+        }
+      },
+      "args": {
+        "text": "DevOps Cockpit"
+      },
+      "action": "fill",
+      "expect": {
+        "kind": "element",
+        "query": {
+          "selector": "#inputWsName"
+        }
+      },
+      "page": "/"
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "button",
+        "name": "ADD WORKSPACE"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "text",
+        "contains": "DEVOPS COCKPIT"
+      },
+      "page": "/"
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "button",
+        "name": "DEVOPS COCKPIT"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "text",
+        "contains": "NO SHORTCUTS CONFIGURED"
+      },
+      "page": "/"
+    }
+  ],
+  "startPath": "/",
+  "intent": "Creating and navigating to a newly created workspace with dynamic switcher and empty keypad prompt",
+  "intentDerived": true,
+  "requires": [
+    {
+      "kind": "route",
+      "pathname": "/"
+    }
+  ],
+  "ensures": [
+    {
+      "kind": "route",
+      "pathname": "/"
+    }
+  ],
+  "author": {
+    "agent": "gemini",
+    "person": "kartikkulkarni1411@gmail.com"
+  }
+}

@@ -190,8 +190,8 @@ function createServer(options = {}) {
     const nextState = navigationReducer(navState, event, context);
     if (nextState !== navState) {
       navState = nextState;
-      // Only persist active workspace on explicit user manual selection, NEVER on automated context changes
-      if (event?.type === 'USER_SELECT' && appConfig.activeWorkspaceId !== navState.workspaceId) {
+      // Only persist active workspace on explicit user manual selection or workspace deletion, NEVER on automated context changes
+      if ((event?.type === 'USER_SELECT' || event?.type === 'WORKSPACE_DELETED') && appConfig.activeWorkspaceId !== navState.workspaceId) {
         appConfig.activeWorkspaceId = navState.workspaceId;
         appConfig.activeProfile = navState.workspaceId;
       }
