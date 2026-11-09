@@ -187,6 +187,11 @@
             <span class="m-deck-status-dot"></span>
             <span class="m-deck-status-title">ARYA CONSOLE • ONLINE</span>
           </div>
+          <!-- Folder Breadcrumb Strip -->
+          <div class="m-deck-breadcrumb hidden" id="deckBreadcrumb">
+            <button id="btnBreadcrumbBack" class="m-breadcrumb-back" title="Go up one level">◀ BACK</button>
+            <span id="breadcrumbPath" class="m-breadcrumb-path">Dev Cockpit</span>
+          </div>
           <!-- Category Lens Strip -->
           <div class="m-lens-strip" id="categoryLensStrip" role="tablist" aria-label="Category Lens Filters">
             <button class="m-lens-tab active" data-lens="all" role="tab" aria-selected="true">ALL</button>
@@ -338,6 +343,7 @@
             <option value="shell">Shell Command / Binary</option>
             <option value="url">Web Link / Browser URL</option>
             <option value="media">Media Control (Volume/Track)</option>
+            <option value="folder">📁 Folder / Sub-Deck</option>
           </select>
         </div>
 

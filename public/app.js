@@ -8,6 +8,7 @@ let currentButtons = [];
 let installedApps = [];
 let isEditMode = false;
 let editingButtonId = null;
+let editingButtonFolderId = null;
 let pickerTargetButtonId = null;
 let selectedAppForPopup = null;
 let wakeLock = null;
@@ -215,7 +216,12 @@ const inputImportFile = document.getElementById('inputImportFile');
 const btnCreateWorkspace = document.getElementById('btnCreateWorkspace');
 const btnSaveWorkspaceEdit = document.getElementById('btnSaveWorkspaceEdit');
 const btnCancelWorkspaceEdit = document.getElementById('btnCancelWorkspaceEdit');
+const deckBreadcrumb = document.getElementById('deckBreadcrumb');
+const btnBreadcrumbBack = document.getElementById('btnBreadcrumbBack');
+const breadcrumbPath = document.getElementById('breadcrumbPath');
 const categoryLensStrip = document.getElementById('categoryLensStrip');
+let currentFolderStack = [];
+let currentFolderName = null;
 const commandGroup = document.getElementById('commandGroup');
 const urlGroup = document.getElementById('urlGroup');
 const editCommand = document.getElementById('editCommand');
@@ -813,7 +819,8 @@ function renderKeypadState() {
 function handleServerMessage(data) {
   switch (data.type) {
     case 'INIT':
-    case 'STATE_UPDATE': {
+    case 'STATE_UPDATE':
+    case 'NAV_CHANGE': {
       if (data.role !== undefined) userRole = data.role;
       if (data.canEdit !== undefined) {
         canEdit = Boolean(data.canEdit);
@@ -835,6 +842,42 @@ function handleServerMessage(data) {
           pageIndex: (data.pageNumber || 1) - 1,
           pinned: false
         });
+      }
+
+      currentFolderStack = Array.isArray(data.folderStack) ? data.folderStack : [];
+      currentFolderName = data.currentFolderName || null;
+
+      if (deckBreadcrumb) {
+        if (currentFolderStack.length > 0) {
+          deckBreadcrumb.classList.remove('hidden');
+          if (breadcrumbPath) {
+            const wsName = data.workspaceName || activeWsId;
+            breadcrumbPath.textContent = `${wsName} > 📁 ${currentFolderName || 'Folder'}`;
+          }
+        } else {
+          deckBreadcrumb.classList.add('hidden');
+        }
+      }
+
+      if (categoryLensStrip) {
+        if (currentFolderStack.length > 0) {
+          categoryLensStrip.style.display = 'none';
+        } else {
+          categoryLensStrip.style.display = '';
+        }
+      }
+
+      const inFolder = currentFolderStack.length > 0;
+      if (inFolder) {
+        activeLens = 'all';
+      }
+      if (btnPagePrev) {
+        btnPagePrev.disabled = inFolder;
+        btnPagePrev.classList.toggle('disabled', inFolder);
+      }
+      if (btnPageNext) {
+        btnPageNext.disabled = inFolder;
+        btnPageNext.classList.toggle('disabled', inFolder);
       }
 
       if (Array.isArray(data.workspaces) && data.workspaces.length > 0) {
@@ -1117,9 +1160,13 @@ function renderButtons(buttons) {
   }
 
   currentButtons.forEach((btnData, i) => {
+    const isBackTile = (btnData.id === '__back__' || btnData.actionType === 'folder_back');
     const keyEl = document.createElement('div');
-    keyEl.className = `m-lcd-key ${(isEditMode && canEdit) ? 'edit-mode' : ''}`;
+    keyEl.className = `m-lcd-key ${(isEditMode && canEdit && !isBackTile) ? 'edit-mode' : ''} ${isBackTile ? 'm-back-tile' : ''}`;
     keyEl.dataset.buttonId = btnData.id !== undefined ? btnData.id : i;
+    if (isBackTile) {
+      keyEl.dataset.isBack = 'true';
+    }
     keyEl.style.setProperty('--key-accent', btnData.color || '#1c69d4');
 
     // Safe DOM construction (Issue #6)
@@ -1145,7 +1192,9 @@ function renderButtons(buttons) {
       triggerHaptic(20);
       keyEl.classList.add('pressed');
 
-      if (isEditMode && canEdit) {
+      if (isBackTile) {
+        sendButtonClick('__back__');
+      } else if (isEditMode && canEdit) {
         openEditModal(btnData);
       } else {
         sendButtonClick(btnData.id);
@@ -1157,8 +1206,8 @@ function renderButtons(buttons) {
     keyEl.addEventListener('pointercancel', removePressed);
     keyEl.addEventListener('pointerleave', removePressed);
 
-    // HTML5 Drag & Drop handlers (active only for editors)
-    if (canEdit) {
+    // HTML5 Drag & Drop handlers (active only for editors and non-back tiles)
+    if (canEdit && !isBackTile) {
       keyEl.addEventListener('dragover', (e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'copy';
@@ -1272,6 +1321,7 @@ function flashButtonAck(buttonId) {
 
 // Steering Shift Paddles
 btnPagePrev.addEventListener('click', () => {
+  if (currentFolderStack.length > 0) return;
   triggerHaptic(15);
   if (activeLens !== 'all') {
     if (virtualSubPageIndex > 0) {
@@ -1286,6 +1336,7 @@ btnPagePrev.addEventListener('click', () => {
 });
 
 btnPageNext.addEventListener('click', () => {
+  if (currentFolderStack.length > 0) return;
   triggerHaptic(15);
   if (activeLens !== 'all') {
     const matchingButtons = cachedAllButtons.filter(b => classifyClientButton(b) === activeLens);
@@ -1300,6 +1351,16 @@ btnPageNext.addEventListener('click', () => {
     ws.send(JSON.stringify({ type: 'PAGE_NEXT' }));
   }
 });
+
+// Folder Breadcrumb Back Button
+if (btnBreadcrumbBack) {
+  btnBreadcrumbBack.addEventListener('click', () => {
+    triggerHaptic(15);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: 'LEAVE_FOLDER' }));
+    }
+  });
+}
 
 // Workspace & Pin Navigation buttons (E3)
 if (btnModeM1) {
@@ -1462,16 +1523,19 @@ if (btnRemoveTile) {
   btnRemoveTile.addEventListener('click', () => {
     if (!canEdit) return;
     triggerHaptic(20);
-    if (currentButtons.length > 0 && ws && ws.readyState === WebSocket.OPEN) {
-      const lastBtn = currentButtons[currentButtons.length - 1];
+    const candidateButtons = currentButtons.filter(b => b && b.id !== '__back__' && b.actionType !== 'folder_back');
+    if (candidateButtons.length > 0 && ws && ws.readyState === WebSocket.OPEN) {
+      const lastBtn = candidateButtons[candidateButtons.length - 1];
       const isConfigured = Boolean(
         (lastBtn.command && lastBtn.command.trim()) ||
         (lastBtn.url && lastBtn.url.trim()) ||
+        (lastBtn.actionType === 'folder') ||
         (lastBtn.label && !/^KEY\s*\d+$/i.test(lastBtn.label.trim()))
       );
 
       if (isConfigured) {
-        const confirmed = window.confirm(`Remove configured key "${lastBtn.label || 'KEY'}"?`);
+        const itemType = lastBtn.actionType === 'folder' ? 'folder' : 'key';
+        const confirmed = window.confirm(`Remove configured ${itemType} "${lastBtn.label || 'KEY'}"?`);
         if (!confirmed) return;
       }
 
@@ -1489,9 +1553,11 @@ window.addEventListener('resize', () => {
 // Key Configuration Modal
 function openEditModal(button) {
   if (!canEdit) return;
+  if (button.id === '__back__' || button.actionType === 'folder_back') return;
   editingButtonId = button.id;
+  editingButtonFolderId = button.folderId || null;
   modalTitle.textContent = `CONFIGURE KEY ${String(button.id + 1).padStart(2, '0')}`;
-  editIcon.value = button.icon || '⚡';
+  editIcon.value = button.icon || (button.actionType === 'folder' ? '📁' : '⚡');
   editLabel.value = button.label || '';
   editSublabel.value = button.sublabel || '';
   editColor.value = button.color || '#1c69d4';
@@ -1512,6 +1578,7 @@ function openEditModal(button) {
 function closeEditModal() {
   editModal.classList.add('hidden');
   editingButtonId = null;
+  editingButtonFolderId = null;
 }
 
 btnModalClose.addEventListener('click', closeEditModal);
@@ -1567,10 +1634,12 @@ btnModalDelete.addEventListener('click', () => {
 btnModalSave.addEventListener('click', () => {
   if (!canEdit || editingButtonId === null) return;
 
+  const isFolder = editActionType.value === 'folder';
+  const defaultIcon = isFolder ? '📁' : '⚡';
   const updatedButton = {
     id: editingButtonId,
-    icon: editIcon.value.trim() || '⚡',
-    label: editLabel.value.trim().toUpperCase() || `KEY ${editingButtonId + 1}`,
+    icon: editIcon.value.trim() || defaultIcon,
+    label: editLabel.value.trim().toUpperCase() || (isFolder ? 'FOLDER' : `KEY ${editingButtonId + 1}`),
     sublabel: editSublabel.value.trim().toUpperCase() || '',
     color: editColor.value,
     actionType: editActionType.value,
@@ -1581,6 +1650,10 @@ btnModalSave.addEventListener('click', () => {
     url: editUrl.value.trim(),
     categoryOverride: editCategory ? (editCategory.value.trim() || null) : null
   };
+
+  if (isFolder && editingButtonFolderId) {
+    updatedButton.folderId = editingButtonFolderId;
+  }
 
   if (ws && ws.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify({ type: 'UPDATE_BUTTON', button: updatedButton }));

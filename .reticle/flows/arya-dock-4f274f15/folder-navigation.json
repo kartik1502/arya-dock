@@ -1,0 +1,96 @@
+{
+  "version": 2,
+  "name": "folder-navigation",
+  "projectId": "arya-dock-4f274f15",
+  "createdAt": 1793570000000,
+  "steps": [
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "button",
+        "name": "DEV SUITE"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "element",
+        "query": {
+          "text": "BACK"
+        }
+      },
+      "page": "/"
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "button",
+        "name": "BACK"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "element",
+        "query": {
+          "text": "DEV SUITE"
+        }
+      },
+      "page": "/"
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "button",
+        "name": "DEV SUITE"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "element",
+        "query": {
+          "text": "BACK"
+        }
+      },
+      "page": "/"
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "element",
+        "query": {
+          "id": "btnBreadcrumbBack"
+        }
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "element",
+        "query": {
+          "text": "DEV SUITE"
+        }
+      },
+      "page": "/"
+    }
+  ],
+  "startPath": "/",
+  "intent": "Navigate into a folder sub-deck, verify breadcrumb and Slot 0 back button, and return safely to root deck",
+  "intentDerived": true,
+  "requires": [
+    {
+      "kind": "route",
+      "pathname": "/"
+    }
+  ],
+  "ensures": [
+    {
+      "kind": "route",
+      "pathname": "/"
+    }
+  ],
+  "author": {
+    "agent": "gemini",
+    "person": "kartikkulkarni1411@gmail.com"
+  }
+}

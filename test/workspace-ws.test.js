@@ -59,7 +59,8 @@ test('Workspace & Navigation WebSocket Integration: INIT payload and SET_WORKSPA
       mode: 'auto',
       workspaceId: 'developer',
       pageIndex: 0,
-      pinned: false
+      pinned: false,
+      folderStack: []
     });
 
     // Backwards compatibility properties

@@ -49,7 +49,8 @@ test('Reticle: Predefined flow definitions exist and conform to Reticle v2 schem
     'workspace-lifecycle.json',
     'active-window-auto-switching.json',
     'companion-deck-state.json',
-    'config-import-export.json'
+    'config-import-export.json',
+    'folder-navigation.json'
   ];
 
   for (const flowFileName of requiredFlows) {
@@ -734,6 +735,84 @@ test('Reticle Predefined Flow Replay: Configuration Export & Import Lifecycle (c
     const savedConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
     assert.equal(savedConfig.activeWorkspaceId, 'stream-ops');
     assert.equal(savedConfig.workspaces[0].name, 'Streaming Cockpit');
+
+    ws.close();
+  } finally {
+    await new Promise(resolve => app.close(resolve));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('Reticle Predefined Flow Replay: Folder Sub-Deck Navigation (folder-navigation)', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'reticle-folder-test-'));
+  const configPath = path.join(tmpDir, 'profiles.json');
+  const authPath = path.join(tmpDir, 'auth.json');
+
+  const app = createServer({ configPath, authPath });
+  const server = app.server;
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  const token = app.credentials.pairingToken;
+
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?token=${token}`, {
+    headers: { Origin: `http://127.0.0.1:${port}` }
+  });
+  const nextMsg = createMessageQueue(ws);
+  await new Promise(resolve => ws.on('open', resolve));
+
+  try {
+    const initMsg = await nextMsg();
+    assert.equal(initMsg.type, 'INIT');
+
+    // Create a folder button with actionType: 'folder'
+    ws.send(JSON.stringify({
+      type: 'UPDATE_BUTTON',
+      button: {
+        id: 0,
+        label: 'DEV SUITE',
+        icon: '📁',
+        actionType: 'folder'
+      }
+    }));
+    const updateMsg = await nextMsg();
+    assert.equal(updateMsg.type, 'STATE_UPDATE');
+    const folderId = updateMsg.buttons[0].folderId;
+    assert.ok(folderId, 'Folder ID must be provisioned');
+
+    // Step 1: Reticle act - click folder button to enter sub-deck
+    ws.send(JSON.stringify({ type: 'BUTTON_CLICK', buttonId: 0 }));
+    const m1 = await nextMsg();
+    const m2 = await nextMsg();
+    const nav1 = (m1.type === 'NAV_CHANGE') ? m1 : m2;
+    assert.equal(nav1.type, 'NAV_CHANGE');
+    assert.deepEqual(nav1.folderStack, [folderId]);
+    assert.equal(nav1.currentFolderName, 'DEV SUITE');
+    assert.equal(nav1.buttons[0].id, '__back__');
+    assert.equal(nav1.buttons[0].label, 'BACK');
+
+    // Step 2: Reticle act - click Slot 0 Back button to leave folder
+    ws.send(JSON.stringify({ type: 'BUTTON_CLICK', buttonId: '__back__' }));
+    const m3 = await nextMsg();
+    const m4 = await nextMsg();
+    const nav2 = (m3.type === 'NAV_CHANGE') ? m3 : m4;
+    assert.equal(nav2.type, 'NAV_CHANGE');
+    assert.deepEqual(nav2.folderStack, []);
+    assert.equal(nav2.currentFolderName, null);
+    assert.equal(nav2.buttons[0].label, 'DEV SUITE');
+
+    // Step 3: Re-enter folder
+    ws.send(JSON.stringify({ type: 'BUTTON_CLICK', buttonId: 0 }));
+    const m5 = await nextMsg();
+    const m6 = await nextMsg();
+    const nav3 = (m5.type === 'NAV_CHANGE') ? m5 : m6;
+    assert.deepEqual(nav3.folderStack, [folderId]);
+
+    // Step 4: Reticle act - click breadcrumb back button (sends LEAVE_FOLDER)
+    ws.send(JSON.stringify({ type: 'LEAVE_FOLDER' }));
+    const nav4 = await nextMsg();
+    assert.equal(nav4.type, 'NAV_CHANGE');
+    assert.deepEqual(nav4.folderStack, []);
+    assert.equal(nav4.currentFolderName, null);
 
     ws.close();
   } finally {

@@ -15,7 +15,8 @@ test('Navigation: createInitialNavigationState default options and custom overri
     mode: 'auto',
     workspaceId: 'developer',
     pageIndex: 0,
-    pinned: false
+    pinned: false,
+    folderStack: []
   });
 
   const customState = createInitialNavigationState({
@@ -23,13 +24,15 @@ test('Navigation: createInitialNavigationState default options and custom overri
     initialWorkspaceId: 'custom-ws',
     mode: 'manual',
     pageIndex: 2,
-    pinned: true
+    pinned: true,
+    folderStack: ['f-docker']
   });
   assert.deepEqual(customState, {
     mode: 'manual',
     workspaceId: 'custom-ws',
     pageIndex: 2,
-    pinned: true
+    pinned: true,
+    folderStack: ['f-docker']
   });
 });
 
@@ -388,4 +391,54 @@ test('Navigation Reducer: PAGE_NEXT and PAGE_PREV derive totalPages from context
   const negativeState = { ...state, pageIndex: -2 };
   const wrappedNext = navigationReducer(negativeState, { type: 'PAGE_NEXT', totalPages: 3 });
   assert.ok(wrappedNext.pageIndex >= 0 && wrappedNext.pageIndex < 3);
+});
+
+test('Navigation Reducer: ENTER_FOLDER and LEAVE_FOLDER stack operations with depth ceiling and anti-cycle guards', () => {
+  const state = createInitialNavigationState();
+  assert.deepEqual(state.folderStack, []);
+
+  // 1. Enter folder pushes onto stack
+  const f1 = navigationReducer(state, { type: 'ENTER_FOLDER', folderId: 'f-docker' });
+  assert.equal(f1.mode, 'manual');
+  assert.deepEqual(f1.folderStack, ['f-docker']);
+
+  // 2. Nested folder push
+  const f2 = navigationReducer(f1, { type: 'ENTER_FOLDER', folderId: 'f-containers' });
+  assert.deepEqual(f2.folderStack, ['f-docker', 'f-containers']);
+
+  // 3. Anti-cycle guard: cannot enter already visited folder in current stack
+  const cycleAttempt = navigationReducer(f2, { type: 'ENTER_FOLDER', folderId: 'f-docker' });
+  assert.deepEqual(cycleAttempt.folderStack, ['f-docker', 'f-containers'], 'Cycle must be rejected');
+
+  // 4. Leave folder pops LIFO
+  const popped1 = navigationReducer(f2, { type: 'LEAVE_FOLDER' });
+  assert.deepEqual(popped1.folderStack, ['f-docker']);
+  const poppedRoot = navigationReducer(popped1, { type: 'LEAVE_FOLDER' });
+  assert.deepEqual(poppedRoot.folderStack, []);
+  // Popping empty stack is safe no-op
+  const poppedEmpty = navigationReducer(poppedRoot, { type: 'LEAVE_FOLDER' });
+  assert.deepEqual(poppedEmpty.folderStack, []);
+
+  // 5. MAX_FOLDER_DEPTH enforcement (capped at 5)
+  let deepState = state;
+  for (let i = 1; i <= 5; i++) {
+    deepState = navigationReducer(deepState, { type: 'ENTER_FOLDER', folderId: `f-level-${i}` });
+  }
+  assert.equal(deepState.folderStack.length, 5);
+  const overflowAttempt = navigationReducer(deepState, { type: 'ENTER_FOLDER', folderId: 'f-level-6' });
+  assert.equal(overflowAttempt.folderStack.length, 5, 'Must not exceed MAX_FOLDER_DEPTH of 5');
+
+  // 6. Sub-deck paging lock: PAGE_PREV and PAGE_NEXT are no-ops inside folders
+  const pagingAttempt = navigationReducer(f1, { type: 'PAGE_NEXT', totalPages: 4 });
+  assert.equal(pagingAttempt, f1, 'Paging must be locked while inside a folder');
+  const prevAttempt = navigationReducer(f1, { type: 'PAGE_PREV', totalPages: 4 });
+  assert.equal(prevAttempt, f1);
+
+  // 7. Workspace switch resets folderStack
+  const wsSwitched = navigationReducer(f1, { type: 'USER_SELECT', workspaceId: 'media' });
+  assert.deepEqual(wsSwitched.folderStack, [], 'Switching workspace must reset folderStack');
+
+  // 8. CONTEXT_CHANGED resets folderStack
+  const contextChanged = navigationReducer(f1, { type: 'CONTEXT_CHANGED', matchedWorkspaceId: 'media' });
+  assert.deepEqual(contextChanged.folderStack, [], 'Context change must reset folderStack');
 });
