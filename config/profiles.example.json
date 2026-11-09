@@ -1,5 +1,6 @@
 {
   "schemaVersion": 2,
+  "onboardingCompleted": false,
   "activeProfile": "developer",
   "profiles": {
     "developer": {

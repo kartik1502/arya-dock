@@ -1,0 +1,71 @@
+{
+  "version": 2,
+  "projectId": "arya-dock-4f274f15",
+  "name": "First-Run Onboarding Wizard & Starter Profile Seeding",
+  "intent": "Scans host environment for developer tools, presents interactive profile selection, and seeds starter workspaces",
+  "intentDerived": true,
+  "startPath": "/",
+  "requires": [
+    {
+      "kind": "route",
+      "pathname": "/"
+    }
+  ],
+  "ensures": [
+    {
+      "kind": "route",
+      "pathname": "/"
+    }
+  ],
+  "steps": [
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "heading",
+        "name": "WELCOME TO ARYA DOCK"
+      },
+      "args": {},
+      "action": "wait",
+      "expect": {
+        "kind": "text",
+        "contains": "STEP 1: HOST ENVIRONMENT SCAN"
+      },
+      "page": "/"
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "button",
+        "name": "NEXT: SELECT STARTERS ▶"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "text",
+        "contains": "STEP 2: CHOOSE STARTER WORKSPACES"
+      },
+      "page": "/"
+    },
+    {
+      "tool": "reticle_act",
+      "anchor": {
+        "kind": "role",
+        "role": "button",
+        "name": "APPLY & LAUNCH DECK 🚀"
+      },
+      "args": {},
+      "action": "click",
+      "expect": {
+        "kind": "text",
+        "contains": "ARYA CONSOLE • ONLINE"
+      },
+      "page": "/"
+    }
+  ],
+  "author": {
+    "agent": "gemini",
+    "person": "kartikkulkarni1411@gmail.com"
+  }
+}

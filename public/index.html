@@ -145,6 +145,10 @@
         <button id="btnWorkspaceSettings" class="m-tool-btn" title="Workspace Settings">
           <span class="m-tool-icon">⚙️</span>
         </button>
+        <button id="btnOpenWizard" class="m-tool-btn" title="Setup Wizard">
+          <span class="m-tool-icon">🪄</span>
+          <span class="m-tool-text">WIZARD</span>
+        </button>
         <button id="btnOpenDrawer" class="m-tool-btn m-tool-highlight" title="Open App Catalog & Presets">
           <span class="m-tool-icon">⚡</span>
           <span class="m-tool-text">APPS</span>
@@ -284,16 +288,16 @@
     </div>
   </aside>
 
-  <!-- QUICK KEY ASSIGN POPUP (FOR TOUCH USERS) -->
-  <div id="assignPopup" class="m-popup-backdrop hidden">
-    <div class="m-popup-card">
+  <!-- QUICK KEY ASSIGN POPUP / 15-SLOT PICKER (FOR TOUCH USERS) -->
+  <div id="assignPopup" class="m-popup-backdrop hidden" data-testid="slotPickerModal">
+    <div class="m-popup-card m-slot-picker-card">
       <div class="m-popup-header">
         <h4 id="popupAppTitle">Assign App</h4>
         <button id="btnPopupClose" class="m-popup-close">&times;</button>
       </div>
-      <p class="m-popup-sub">Select target key in the 3×3 matrix:</p>
-      <div class="m-key-target-grid" id="popupTargetGrid">
-        <!-- 9 Key Target Buttons (Key 1 to 9) -->
+      <p class="m-popup-sub">Select target key in the 15-keypad matrix (5×3):</p>
+      <div class="m-key-target-grid m-slot-grid" id="popupTargetGrid">
+        <!-- 15 Key Target Buttons (Keys 1 to 15) -->
       </div>
     </div>
   </div>
@@ -514,6 +518,118 @@
       </div>
       <div class="m-modal-footer">
         <button id="btnSettingsModalDone" class="m-btn m-btn-secondary">DONE</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- FIRST-RUN ONBOARDING WIZARD MODAL (EPIC E4-1 & E4-3) -->
+  <div id="onboardingWizardModal" class="m-modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="wizardTitle">
+    <div class="m-modal-card m-wizard-card">
+      <div class="m-modal-header">
+        <div class="m-modal-title-wrap">
+          <div class="m-tricolor-mini"><span></span><span></span><span></span></div>
+          <h2 id="wizardTitle" class="m-wizard-title">WELCOME TO ARYA DOCK</h2>
+        </div>
+        <button id="btnWizardClose" class="m-modal-close-btn" aria-label="Close Wizard">&times;</button>
+      </div>
+
+      <!-- Operator Guided Preview Notice (Shown when canEdit is false) -->
+      <div id="wizardOperatorNotice" class="m-banner-notice hidden">
+        <span class="m-notice-icon">🔒</span>
+        <div class="m-notice-content">
+          <strong>OPERATOR MODE:</strong> Host configuration is read-only on this companion client. Unlock Editor Mode to customize and apply starter workspaces.
+        </div>
+        <button id="btnWizardUnlockEditor" class="m-btn m-btn-primary m-btn-sm" type="button">UNLOCK EDITOR MODE</button>
+      </div>
+
+      <!-- Stepper Progress Bar -->
+      <div class="m-wizard-progress" role="progressbar" aria-valuenow="1" aria-valuemin="1" aria-valuemax="3">
+        <div class="m-step-dot active" id="stepDot1">
+          <span class="m-dot-num">1</span>
+          <span class="m-dot-label">SCAN</span>
+        </div>
+        <div class="m-step-line" id="stepLine1"></div>
+        <div class="m-step-dot" id="stepDot2">
+          <span class="m-dot-num">2</span>
+          <span class="m-dot-label">WORKSPACES</span>
+        </div>
+        <div class="m-step-line" id="stepLine2"></div>
+        <div class="m-step-dot" id="stepDot3">
+          <span class="m-dot-num">3</span>
+          <span class="m-dot-label">LAUNCH</span>
+        </div>
+      </div>
+
+      <!-- Step 1: Host Environment Scan -->
+      <div id="wizardStepDetect" class="m-wizard-step">
+        <h3 class="m-step-subtitle">STEP 1: HOST ENVIRONMENT SCAN</h3>
+        <p id="wizardDetectSummary" class="m-step-desc">
+          Scanning host system for CLI developer tools, containers, and applications...
+        </p>
+        <div id="wizardDetectSpinner" class="m-detect-spinner hidden">
+          <span class="m-spinner"></span>
+          <span>Scanning host ecosystem...</span>
+        </div>
+        <div id="wizardDetectGrid" class="m-detect-grid">
+          <!-- Populated dynamically with detected tools -->
+        </div>
+      </div>
+
+      <!-- Step 2: Choose Starter Workspaces -->
+      <div id="wizardStepWorkspaces" class="m-wizard-step hidden">
+        <h3 class="m-step-subtitle">STEP 2: CHOOSE STARTER WORKSPACES</h3>
+        <p class="m-step-desc">Select starter workspace profiles tailored to your workflow:</p>
+        <div class="m-workspace-options">
+          <label class="m-ws-card" for="checkWsDev">
+            <input type="checkbox" id="checkWsDev" value="developer" checked>
+            <div class="m-ws-info">
+              <div class="m-ws-title">💻 Developer Cockpit</div>
+              <div class="m-ws-desc">Shell, Git, and detected development CLI tools partitioned into 15-key decks.</div>
+            </div>
+          </label>
+          <label class="m-ws-card" for="checkWsDevops">
+            <input type="checkbox" id="checkWsDevops" value="devops" checked>
+            <div class="m-ws-info">
+              <div class="m-ws-title">⚡ DevOps &amp; Cloud</div>
+              <div class="m-ws-desc">Docker, Kubernetes (k9s/kubectl), and journalctl system logs.</div>
+            </div>
+          </label>
+          <label class="m-ws-card" for="checkWsMedia">
+            <input type="checkbox" id="checkWsMedia" value="media" checked>
+            <div class="m-ws-info">
+              <div class="m-ws-title">🎵 Media &amp; Telemetry</div>
+              <div class="m-ws-desc">Hardware media keys (mute, volume, playback) and lock controls.</div>
+            </div>
+          </label>
+          <label class="m-ws-card" for="checkWsSys">
+            <input type="checkbox" id="checkWsSys" value="system">
+            <div class="m-ws-info">
+              <div class="m-ws-title">⚙️ System Utilities</div>
+              <div class="m-ws-desc">System monitor (btop), file manager, terminal tab, and screenshot shortcuts.</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <!-- Step 3: Finish & Launch Deck -->
+      <div id="wizardStepFinish" class="m-wizard-step hidden">
+        <h3 class="m-step-subtitle">STEP 3: READY TO LAUNCH</h3>
+        <p class="m-step-desc">
+          Your Arya Dock is configured and ready. Click below to apply your starter workspaces and take the cockpit live.
+        </p>
+        <div id="wizardFinishSummary" class="m-wizard-finish-summary">
+          <!-- Populated dynamically with selected workspaces count & button preview -->
+        </div>
+      </div>
+
+      <!-- Wizard Modal Footer -->
+      <div class="m-modal-footer m-wizard-footer">
+        <button id="btnWizardSkip" class="m-btn m-btn-secondary" type="button">SKIP SETUP</button>
+        <div class="m-wizard-footer-right">
+          <button id="btnWizardPrev" class="m-btn m-btn-secondary hidden" type="button">◀ BACK</button>
+          <button id="btnWizardNext" class="m-btn m-btn-primary" type="button">NEXT: SELECT STARTERS ▶</button>
+          <button id="btnWizardApply" class="m-btn m-btn-primary hidden" type="button">APPLY &amp; LAUNCH DECK 🚀</button>
+        </div>
       </div>
     </div>
   </div>

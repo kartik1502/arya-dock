@@ -33,8 +33,8 @@ if (urlParams.has('token') || urlParams.has('editKey')) {
 let userRole = 'operator';
 let canEdit = false;
 
-// Quick Presets (Clean, safe examples)
-const PRESETS = [
+// Quick Presets (Clean, safe examples; updated dynamically from /api/presets/catalog)
+let PRESETS = [
   {
     name: 'AI Agent',
     command: 'echo "Tip: Configure AI coding agent command in tile settings"',
@@ -236,6 +236,37 @@ const editUrl = document.getElementById('editUrl');
 const btnModalTest = document.getElementById('btnModalTest');
 const btnModalSave = document.getElementById('btnModalSave');
 
+// Onboarding Wizard Elements & State (Epic E4-1 & E4-3)
+let hasAutoOpenedWizard = false;
+let currentWizardStep = 1;
+let detectedEcosystemData = null;
+const onboardingWizardModal = document.getElementById('onboardingWizardModal');
+const wizardTitle = document.getElementById('wizardTitle');
+const btnWizardClose = document.getElementById('btnWizardClose');
+const wizardOperatorNotice = document.getElementById('wizardOperatorNotice');
+const btnWizardUnlockEditor = document.getElementById('btnWizardUnlockEditor');
+const stepDot1 = document.getElementById('stepDot1');
+const stepDot2 = document.getElementById('stepDot2');
+const stepDot3 = document.getElementById('stepDot3');
+const stepLine1 = document.getElementById('stepLine1');
+const stepLine2 = document.getElementById('stepLine2');
+const wizardStepDetect = document.getElementById('wizardStepDetect');
+const wizardDetectSummary = document.getElementById('wizardDetectSummary');
+const wizardDetectSpinner = document.getElementById('wizardDetectSpinner');
+const wizardDetectGrid = document.getElementById('wizardDetectGrid');
+const wizardStepWorkspaces = document.getElementById('wizardStepWorkspaces');
+const checkWsDev = document.getElementById('checkWsDev');
+const checkWsDevops = document.getElementById('checkWsDevops');
+const checkWsMedia = document.getElementById('checkWsMedia');
+const checkWsSys = document.getElementById('checkWsSys');
+const wizardStepFinish = document.getElementById('wizardStepFinish');
+const wizardFinishSummary = document.getElementById('wizardFinishSummary');
+const btnWizardSkip = document.getElementById('btnWizardSkip');
+const btnWizardPrev = document.getElementById('btnWizardPrev');
+const btnWizardNext = document.getElementById('btnWizardNext');
+const btnWizardApply = document.getElementById('btnWizardApply');
+const btnOpenWizard = document.getElementById('btnOpenWizard');
+
 // Transport detection
 function updateTransportDisplay() {
   const host = window.location.hostname;
@@ -318,8 +349,50 @@ function updateEditorUI() {
   }
 }
 
+// Fetch Static Presets Catalog from Server (Single Source of Truth, E4-1 & E4-3)
+async function loadPresetsCatalog() {
+  try {
+    const url = pairingToken ? `/api/presets/catalog?token=${encodeURIComponent(pairingToken)}` : '/api/presets/catalog';
+    const headers = {};
+    if (pairingToken) headers['Authorization'] = `Bearer ${pairingToken}`;
+    const res = await fetch(url, { headers });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.presets) && data.presets.length > 0) {
+        PRESETS = data.presets.map(p => ({
+          name: p.name,
+          command: p.command || '',
+          emoji: p.icon || '🚀',
+          icon: p.icon || '🚀',
+          color: p.color || '#1c69d4',
+          actionType: p.actionType || 'shell',
+          mediaAction: p.mediaAction || null,
+          terminalMode: p.terminalMode || 'tab',
+          category: formatPresetCategory(p.category || 'Development'),
+          comment: p.comment || p.command || ''
+        }));
+        renderAppCatalog('all');
+      }
+    }
+  } catch (err) {
+    console.warn('Could not fetch /api/presets/catalog, using static fallback:', err);
+  }
+}
+
+function formatPresetCategory(cat) {
+  if (!cat) return 'Development';
+  const c = String(cat).toLowerCase();
+  if (c === 'development' || c === 'dev') return 'Development';
+  if (c === 'network' || c === 'web') return 'Network';
+  if (c === 'system' || c === 'sys') return 'System';
+  if (c === 'audiovideo' || c === 'media') return 'AudioVideo';
+  if (c === 'devops') return 'Development';
+  return cat.charAt(0).toUpperCase() + cat.slice(1);
+}
+
 // Fetch Installed Applications from Server (Issue #4, E4-2)
 async function loadInstalledApplications() {
+  loadPresetsCatalog();
   try {
     const url = pairingToken ? `/api/apps?token=${encodeURIComponent(pairingToken)}` : '/api/apps';
     const headers = {};
@@ -918,6 +991,12 @@ function handleServerMessage(data) {
       }
       renderKeypadState();
       updateConnectionUI('connected');
+
+      // First-run automatic onboarding launch
+      if (data.onboardingCompleted === false && !hasAutoOpenedWizard) {
+        hasAutoOpenedWizard = true;
+        openOnboardingWizard(1);
+      }
       break;
     }
 
@@ -931,8 +1010,15 @@ function handleServerMessage(data) {
           unlockModalError.style.display = 'none';
           unlockModalError.textContent = '';
         }
+        if (wizardOperatorNotice) {
+          wizardOperatorNotice.classList.add('hidden');
+        }
+        if (onboardingWizardModal && !onboardingWizardModal.classList.contains('hidden') && currentWizardStep === 1) {
+          fetchHostEcosystem();
+        }
         loadSuggestedDirectories();
         loadInstalledApplications();
+        loadPresetsCatalog();
       }
       updateConnectionUI('connected');
       break;
@@ -2128,11 +2214,315 @@ if (btnImportConfig && inputImportFile) {
   });
 }
 
+// ==========================================================================
+// FIRST-RUN ONBOARDING WIZARD CONTROLLER (EPIC E4-1 & E4-3)
+// ==========================================================================
+
+function setWizardStep(step) {
+  currentWizardStep = step;
+
+  if (step === 1) {
+    if (wizardStepDetect) wizardStepDetect.classList.remove('hidden');
+    if (wizardStepWorkspaces) wizardStepWorkspaces.classList.add('hidden');
+    if (wizardStepFinish) wizardStepFinish.classList.add('hidden');
+
+    if (stepDot1) { stepDot1.classList.add('active'); stepDot1.classList.remove('completed'); }
+    if (stepDot2) { stepDot2.classList.remove('active', 'completed'); }
+    if (stepDot3) { stepDot3.classList.remove('active', 'completed'); }
+    if (stepLine1) stepLine1.classList.remove('active');
+    if (stepLine2) stepLine2.classList.remove('active');
+
+    if (btnWizardPrev) btnWizardPrev.classList.add('hidden');
+    if (btnWizardNext) {
+      btnWizardNext.classList.remove('hidden');
+      btnWizardNext.textContent = 'NEXT: SELECT STARTERS ▶';
+    }
+    if (btnWizardApply) btnWizardApply.classList.add('hidden');
+    if (btnWizardSkip) btnWizardSkip.classList.remove('hidden');
+
+    fetchHostEcosystem();
+  } else if (step === 2) {
+    if (wizardStepDetect) wizardStepDetect.classList.add('hidden');
+    if (wizardStepWorkspaces) wizardStepWorkspaces.classList.remove('hidden');
+    if (wizardStepFinish) wizardStepFinish.classList.add('hidden');
+
+    if (stepDot1) { stepDot1.classList.remove('active'); stepDot1.classList.add('completed'); }
+    if (stepDot2) { stepDot2.classList.add('active'); stepDot2.classList.remove('completed'); }
+    if (stepDot3) { stepDot3.classList.remove('active', 'completed'); }
+    if (stepLine1) stepLine1.classList.add('active');
+    if (stepLine2) stepLine2.classList.remove('active');
+
+    if (btnWizardPrev) btnWizardPrev.classList.remove('hidden');
+    if (btnWizardNext) btnWizardNext.classList.add('hidden');
+    if (btnWizardApply) {
+      btnWizardApply.classList.remove('hidden');
+      btnWizardApply.textContent = 'APPLY & LAUNCH DECK 🚀';
+    }
+    if (btnWizardSkip) btnWizardSkip.classList.remove('hidden');
+  } else if (step === 3) {
+    if (wizardStepDetect) wizardStepDetect.classList.add('hidden');
+    if (wizardStepWorkspaces) wizardStepWorkspaces.classList.add('hidden');
+    if (wizardStepFinish) wizardStepFinish.classList.remove('hidden');
+
+    if (stepDot1) { stepDot1.classList.remove('active'); stepDot1.classList.add('completed'); }
+    if (stepDot2) { stepDot2.classList.remove('active'); stepDot2.classList.add('completed'); }
+    if (stepDot3) { stepDot3.classList.add('active'); }
+    if (stepLine1) stepLine1.classList.add('active');
+    if (stepLine2) stepLine2.classList.add('active');
+
+    if (btnWizardPrev) btnWizardPrev.classList.remove('hidden');
+    if (btnWizardNext) btnWizardNext.classList.add('hidden');
+    if (btnWizardApply) {
+      btnWizardApply.classList.remove('hidden');
+      btnWizardApply.textContent = 'APPLY & LAUNCH DECK 🚀';
+    }
+    if (btnWizardSkip) btnWizardSkip.classList.remove('hidden');
+  }
+}
+
+function openOnboardingWizard(initialStep = 1) {
+  if (!onboardingWizardModal) return;
+  onboardingWizardModal.classList.remove('hidden');
+
+  if (wizardOperatorNotice) {
+    if (!canEdit) {
+      wizardOperatorNotice.classList.remove('hidden');
+    } else {
+      wizardOperatorNotice.classList.add('hidden');
+    }
+  }
+
+  setWizardStep(initialStep);
+}
+
+function closeOnboardingWizard() {
+  if (onboardingWizardModal) {
+    onboardingWizardModal.classList.add('hidden');
+  }
+}
+
+async function fetchHostEcosystem(forceRefresh = false) {
+  if (!wizardDetectGrid) return;
+
+  if (!canEdit) {
+    if (wizardDetectSpinner) wizardDetectSpinner.classList.add('hidden');
+    if (wizardDetectSummary) {
+      wizardDetectSummary.textContent = 'Host diagnostic scan requires editor permissions. Unlock editor mode above or proceed with curated starter presets.';
+    }
+    wizardDetectGrid.textContent = '';
+    const sampleTools = [
+      { name: 'VS Code', icon: '💻', binary: 'code' },
+      { name: 'Terminal', icon: '⚡', binary: 'bash' },
+      { name: 'Git', icon: '🌿', binary: 'git' },
+      { name: 'Docker', icon: '🐳', binary: 'docker' }
+    ];
+    sampleTools.forEach(t => {
+      const item = document.createElement('div');
+      item.className = 'm-detect-item';
+      const iconSpan = document.createElement('span');
+      iconSpan.className = 'm-detect-icon';
+      iconSpan.textContent = t.icon;
+      const infoDiv = document.createElement('div');
+      infoDiv.className = 'm-detect-info';
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'm-detect-name';
+      nameSpan.textContent = t.name;
+      const binSpan = document.createElement('span');
+      binSpan.className = 'm-detect-binary';
+      binSpan.textContent = t.binary;
+      infoDiv.appendChild(nameSpan);
+      infoDiv.appendChild(binSpan);
+      item.appendChild(iconSpan);
+      item.appendChild(infoDiv);
+      wizardDetectGrid.appendChild(item);
+    });
+    return;
+  }
+
+  if (wizardDetectSpinner) wizardDetectSpinner.classList.remove('hidden');
+
+  try {
+    const url = pairingToken
+      ? `/api/presets/detect?token=${encodeURIComponent(pairingToken)}${forceRefresh ? '&refresh=true' : ''}`
+      : `/api/presets/detect${forceRefresh ? '?refresh=true' : ''}`;
+    const headers = {};
+    if (pairingToken) headers['Authorization'] = `Bearer ${pairingToken}`;
+    if (editorKey) headers['X-Editor-Key'] = editorKey;
+
+    const res = await fetch(url, { headers });
+    if (wizardDetectSpinner) wizardDetectSpinner.classList.add('hidden');
+
+    if (res.ok) {
+      const data = await res.json();
+      detectedEcosystemData = data;
+      const tools = data.detectedTools || [];
+      const appsCount = data.desktopAppsCount || 0;
+
+      if (wizardDetectSummary) {
+        if (tools.length > 0) {
+          wizardDetectSummary.textContent = `Host scan complete: identified ${tools.length} developer tools and ${appsCount} desktop applications.`;
+        } else {
+          wizardDetectSummary.textContent = 'Minimal / container environment detected. Ready to seed standard developer cockpit with baseline CLI tools.';
+        }
+      }
+
+      wizardDetectGrid.textContent = '';
+      if (tools.length > 0) {
+        tools.forEach(t => {
+          const item = document.createElement('div');
+          item.className = 'm-detect-item';
+          const iconSpan = document.createElement('span');
+          iconSpan.className = 'm-detect-icon';
+          iconSpan.textContent = t.icon || '⚡';
+          const infoDiv = document.createElement('div');
+          infoDiv.className = 'm-detect-info';
+          const nameSpan = document.createElement('span');
+          nameSpan.className = 'm-detect-name';
+          nameSpan.textContent = t.name;
+          const binSpan = document.createElement('span');
+          binSpan.className = 'm-detect-binary';
+          binSpan.textContent = t.binary || '';
+          infoDiv.appendChild(nameSpan);
+          infoDiv.appendChild(binSpan);
+          item.appendChild(iconSpan);
+          item.appendChild(infoDiv);
+          wizardDetectGrid.appendChild(item);
+        });
+      } else {
+        const fallbacks = [
+          { name: 'Bash Terminal', icon: '⚡', binary: 'bash' },
+          { name: 'Git Status', icon: '🌿', binary: 'git' },
+          { name: 'System Info', icon: '📊', binary: 'uname' }
+        ];
+        fallbacks.forEach(t => {
+          const item = document.createElement('div');
+          item.className = 'm-detect-item';
+          const iconSpan = document.createElement('span');
+          iconSpan.className = 'm-detect-icon';
+          iconSpan.textContent = t.icon;
+          const infoDiv = document.createElement('div');
+          infoDiv.className = 'm-detect-info';
+          const nameSpan = document.createElement('span');
+          nameSpan.className = 'm-detect-name';
+          nameSpan.textContent = t.name;
+          const binSpan = document.createElement('span');
+          binSpan.className = 'm-detect-binary';
+          binSpan.textContent = t.binary;
+          infoDiv.appendChild(nameSpan);
+          infoDiv.appendChild(binSpan);
+          item.appendChild(iconSpan);
+          item.appendChild(infoDiv);
+          wizardDetectGrid.appendChild(item);
+        });
+      }
+    } else {
+      if (wizardDetectSummary) {
+        wizardDetectSummary.textContent = 'Could not run diagnostic scan. Curated starter templates remain available below.';
+      }
+    }
+  } catch (err) {
+    if (wizardDetectSpinner) wizardDetectSpinner.classList.add('hidden');
+    if (wizardDetectSummary) {
+      wizardDetectSummary.textContent = 'Diagnostic scan offline. Curated starter templates remain available below.';
+    }
+    console.warn('Diagnostic scan error:', err);
+  }
+}
+
+function applyStarterWorkspaces() {
+  if (!canEdit) {
+    if (typeof openUnlockModal === 'function') openUnlockModal();
+    return;
+  }
+
+  const selectedIds = [];
+  if (checkWsDev && checkWsDev.checked) selectedIds.push('developer');
+  if (checkWsDevops && checkWsDevops.checked) selectedIds.push('devops');
+  if (checkWsMedia && checkWsMedia.checked) selectedIds.push('media');
+  if (checkWsSys && checkWsSys.checked) selectedIds.push('system');
+
+  if (selectedIds.length === 0) {
+    selectedIds.push('developer');
+  }
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: 'APPLY_STARTER_WORKSPACES',
+      workspaceIds: selectedIds,
+      mode: 'replace'
+    }));
+  }
+
+  closeOnboardingWizard();
+}
+
+function skipOnboarding() {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify({
+      type: 'COMPLETE_ONBOARDING',
+      skip: true
+    }));
+  }
+  closeOnboardingWizard();
+}
+
+// Wizard Event Listeners
+if (btnWizardNext) {
+  btnWizardNext.addEventListener('click', () => {
+    if (currentWizardStep === 1) {
+      setWizardStep(2);
+    } else if (currentWizardStep === 2) {
+      setWizardStep(3);
+    }
+  });
+}
+
+if (btnWizardPrev) {
+  btnWizardPrev.addEventListener('click', () => {
+    if (currentWizardStep === 3) {
+      setWizardStep(2);
+    } else if (currentWizardStep === 2) {
+      setWizardStep(1);
+    }
+  });
+}
+
+if (btnWizardApply) {
+  btnWizardApply.addEventListener('click', () => {
+    applyStarterWorkspaces();
+  });
+}
+
+if (btnWizardSkip) {
+  btnWizardSkip.addEventListener('click', () => {
+    skipOnboarding();
+  });
+}
+
+if (btnWizardClose) {
+  btnWizardClose.addEventListener('click', () => {
+    closeOnboardingWizard();
+  });
+}
+
+if (btnOpenWizard) {
+  btnOpenWizard.addEventListener('click', () => {
+    openOnboardingWizard(1);
+  });
+}
+
+if (btnWizardUnlockEditor) {
+  btnWizardUnlockEditor.addEventListener('click', () => {
+    if (typeof openUnlockModal === 'function') openUnlockModal();
+  });
+}
+
 // Initialize
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
 loadInstalledApplications();
+loadPresetsCatalog();
 updateEditorUI();
 connectWebSocket();

@@ -50,7 +50,8 @@ test('Reticle: Predefined flow definitions exist and conform to Reticle v2 schem
     'active-window-auto-switching.json',
     'companion-deck-state.json',
     'config-import-export.json',
-    'folder-navigation.json'
+    'folder-navigation.json',
+    'onboarding-wizard.json'
   ];
 
   for (const flowFileName of requiredFlows) {
@@ -813,6 +814,85 @@ test('Reticle Predefined Flow Replay: Folder Sub-Deck Navigation (folder-navigat
     assert.equal(nav4.type, 'NAV_CHANGE');
     assert.deepEqual(nav4.folderStack, []);
     assert.equal(nav4.currentFolderName, null);
+
+    ws.close();
+  } finally {
+    await new Promise(resolve => app.close(resolve));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('Reticle Predefined Flow Replay: Onboarding Wizard (onboarding-wizard)', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'reticle-onboarding-test-'));
+  const configPath = path.join(tmpDir, 'profiles.json');
+  const authPath = path.join(tmpDir, 'auth.json');
+
+  // Seed fresh install with onboardingCompleted: false
+  fs.writeFileSync(configPath, JSON.stringify({
+    schemaVersion: 2,
+    activeWorkspaceId: 'developer',
+    onboardingCompleted: false,
+    workspaces: [
+      {
+        id: 'developer',
+        name: 'Default',
+        icon: '💻',
+        origin: 'builtin',
+        folders: [],
+        match: { apps: [] },
+        segregation: { enabled: false },
+        pages: [{ pageNumber: 1, name: 'Page 1', buttons: [] }]
+      }
+    ]
+  }));
+
+  const app = createServer({ configPath, authPath });
+  const server = app.server;
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  const token = app.credentials.pairingToken;
+
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?token=${token}`, {
+    headers: { Origin: `http://127.0.0.1:${port}` }
+  });
+  const nextMsg = createMessageQueue(ws);
+  await new Promise(resolve => ws.on('open', resolve));
+
+  try {
+    // Step 1: Client connects and receives initial state with onboardingCompleted: false
+    const initMsg = await nextMsg();
+    assert.equal(initMsg.type, 'INIT');
+    assert.equal(initMsg.onboardingCompleted, false);
+
+    // Step 2: Apply starter workspaces (Developer, DevOps, Media)
+    ws.send(JSON.stringify({
+      type: 'APPLY_STARTER_WORKSPACES',
+      workspaceIds: ['developer', 'devops', 'media'],
+      mode: 'replace'
+    }));
+
+    // Step 3: Server broadcasts STATE_UPDATE with onboardingCompleted: true
+    const stateMsg = await nextMsg();
+    assert.equal(stateMsg.type, 'STATE_UPDATE');
+    assert.equal(stateMsg.onboardingCompleted, true);
+    assert.equal(stateMsg.workspaces.length, 3);
+    assert.ok(stateMsg.workspaces.some(w => w.id === 'developer'));
+    assert.ok(stateMsg.workspaces.some(w => w.id === 'devops'));
+    assert.ok(stateMsg.workspaces.some(w => w.id === 'media'));
+
+    // Step 4: Verify disk persistence
+    const savedConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    assert.equal(savedConfig.onboardingCompleted, true);
+    assert.equal(savedConfig.workspaces.length, 3);
+
+    // Step 5: Test Skip onboarding via COMPLETE_ONBOARDING
+    ws.send(JSON.stringify({
+      type: 'COMPLETE_ONBOARDING',
+      skip: true
+    }));
+    const ackMsg = await nextMsg();
+    assert.equal(ackMsg.type, 'STATE_UPDATE');
+    assert.equal(ackMsg.onboardingCompleted, true);
 
     ws.close();
   } finally {
