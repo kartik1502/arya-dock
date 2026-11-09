@@ -109,21 +109,24 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: clamp(8px, 1.4vh, 14px) clamp(12px, 2vw, 24px);
+  padding: 8px clamp(10px, 1.5vw, 20px);
   background: var(--m-card-grad);
   border-bottom: 1.5px solid var(--m-hairline-strong);
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
-  gap: 12px;
+  gap: 10px;
   flex-shrink: 0;
   flex-wrap: nowrap;
   position: relative;
   z-index: 10;
+  min-height: 52px;
+  box-sizing: border-box;
 }
 
 .m-brand-lockup {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 /* Top Tricolor Signature Accent Strip */
@@ -205,20 +208,32 @@ body {
 }
 
 /* M Drive Mode Selector & Dynamic Scalable Switcher (E3-1 & E6-3) */
+.m-mode-selector-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 480px;
+  overflow: hidden;
+}
+
 .m-mode-selector {
   display: flex;
+  align-items: center;
   gap: 6px;
   background-color: #0b1329;
-  padding: 4px;
+  padding: 3px 5px;
   border: 1.5px solid var(--m-hairline-strong);
   border-radius: var(--m-radius-md);
-  flex: 1 1 0;
-  min-width: 0;
-  max-width: 100%;
+  flex: 1 1 auto;
+  min-width: 60px;
   overflow-x: auto;
   white-space: nowrap;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
+  height: 36px;
+  box-sizing: border-box;
 }
 
 .m-mode-selector::-webkit-scrollbar {
@@ -230,13 +245,16 @@ body {
   border: 1px solid transparent;
   border-radius: var(--m-radius-sm);
   color: var(--m-body);
-  padding: 6px 14px;
+  padding: 4px 12px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   transition: all 0.15s ease;
   flex-shrink: 0;
+  height: 28px;
+  box-sizing: border-box;
+  white-space: nowrap;
 }
 
 #btnAddWorkspace,
@@ -245,13 +263,16 @@ body {
   border: 1px dashed var(--m-hairline-strong);
   border-radius: var(--m-radius-sm);
   color: var(--m-cyan);
-  padding: 6px 12px;
+  padding: 4px 10px;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   transition: all 0.15s ease;
   flex-shrink: 0;
+  height: 36px;
+  box-sizing: border-box;
+  white-space: nowrap;
 }
 
 #btnAddWorkspace:hover,
@@ -297,23 +318,31 @@ body {
 .m-header-tools {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  margin-left: auto;
 }
 
 .m-tool-btn {
   background-color: var(--m-surface-card);
   border: 1.5px solid var(--m-hairline);
   color: var(--m-body-strong);
-  padding: 6px 12px;
+  padding: 5px 9px;
   font-size: 12px;
   font-weight: 700;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.5px;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
+  gap: 5px;
   transition: all 0.15s ease;
   border-radius: var(--m-radius-md);
+  height: 32px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .m-tool-btn:hover {
@@ -337,17 +366,21 @@ body {
 }
 
 .m-tile-counter-badge {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 6px 10px;
+  padding: 5px 8px;
   background-color: #0b1329;
   border: 1.5px solid #0284c7;
   border-radius: var(--m-radius-md);
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 0.8px;
   color: var(--m-cyan);
+  height: 32px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .m-tile-counter-badge span {
@@ -357,8 +390,11 @@ body {
 }
 
 .m-tile-controls {
-  display: flex;
-  gap: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+  height: 32px;
 }
 
 .m-tile-ctrl-btn {
@@ -366,15 +402,17 @@ body {
   border: 1.5px solid var(--m-hairline);
   color: var(--m-body-strong);
   width: 28px;
-  height: 28px;
-  display: flex;
+  height: 32px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 900;
   cursor: pointer;
   border-radius: var(--m-radius-md);
   transition: all 0.15s ease;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .m-tile-ctrl-btn:hover {
@@ -389,19 +427,23 @@ body {
 }
 
 .m-status-pill {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 12px;
+  gap: 6px;
+  padding: 5px 10px;
   background-color: var(--m-surface-card);
   border: 1.5px solid var(--m-hairline);
   border-radius: var(--m-radius-md);
   font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 0.8px;
   cursor: pointer;
   user-select: none;
   transition: all 0.2s ease;
+  height: 32px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .m-status-pill:hover {
@@ -446,18 +488,22 @@ body {
 
 /* Navigation Mode Badge & Pin Controls (E3-2) */
 .m-nav-status-badge {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 10px;
+  gap: 5px;
+  padding: 5px 9px;
   background-color: var(--m-surface-card);
   border: 1.5px solid var(--m-hairline);
   border-radius: var(--m-radius-md);
   font-size: 10.5px;
   font-weight: 700;
-  letter-spacing: 1px;
+  letter-spacing: 0.8px;
   user-select: none;
   transition: all 0.2s ease;
+  height: 32px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .m-nav-dot {
@@ -465,6 +511,7 @@ body {
   height: 7px;
   border-radius: 50%;
   transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .m-nav-status-badge.auto .m-nav-dot {
@@ -501,6 +548,54 @@ body {
   border-color: #0284c7;
   color: var(--m-cyan);
   box-shadow: 0 0 10px rgba(2, 132, 199, 0.4);
+}
+
+/* Responsive Top Cockpit Header Adaptations */
+@media (max-width: 1280px) {
+  .m-badge-companion {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1100px) {
+  .m-brand-text .m-subline {
+    display: none !important;
+  }
+  .m-status-pill .m-status-text {
+    display: none;
+  }
+  .m-status-pill {
+    padding: 5px 8px;
+  }
+}
+
+@media (max-width: 960px) {
+  .m-nav-status-badge .m-nav-text {
+    display: none;
+  }
+  .m-nav-status-badge {
+    padding: 5px 8px;
+  }
+  .m-tool-btn .m-tool-text {
+    display: none;
+  }
+  .m-mode-selector-wrap {
+    max-width: 300px;
+  }
+}
+
+@media (max-width: 768px) {
+  .m-header {
+    padding: 6px 10px;
+    gap: 6px;
+  }
+  #btnWakeLock,
+  #btnFullscreen {
+    display: none !important;
+  }
+  .m-mode-selector-wrap {
+    max-width: 180px;
+  }
 }
 
 /* Subtle boundary line */

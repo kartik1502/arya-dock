@@ -108,7 +108,7 @@
       </div>
 
       <!-- M Drive Workspace Selector (E3-1 & E6-3) -->
-      <div class="m-mode-selector-wrap" style="display: flex; align-items: center; gap: 6px; flex: 1 1 0; min-width: 0;">
+      <div class="m-mode-selector-wrap">
         <div class="m-mode-selector" id="workspaceSelector" role="tablist">
           <button id="btnModeM1" class="m-mode-btn active" data-workspace="developer" data-profile="developer">
             <span class="m-mode-label">M1</span>
@@ -142,12 +142,11 @@
           <button id="btnRemoveTile" class="m-tile-ctrl-btn" title="Remove a Tile">−</button>
           <button id="btnAddTile" class="m-tile-ctrl-btn" title="Add a Tile">+</button>
         </div>
-        <button id="btnWorkspaceSettings" class="m-tool-btn" title="Workspace Settings">
+        <button id="btnWorkspaceSettings" class="m-tool-btn" title="Workspace Settings" aria-label="Workspace Settings">
           <span class="m-tool-icon">⚙️</span>
         </button>
-        <button id="btnOpenWizard" class="m-tool-btn" title="Setup Wizard">
+        <button id="btnOpenWizard" class="m-tool-btn" title="Setup Wizard" aria-label="Setup Wizard">
           <span class="m-tool-icon">🪄</span>
-          <span class="m-tool-text">WIZARD</span>
         </button>
         <button id="btnOpenDrawer" class="m-tool-btn m-tool-highlight" title="Open App Catalog & Presets">
           <span class="m-tool-icon">⚡</span>
