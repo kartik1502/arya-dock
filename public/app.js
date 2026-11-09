@@ -1106,17 +1106,17 @@ function renderWorkspaces(workspaces, activeWorkspaceId) {
       btn.id = 'btnModeM1';
       modeLabel = 'M1';
       modeSub = 'DEV COCKPIT';
-      btn.setAttribute('aria-label', 'DEV COCKPIT');
+      btn.setAttribute('aria-label', 'M1 DEV COCKPIT');
     } else if (wsItem.id === 'media') {
       btn.id = 'btnModeM2';
       modeLabel = 'M2';
       modeSub = 'MEDIA & TELEMETRY';
-      btn.setAttribute('aria-label', 'MEDIA & TELEMETRY');
+      btn.setAttribute('aria-label', 'M2 MEDIA & TELEMETRY');
     } else {
       btn.id = `btnWorkspace_${wsItem.id}`;
       modeLabel = wsItem.icon || `M${idx + 1}`;
       modeSub = (wsItem.name || wsItem.id).toUpperCase();
-      btn.setAttribute('aria-label', (wsItem.name || wsItem.id).toUpperCase());
+      btn.setAttribute('aria-label', `${modeLabel} ${modeSub}`.trim());
     }
 
     const labelSpan = document.createElement('span');

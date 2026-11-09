@@ -211,103 +211,154 @@ body {
 .m-mode-selector-wrap {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: 480px;
-  overflow: hidden;
+  gap: 8px;
+  flex: 1 1 auto;
+  min-width: 160px;
+  max-width: 680px;
+  overflow: visible;
 }
 
 .m-mode-selector {
   display: flex;
   align-items: center;
   gap: 6px;
-  background-color: #0b1329;
-  padding: 3px 5px;
-  border: 1.5px solid var(--m-hairline-strong);
+  background-color: #070d1a;
+  padding: 3px 6px;
+  border: 1.5px solid #1e293b;
   border-radius: var(--m-radius-md);
   flex: 1 1 auto;
-  min-width: 60px;
+  min-width: 100px;
   overflow-x: auto;
   white-space: nowrap;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-  height: 36px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(56, 189, 248, 0.4) transparent;
+  height: 38px;
   box-sizing: border-box;
 }
 
 .m-mode-selector::-webkit-scrollbar {
-  display: none;
+  height: 3px;
+}
+
+.m-mode-selector::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.m-mode-selector::-webkit-scrollbar-thumb {
+  background: rgba(56, 189, 248, 0.4);
+  border-radius: 2px;
 }
 
 .m-mode-btn {
-  background: transparent;
-  border: 1px solid transparent;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1.5px solid #334155;
   border-radius: var(--m-radius-sm);
-  color: var(--m-body);
+  color: #f1f5f9;
   padding: 4px 12px;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  transition: all 0.15s ease;
+  gap: 8px;
+  transition: all 0.18s ease;
   flex-shrink: 0;
-  height: 28px;
+  height: 30px;
   box-sizing: border-box;
   white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 #btnAddWorkspace,
 .m-add-ws-btn {
-  background: rgba(30, 41, 59, 0.4);
-  border: 1px dashed var(--m-hairline-strong);
+  background: rgba(15, 23, 42, 0.7);
+  border: 1.5px dashed #38bdf8;
   border-radius: var(--m-radius-sm);
-  color: var(--m-cyan);
-  padding: 4px 10px;
+  color: #38bdf8;
+  padding: 4px 11px;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   transition: all 0.15s ease;
   flex-shrink: 0;
-  height: 36px;
+  height: 38px;
   box-sizing: border-box;
   white-space: nowrap;
 }
 
 #btnAddWorkspace:hover,
 .m-add-ws-btn:hover {
-  background: rgba(14, 165, 233, 0.15);
-  border-color: var(--m-cyan);
-  color: var(--m-primary);
+  background: rgba(14, 165, 233, 0.2);
+  border-color: #7dd3fc;
+  color: #ffffff;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.35);
+}
+
+#btnAddWorkspace .m-mode-label,
+.m-add-ws-btn .m-mode-label {
+  background: transparent;
+  border: none;
+  color: inherit;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 900;
+  box-shadow: none;
+}
+
+#btnAddWorkspace .m-mode-sub,
+.m-add-ws-btn .m-mode-sub {
+  color: inherit;
+  font-size: 11px;
+  font-weight: 800;
+  text-shadow: none;
 }
 
 .m-mode-label {
-  font-size: 12.5px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(14, 165, 233, 0.18);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 11.5px;
   font-weight: 900;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
+  line-height: 1.2;
 }
 
 .m-mode-sub {
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.8px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: #f1f5f9;
 }
 
 .m-mode-btn:hover {
-  color: var(--m-primary);
-  background-color: rgba(30, 41, 59, 0.5);
+  background-color: rgba(30, 41, 59, 0.95);
+  border-color: #64748b;
+  color: #ffffff;
 }
 
 .m-mode-btn.active {
-  background-color: var(--m-surface-card);
-  color: var(--m-primary);
-  border-color: #0284c7;
-  box-shadow: 0 0 12px rgba(2, 132, 199, 0.25);
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  border-color: #38bdf8;
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .m-mode-btn.active .m-mode-label {
-  color: var(--m-cyan);
+  background: #0284c7;
+  color: #ffffff;
+  border-color: #38bdf8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+}
+
+.m-mode-btn.active .m-mode-sub {
+  color: #ffffff;
+  font-weight: 900;
+  text-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
 }
 
 .m-mode-btn:active {
@@ -580,7 +631,7 @@ body {
     display: none;
   }
   .m-mode-selector-wrap {
-    max-width: 300px;
+    max-width: 460px;
   }
 }
 
@@ -594,7 +645,7 @@ body {
     display: none !important;
   }
   .m-mode-selector-wrap {
-    max-width: 180px;
+    max-width: 320px;
   }
 }
 
