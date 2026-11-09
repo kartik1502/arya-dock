@@ -154,12 +154,16 @@ function createServer(options = {}) {
   function getActiveWorkspace() {
     const wsId = navState.workspaceId;
     if (Array.isArray(appConfig.workspaces)) {
-      const found = appConfig.workspaces.find(w => w.id === wsId);
+      const found = appConfig.workspaces.find(w => w && w.id === wsId);
       if (found) return found;
       if (appConfig.workspaces.length > 0) return appConfig.workspaces[0];
     }
-    if (appConfig.profiles && Object.prototype.hasOwnProperty.call(appConfig.profiles, wsId)) {
-      return { id: wsId, ...appConfig.profiles[wsId] };
+    const dangerousKeys = new Set(['__proto__', 'constructor', 'prototype']);
+    if (typeof wsId === 'string' && !dangerousKeys.has(wsId) && appConfig.profiles && Object.prototype.hasOwnProperty.call(appConfig.profiles, wsId)) {
+      const prof = appConfig.profiles[wsId];
+      if (prof && typeof prof === 'object' && prof !== Object.prototype) {
+        return { id: wsId, ...prof };
+      }
     }
     return { id: 'developer', name: 'Developer', pages: [{ buttons: [] }] };
   }

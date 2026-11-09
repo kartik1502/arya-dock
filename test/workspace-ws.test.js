@@ -264,3 +264,57 @@ test('Workspace & Navigation WebSocket Integration: WORKSPACE_DELETED by editor 
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
+
+test('Workspace & Navigation: Prototype pollution injection rejection on TOGGLE_SEGREGATION, SET_WORKSPACE, and WORKSPACE_DELETED', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arya-proto-integ-'));
+  const configPath = path.join(tmpDir, 'profiles.json');
+  const authPath = path.join(tmpDir, 'auth.json');
+
+  const app = createServer({ configPath, authPath });
+  const server = app.server;
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  const token = app.credentials.pairingToken;
+
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?token=${token}`, {
+    headers: { Origin: `http://127.0.0.1:${port}` }
+  });
+  const nextMsg = createMessageQueue(ws);
+  await new Promise(resolve => ws.on('open', resolve));
+
+  try {
+    await nextMsg(); // INIT
+
+    for (const evilKey of ['__proto__', 'constructor', 'prototype']) {
+      // 1. TOGGLE_SEGREGATION injection attempt
+      ws.send(JSON.stringify({ type: 'TOGGLE_SEGREGATION', workspaceId: evilKey, enabled: true }));
+      const errSeg = await nextMsg();
+      assert.equal(errSeg.type, 'ERROR');
+      assert.match(errSeg.message, /Invalid workspace id/);
+      assert.equal(Object.prototype.segregation, undefined, 'Object.prototype must NOT be polluted');
+
+      // 2. SET_WORKSPACE injection attempt
+      ws.send(JSON.stringify({ type: 'SET_WORKSPACE', workspaceId: evilKey }));
+      const errWs = await nextMsg();
+      assert.equal(errWs.type, 'ERROR');
+      assert.match(errWs.message, /Invalid workspace id/);
+
+      // 3. SET_PROFILE injection attempt
+      ws.send(JSON.stringify({ type: 'SET_PROFILE', profileId: evilKey }));
+      const errProf = await nextMsg();
+      assert.equal(errProf.type, 'ERROR');
+      assert.match(errProf.message, /Invalid profile id/);
+
+      // 4. WORKSPACE_DELETED injection attempt
+      ws.send(JSON.stringify({ type: 'WORKSPACE_DELETED', workspaceId: evilKey }));
+      const errDel = await nextMsg();
+      assert.equal(errDel.type, 'ERROR');
+      assert.match(errDel.message, /Invalid workspace id/);
+    }
+
+    ws.close();
+  } finally {
+    await new Promise(resolve => app.close(resolve));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
