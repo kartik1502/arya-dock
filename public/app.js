@@ -208,6 +208,10 @@ const inputWsName = document.getElementById('inputWsName');
 const inputWsIcon = document.getElementById('inputWsIcon');
 const inputWsMatchApps = document.getElementById('inputWsMatchApps');
 const workspaceSettingsError = document.getElementById('workspaceSettingsError');
+const workspaceSettingsSuccess = document.getElementById('workspaceSettingsSuccess');
+const btnExportConfig = document.getElementById('btnExportConfig');
+const btnImportConfig = document.getElementById('btnImportConfig');
+const inputImportFile = document.getElementById('inputImportFile');
 const btnCreateWorkspace = document.getElementById('btnCreateWorkspace');
 const btnSaveWorkspaceEdit = document.getElementById('btnSaveWorkspaceEdit');
 const btnCancelWorkspaceEdit = document.getElementById('btnCancelWorkspaceEdit');
@@ -291,6 +295,8 @@ function updateEditorUI() {
     if (btnOpenDrawer) btnOpenDrawer.style.display = 'none';
     if (dragBanner) dragBanner.style.display = 'none';
     if (btnAddWorkspace) btnAddWorkspace.style.display = 'none';
+    if (btnExportConfig) btnExportConfig.disabled = true;
+    if (btnImportConfig) btnImportConfig.disabled = true;
   } else {
     if (btnEdit) {
       btnEdit.style.display = '';
@@ -301,6 +307,8 @@ function updateEditorUI() {
     if (btnOpenDrawer) btnOpenDrawer.style.display = '';
     if (dragBanner) dragBanner.style.display = '';
     if (btnAddWorkspace) btnAddWorkspace.style.display = '';
+    if (btnExportConfig) btnExportConfig.disabled = false;
+    if (btnImportConfig) btnImportConfig.disabled = false;
   }
 }
 
@@ -1773,6 +1781,10 @@ function openWorkspaceSettingsModal(mode = 'create', targetWs = null) {
   if (toggleSegregation) {
     toggleSegregation.checked = Boolean(currentWorkspaceSegregation && currentWorkspaceSegregation.enabled);
   }
+  if (workspaceSettingsSuccess) {
+    workspaceSettingsSuccess.style.display = 'none';
+    workspaceSettingsSuccess.textContent = '';
+  }
   setWorkspaceFormMode(mode, targetWs);
   renderWorkspaceList();
   if (workspaceSettingsModal) {
@@ -1886,6 +1898,160 @@ if (toggleSegregation) {
       const allTab = categoryLensStrip ? categoryLensStrip.querySelector('[data-lens="all"]') : null;
       if (allTab) allTab.click();
     }
+  });
+}
+
+if (btnExportConfig) {
+  btnExportConfig.addEventListener('click', async () => {
+    if (!canEdit) return;
+    triggerHaptic(15);
+    if (workspaceSettingsError) workspaceSettingsError.style.display = 'none';
+    if (workspaceSettingsSuccess) workspaceSettingsSuccess.style.display = 'none';
+
+    try {
+      const url = pairingToken ? `/api/config/export?token=${encodeURIComponent(pairingToken)}` : '/api/config/export';
+      const headers = {};
+      if (pairingToken) headers['Authorization'] = `Bearer ${pairingToken}`;
+      if (editorKey) headers['X-Editor-Key'] = editorKey;
+
+      const res = await fetch(url, { headers });
+      if (!res.ok) {
+        const errJson = await res.json().catch(() => ({ error: 'Export failed' }));
+        throw new Error(errJson.error || `HTTP ${res.status}`);
+      }
+
+      const disposition = res.headers.get('content-disposition') || '';
+      let filename = 'arya-dock-config.json';
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      if (match && match[1]) filename = match[1];
+
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objectUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objectUrl);
+
+      if (workspaceSettingsSuccess) {
+        workspaceSettingsSuccess.textContent = `Configuration successfully exported as ${filename}`;
+        workspaceSettingsSuccess.style.display = 'block';
+      }
+    } catch (err) {
+      if (workspaceSettingsError) {
+        workspaceSettingsError.textContent = `Export failed: ${err.message}`;
+        workspaceSettingsError.style.display = 'block';
+      }
+    }
+  });
+}
+
+if (btnImportConfig && inputImportFile) {
+  btnImportConfig.addEventListener('click', () => {
+    if (!canEdit) return;
+    triggerHaptic(15);
+    inputImportFile.value = '';
+    inputImportFile.click();
+  });
+
+  inputImportFile.addEventListener('change', () => {
+    if (!inputImportFile.files || inputImportFile.files.length === 0) return;
+    const file = inputImportFile.files[0];
+
+    if (file.size > 2 * 1024 * 1024) {
+      if (workspaceSettingsError) {
+        workspaceSettingsError.textContent = 'Configuration file exceeds 2MB limit.';
+        workspaceSettingsError.style.display = 'block';
+      }
+      inputImportFile.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      try {
+        if (workspaceSettingsError) workspaceSettingsError.style.display = 'none';
+        if (workspaceSettingsSuccess) workspaceSettingsSuccess.style.display = 'none';
+
+        const text = e.target.result;
+        let parsed;
+        try {
+          parsed = JSON.parse(text);
+        } catch (_) {
+          throw new Error('Selected file is not valid JSON.');
+        }
+
+        // Count custom shell actions for RCE user warning
+        let shellCount = 0;
+        const workspaces = Array.isArray(parsed.workspaces) ? parsed.workspaces : [];
+        for (const ws of workspaces) {
+          if (Array.isArray(ws.pages)) {
+            for (const page of ws.pages) {
+              if (Array.isArray(page.buttons)) {
+                for (const btn of page.buttons) {
+                  if (btn && btn.actionType === 'shell' && typeof btn.command === 'string' && btn.command.trim().length > 0) {
+                    shellCount++;
+                  }
+                }
+              }
+            }
+          }
+        }
+
+        let confirmMsg = 'Importing this configuration will replace all current workspaces and shortcuts.\n\n' +
+                         'A safety backup of your existing configuration will be preserved on the server.\n\n';
+        if (shellCount > 0) {
+          confirmMsg += `⚠️ WARNING: This configuration contains ${shellCount} custom shell command(s).\n` +
+                        `Shell commands execute directly on your Linux host with your user privileges.\n` +
+                        `Only import configurations from authors or sources you trust.\n\n`;
+        }
+        confirmMsg += 'Do you wish to proceed?';
+
+        if (!window.confirm(confirmMsg)) {
+          inputImportFile.value = '';
+          return;
+        }
+
+        const url = pairingToken ? `/api/config/import?token=${encodeURIComponent(pairingToken)}` : '/api/config/import';
+        const headers = { 'Content-Type': 'application/json' };
+        if (pairingToken) headers['Authorization'] = `Bearer ${pairingToken}`;
+        if (editorKey) headers['X-Editor-Key'] = editorKey;
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers,
+          body: text
+        });
+
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.error || `HTTP ${res.status}`);
+        }
+
+        if (workspaceSettingsSuccess) {
+          workspaceSettingsSuccess.textContent = `Configuration imported successfully (${data.workspaceCount || 'multiple'} workspaces loaded).`;
+          workspaceSettingsSuccess.style.display = 'block';
+        }
+        renderWorkspaceList();
+      } catch (err) {
+        if (workspaceSettingsError) {
+          workspaceSettingsError.textContent = `Import failed: ${err.message}`;
+          workspaceSettingsError.style.display = 'block';
+        }
+      } finally {
+        inputImportFile.value = '';
+      }
+    };
+    reader.onerror = () => {
+      if (workspaceSettingsError) {
+        workspaceSettingsError.textContent = 'Failed to read file from disk.';
+        workspaceSettingsError.style.display = 'block';
+      }
+      inputImportFile.value = '';
+    };
+    reader.readAsText(file);
   });
 }
 

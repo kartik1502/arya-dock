@@ -485,6 +485,26 @@
             Automatically organizes shortcuts into dedicated Terminal, Application, URL, and Media views capped at 15 tiles per page.
           </p>
         </div>
+
+        <!-- Backup & Restore Configuration Section (Epic E2-4) -->
+        <div class="m-ws-manage-section">
+          <div class="m-ws-section-header">
+            <h4>BACKUP & RESTORE CONFIGURATION</h4>
+          </div>
+          <p class="m-settings-help">
+            Export your complete workspace layout and shortcuts as a JSON file, or restore from a previous backup snapshot.
+          </p>
+          <div id="workspaceSettingsSuccess" class="m-success-banner" style="display: none;"></div>
+          <div style="display: flex; gap: 8px; margin-top: 6px;">
+            <button id="btnExportConfig" class="m-btn m-btn-secondary" style="flex: 1;">
+              📥 EXPORT BACKUP (.JSON)
+            </button>
+            <button id="btnImportConfig" class="m-btn m-btn-secondary" style="flex: 1;">
+              📤 IMPORT BACKUP (.JSON)
+            </button>
+            <input type="file" id="inputImportFile" accept=".json,application/json" style="display: none;">
+          </div>
+        </div>
       </div>
       <div class="m-modal-footer">
         <button id="btnSettingsModalDone" class="m-btn m-btn-secondary">DONE</button>

@@ -48,7 +48,8 @@ test('Reticle: Predefined flow definitions exist and conform to Reticle v2 schem
     'workspace-settings-modal.json',
     'workspace-lifecycle.json',
     'active-window-auto-switching.json',
-    'companion-deck-state.json'
+    'companion-deck-state.json',
+    'config-import-export.json'
   ];
 
   for (const flowFileName of requiredFlows) {
@@ -638,6 +639,101 @@ test('Reticle Predefined Flow Replay: Workspace Lifecycle Management (workspace-
     const devMsg = await nextMsg();
     assert.equal(devMsg.type, 'STATE_UPDATE');
     assert.equal(devMsg.workspaceId, 'developer');
+
+    ws.close();
+  } finally {
+    await new Promise(resolve => app.close(resolve));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('Reticle Predefined Flow Replay: Configuration Export & Import Lifecycle (config-import-export)', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'reticle-import-export-test-'));
+  const configPath = path.join(tmpDir, 'profiles.json');
+  const authPath = path.join(tmpDir, 'auth.json');
+
+  const app = createServer({
+    configPath,
+    authPath,
+    debounceMs: 0
+  });
+  const server = app.server;
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  const token = app.credentials.pairingToken;
+
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?token=${token}`, {
+    headers: { Origin: `http://127.0.0.1:${port}` }
+  });
+  const nextMsg = createMessageQueue(ws);
+  await new Promise(resolve => ws.on('open', resolve));
+
+  try {
+    const initMsg = await nextMsg();
+    assert.equal(initMsg.role, 'editor');
+
+    // Step 1: Export current configuration via HTTP GET
+    const exportRes = await new Promise((resolve, reject) => {
+      http.get(`http://127.0.0.1:${port}/api/config/export?token=${encodeURIComponent(token)}`, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => resolve({ statusCode: res.statusCode, data: JSON.parse(data) }));
+      }).on('error', reject);
+    });
+    assert.equal(exportRes.statusCode, 200);
+    assert.equal(exportRes.data.schemaVersion, 2);
+    assert.ok(Array.isArray(exportRes.data.workspaces));
+
+    // Step 2: Mutate configuration by importing a custom deck
+    const importPayload = {
+      schemaVersion: 2,
+      activeWorkspaceId: 'stream-ops',
+      workspaces: [
+        {
+          id: 'stream-ops',
+          name: 'Streaming Cockpit',
+          icon: '🎙️',
+          pages: [
+            {
+              pageNumber: 1,
+              name: 'Page 1',
+              buttons: [
+                { id: 0, label: 'Mute Mic', actionType: 'shell', command: 'pactl set-source-mute @DEFAULT_SOURCE@ toggle' }
+              ]
+            }
+          ]
+        }
+      ]
+    };
+
+    const importRes = await new Promise((resolve, reject) => {
+      const postReq = http.request(`http://127.0.0.1:${port}/api/config/import?token=${encodeURIComponent(token)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      }, (res) => {
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => resolve({ statusCode: res.statusCode, data: JSON.parse(data) }));
+      });
+      postReq.on('error', reject);
+      postReq.write(JSON.stringify(importPayload));
+      postReq.end();
+    });
+    assert.equal(importRes.statusCode, 200);
+    assert.equal(importRes.data.status, 'ok');
+
+    // Step 3: Verify WebSocket client receives real-time fan-out STATE_UPDATE
+    const updateMsg = await nextMsg();
+    assert.equal(updateMsg.type, 'STATE_UPDATE');
+    assert.equal(updateMsg.workspaceId, 'stream-ops');
+    assert.equal(updateMsg.workspaceName, 'Streaming Cockpit');
+    assert.equal(updateMsg.buttons.length, 1);
+    assert.equal(updateMsg.buttons[0].label, 'Mute Mic');
+
+    // Step 4: Verify atomic disk persistence
+    const savedConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    assert.equal(savedConfig.activeWorkspaceId, 'stream-ops');
+    assert.equal(savedConfig.workspaces[0].name, 'Streaming Cockpit');
 
     ws.close();
   } finally {

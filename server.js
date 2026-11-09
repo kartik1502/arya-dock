@@ -271,7 +271,49 @@ function createServer(options = {}) {
     credentials,
     getConfig: () => appConfig,
     publicDir,
-    mockClientIp: options.mockClientIp
+    mockClientIp: options.mockClientIp,
+    onImportConfig: async (validatedConfig) => {
+      // 1. Debounce Invalidation: Cancel pending save timer and reset pending flag
+      if (saveTimer) {
+        clearTimeout(saveTimer);
+        saveTimer = null;
+      }
+      hasPendingSave = false;
+
+      // 2. Write-to-Disk-First Invariant: Atomic persist to disk with timestamped backup
+      // If this throws, execution halts immediately and propagates HTTP 500 without modifying in-memory state
+      saveConfigAtomic(configPath, validatedConfig, { maxBackups });
+
+      // 3. In-memory State Mutation
+      appConfig = validatedConfig;
+
+      // 4. Server Navigation Re-initialization
+      navState = createInitialNavigationState({
+        workspaces: appConfig.workspaces,
+        initialWorkspaceId: appConfig.activeWorkspaceId,
+        mode: 'auto',
+        pinned: false
+      });
+
+      // 5. Multi-Client Nav State Reconciliation (Prevent Zombie Pointers)
+      if (wsManager && wsManager.wss && wsManager.wss.clients) {
+        for (const client of wsManager.wss.clients) {
+          if (client.readyState === 1 && client.navState) {
+            const exists = appConfig.workspaces.some(w => w.id === client.navState.workspaceId);
+            if (!exists) {
+              client.navState.workspaceId = appConfig.activeWorkspaceId;
+              client.navState.pageIndex = 0;
+            } else {
+              const wsObj = appConfig.workspaces.find(w => w.id === client.navState.workspaceId);
+              const maxPages = (wsObj && Array.isArray(wsObj.pages) && wsObj.pages.length > 0) ? wsObj.pages.length : 1;
+              client.navState.pageIndex = Math.max(0, Math.min(client.navState.pageIndex, maxPages - 1));
+            }
+          }
+        }
+        // 6. Multi-client Broadcast Fan-Out
+        broadcastState(wsManager.wss, wsContext);
+      }
+    }
   });
 
   const server = http.createServer(httpHandler);
