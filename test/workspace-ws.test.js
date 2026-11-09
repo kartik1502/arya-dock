@@ -161,7 +161,7 @@ test('Workspace & Navigation WebSocket Integration: PIN, UNPIN, and CONTEXT_CHAN
   }
 });
 
-test('Workspace & Navigation WebSocket Integration: Operator privilege enforcement on SET_WORKSPACE', async () => {
+test('Workspace & Navigation WebSocket Integration: Operator local navigation & mutation protection', async () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arya-ws-role-integ-'));
   const configPath = path.join(tmpDir, 'profiles.json');
   const authPath = path.join(tmpDir, 'auth.json');
@@ -187,22 +187,31 @@ test('Workspace & Navigation WebSocket Integration: Operator privilege enforceme
     assert.equal(init.role, 'operator');
     assert.equal(init.canEdit, false);
 
-    // Operator attempting SET_WORKSPACE must be rejected
+    // Operator can switch their companion deck view to media without mutating server disk config
     ws.send(JSON.stringify({ type: 'SET_WORKSPACE', workspaceId: 'media' }));
-    const errorMsg = await nextMsg();
-    assert.equal(errorMsg.type, 'ERROR');
-    assert.ok(errorMsg.message.includes('editor privilege required'));
+    const wsUpdate = await nextMsg();
+    assert.equal(wsUpdate.type, 'STATE_UPDATE');
+    assert.equal(wsUpdate.workspaceId, 'media');
+    assert.equal(wsUpdate.canEdit, false);
+    // Server disk/default workspace was NOT mutated by operator navigation
+    assert.notEqual(app.getConfig().activeWorkspaceId, 'media');
 
-    // Operator attempting WORKSPACE_DELETED must also be rejected
+    // Operator attempting destructive WORKSPACE_DELETED must be rejected
     ws.send(JSON.stringify({ type: 'WORKSPACE_DELETED', workspaceId: 'media' }));
     const errorDel = await nextMsg();
     assert.equal(errorDel.type, 'ERROR');
     assert.ok(errorDel.message.includes('editor privilege required'));
 
-    // But operator CAN toggle PIN and navigate pages
+    // Operator CAN toggle PIN and navigate pages
     ws.send(JSON.stringify({ type: 'PIN' }));
     const pinUpdate = await nextMsg();
     assert.equal(pinUpdate.navigation.pinned, true);
+
+    // Switch back to developer workspace (which has 2 pages in default template)
+    ws.send(JSON.stringify({ type: 'SET_WORKSPACE', workspaceId: 'developer' }));
+    const devUpdate = await nextMsg();
+    assert.equal(devUpdate.type, 'STATE_UPDATE');
+    assert.equal(devUpdate.workspaceId, 'developer');
 
     ws.send(JSON.stringify({ type: 'PAGE_NEXT' }));
     const pageUpdate = await nextMsg();

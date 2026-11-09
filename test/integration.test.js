@@ -265,7 +265,7 @@ test('Integration: WebSocket authentication, Origin check, operator and editor r
   }
 });
 
-test('Integration: Multi-client synchronized deck paging', async () => {
+test('Integration: Multi-client independent companion deck paging', async () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arya-multi-test-'));
   const configPath = path.join(tmpDir, 'profiles.json');
   const authPath = path.join(tmpDir, 'auth.json');
@@ -302,12 +302,15 @@ test('Integration: Multi-client synchronized deck paging', async () => {
     // Client A changes page to next
     wsClientA.send(JSON.stringify({ type: 'PAGE_NEXT' }));
 
-    // Both clients receive STATE_UPDATE with synchronized new page
+    // Client A receives STATE_UPDATE with page 2
     const updateA = await getMsgA();
-    const updateB = await getMsgB();
     assert.equal(updateA.type, 'STATE_UPDATE');
-    assert.equal(updateB.type, 'STATE_UPDATE');
     assert.equal(updateA.pageNumber, 2);
+
+    // Client B can also page independently (wrap to page 2 via PAGE_PREV)
+    wsClientB.send(JSON.stringify({ type: 'PAGE_PREV' }));
+    const updateB = await getMsgB();
+    assert.equal(updateB.type, 'STATE_UPDATE');
     assert.equal(updateB.pageNumber, 2);
 
     wsClientA.close();

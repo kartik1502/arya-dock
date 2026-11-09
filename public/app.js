@@ -630,7 +630,12 @@ function connectWebSocket() {
   updateConnectionUI('connecting');
 
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const wsUrl = `${protocol}//${window.location.host}/ws?token=${encodeURIComponent(pairingToken)}`;
+  const searchParams = new URLSearchParams(window.location.search);
+  const requestedWorkspace = searchParams.get('workspace') || searchParams.get('profile');
+  let wsUrl = `${protocol}//${window.location.host}/ws?token=${encodeURIComponent(pairingToken)}`;
+  if (requestedWorkspace) {
+    wsUrl += `&workspace=${encodeURIComponent(requestedWorkspace)}`;
+  }
 
   try {
     ws = new WebSocket(wsUrl);
@@ -966,7 +971,7 @@ function renderWorkspaces(workspaces, activeWorkspaceId) {
 
     btn.addEventListener('click', () => {
       triggerHaptic(20);
-      if (canEdit && ws && ws.readyState === WebSocket.OPEN) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type: 'SET_WORKSPACE', workspaceId: wsItem.id }));
       }
     });
@@ -1222,7 +1227,7 @@ btnPageNext.addEventListener('click', () => {
 if (btnModeM1) {
   btnModeM1.addEventListener('click', () => {
     triggerHaptic(20);
-    if (canEdit && ws && ws.readyState === WebSocket.OPEN) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'SET_WORKSPACE', workspaceId: 'developer' }));
     }
   });
@@ -1231,7 +1236,7 @@ if (btnModeM1) {
 if (btnModeM2) {
   btnModeM2.addEventListener('click', () => {
     triggerHaptic(20);
-    if (canEdit && ws && ws.readyState === WebSocket.OPEN) {
+    if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify({ type: 'SET_WORKSPACE', workspaceId: 'media' }));
     }
   });

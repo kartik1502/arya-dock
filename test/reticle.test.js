@@ -46,7 +46,8 @@ test('Reticle: Predefined flow definitions exist and conform to Reticle v2 schem
     'editor-mode-security.json',
     'category-lens-switching.json',
     'workspace-settings-modal.json',
-    'active-window-auto-switching.json'
+    'active-window-auto-switching.json',
+    'companion-deck-state.json'
   ];
 
   for (const flowFileName of requiredFlows) {
@@ -521,6 +522,63 @@ test('Reticle Predefined Flow Replay: Active Window Auto-Switching & Pinning (ac
     assert.equal(autoUpdate.type, 'STATE_UPDATE');
     assert.equal(autoUpdate.workspaceId, 'developer');
     assert.equal(autoUpdate.navigation.workspaceId, 'developer');
+
+    ws.close();
+  } finally {
+    await new Promise(resolve => app.close(resolve));
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+});
+
+test('Reticle: companion-deck-state replay passes against Arya Dock live backend', async () => {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'arya-reticle-companion-'));
+  const configPath = path.join(tmpDir, 'profiles.json');
+  const authPath = path.join(tmpDir, 'auth.json');
+
+  const app = createServer({
+    configPath,
+    authPath,
+    debounceMs: 0
+  });
+  const server = app.server;
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  const token = app.credentials.pairingToken;
+
+  const ws = new WebSocket(`ws://127.0.0.1:${port}/ws?token=${token}`, {
+    headers: { Origin: `http://127.0.0.1:${port}` }
+  });
+  const nextMsg = createMessageQueue(ws);
+  await new Promise(resolve => ws.on('open', resolve));
+
+  try {
+    const initMsg = await nextMsg();
+    assert.equal(initMsg.type, 'INIT');
+    assert.equal(initMsg.workspaceId, 'developer');
+
+    // Step 1: Pin companion deck
+    ws.send(JSON.stringify({ type: 'PIN' }));
+    const pinUpdate = await nextMsg();
+    assert.equal(pinUpdate.type, 'STATE_UPDATE');
+    assert.equal(pinUpdate.navigation.pinned, true);
+
+    // Step 2: Switch to M2 Media
+    ws.send(JSON.stringify({ type: 'SET_WORKSPACE', workspaceId: 'media' }));
+    const mediaUpdate = await nextMsg();
+    assert.equal(mediaUpdate.type, 'STATE_UPDATE');
+    assert.equal(mediaUpdate.workspaceId, 'media');
+
+    // Step 3: Switch back to M1 Developer
+    ws.send(JSON.stringify({ type: 'SET_WORKSPACE', workspaceId: 'developer' }));
+    const devUpdate = await nextMsg();
+    assert.equal(devUpdate.type, 'STATE_UPDATE');
+    assert.equal(devUpdate.workspaceId, 'developer');
+
+    // Step 4: Unpin companion deck
+    ws.send(JSON.stringify({ type: 'UNPIN' }));
+    const unpinUpdate = await nextMsg();
+    assert.equal(unpinUpdate.type, 'STATE_UPDATE');
+    assert.equal(unpinUpdate.navigation.pinned, false);
 
     ws.close();
   } finally {

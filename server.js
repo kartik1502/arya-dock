@@ -31,7 +31,7 @@ const {
 
 const { getNetworkInterfaces } = require('./lib/network');
 const { createHttpHandler } = require('./lib/http');
-const { setupWebSocketServer, broadcastState } = require('./lib/ws');
+const { setupWebSocketServer, broadcastState, sendClientState, getClientWorkspace } = require('./lib/ws');
 const platform = require('./platform');
 
 const PORT = !isNaN(parseInt(process.env.PORT, 10)) ? parseInt(process.env.PORT, 10) : 3333;
@@ -276,10 +276,34 @@ function createServer(options = {}) {
 
   const activeWatcher = new ActiveWindowWatcher(platformAdapter, (appId) => {
     if (appId) {
-      const prevWs = navState.workspaceId;
-      const nextNav = dispatchNav({ type: 'CONTEXT_CHANGED', appId });
-      if (nextNav && nextNav.workspaceId !== prevWs && wsManager && wsManager.wss) {
-        broadcastState(wsManager.wss, wsContext);
+      dispatchNav({ type: 'CONTEXT_CHANGED', appId });
+      if (wsManager && wsManager.wss && wsManager.wss.clients) {
+        for (const client of wsManager.wss.clients) {
+          if (client.readyState === 1 && client.navState) {
+            const targetWs = getClientWorkspace(client, appConfig);
+            const totalPages = (targetWs && Array.isArray(targetWs.pages) && targetWs.pages.length > 0)
+              ? targetWs.pages.length
+              : 1;
+            const nextNav = navigationReducer(client.navState, {
+              type: 'CONTEXT_CHANGED',
+              appId
+            }, {
+              workspaces: appConfig.workspaces,
+              totalPages,
+              findWorkspaceForApp: (workspaces, app) => {
+                if (typeof app === 'string') {
+                  return findWorkspaceForApp(workspaces || appConfig.workspaces, app);
+                }
+                return findWorkspaceForApp(appConfig.workspaces, workspaces);
+              }
+            });
+
+            if (nextNav !== client.navState) {
+              client.navState = nextNav;
+              sendClientState(client, wsContext, 'STATE_UPDATE');
+            }
+          }
+        }
       }
     }
   });
