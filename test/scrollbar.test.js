@@ -100,3 +100,71 @@ test('Scrollbars: Key scrollable containers are instrumented with sleek cockpit 
   assert.ok(css.includes('.m-wizard-card::-webkit-scrollbar'));
   assert.ok(css.includes('.m-detect-grid::-webkit-scrollbar'));
 });
+
+test('Scrollbars: Chromium 121+ protection and stepper button suppression', () => {
+  const css = fs.readFileSync(cssPath, 'utf8');
+
+  // Chromium 121+ feature query protection: standard scrollbar-color must be guarded
+  // by @supports not selector(::-webkit-scrollbar) so Blink does not deactivate WebKit styling
+  assert.match(
+    css,
+    /@supports\s+not\s+selector\(::-webkit-scrollbar\)/,
+    'Must guard standard scrollbar-color with @supports not selector(::-webkit-scrollbar) for Chromium 121+'
+  );
+
+  // Ugly stepper buttons must be suppressed for minimal cyber cockpit aesthetic
+  assert.match(
+    css,
+    /::-webkit-scrollbar-button[\s\S]*?display:\s*none/m,
+    'Must suppress ::-webkit-scrollbar-button with display: none'
+  );
+
+  // Resizer corner
+  assert.match(
+    css,
+    /::-webkit-resizer[\s\S]*?background:\s*transparent/m,
+    'Must style ::-webkit-resizer with transparent background'
+  );
+});
+
+test('Scrollbars: Modal flex-scroll architecture avoids double scrollbars and sticky controls', () => {
+  const css = fs.readFileSync(cssPath, 'utf8');
+
+  // .m-modal-card must have overflow: hidden to avoid outer duplicate scrollbar
+  assert.match(
+    css,
+    /\.m-modal-card\s*\{[^}]*overflow:\s*hidden;/m,
+    '.m-modal-card must clip outer overflow to prevent double scrollbars'
+  );
+
+  // .m-modal-body must be the scroll container
+  assert.match(
+    css,
+    /\.m-modal-body\s*\{[^}]*overflow-y:\s*auto;/m,
+    '.m-modal-body must handle overflow-y: auto'
+  );
+
+  // .m-modal-header and .m-modal-footer must have flex-shrink: 0 to stay pinned
+  assert.match(
+    css,
+    /\.m-modal-header\s*\{[^}]*flex-shrink:\s*0;/m,
+    '.m-modal-header must have flex-shrink: 0'
+  );
+  assert.match(
+    css,
+    /\.m-modal-footer\s*\{[^}]*flex-shrink:\s*0;/m,
+    '.m-modal-footer must have flex-shrink: 0'
+  );
+
+  // .m-lens-strip must preserve intentional scrollbar hiding
+  assert.match(
+    css,
+    /\.m-lens-strip\s*\{[^}]*scrollbar-width:\s*none;/m,
+    '.m-lens-strip must preserve scrollbar-width: none'
+  );
+  assert.match(
+    css,
+    /\.m-lens-strip::-webkit-scrollbar\s*\{[^}]*display:\s*none;/m,
+    '.m-lens-strip must preserve display: none on scrollbar'
+  );
+});

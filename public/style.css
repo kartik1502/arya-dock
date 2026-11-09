@@ -101,14 +101,39 @@ body {
    Standard CSS (Firefox) and WebKit / Chromium pseudo-element support.
    ========================================================================== */
 
-/* Firefox standard thin scrollbars */
-html,
-body,
-*,
-*::before,
-*::after {
-  scrollbar-width: thin;
-  scrollbar-color: var(--m-scrollbar-thumb) var(--m-scrollbar-track);
+/* Standard CSS Scrollbars (Level 1) for non-WebKit browsers (e.g. Firefox)
+   Guarded with @supports not selector(::-webkit-scrollbar) so modern Chromium (121+)
+   and WebKit (Safari 17+) do not deactivate custom ::-webkit-scrollbar styling. */
+@supports not selector(::-webkit-scrollbar) {
+  html,
+  body,
+  *,
+  .m-mode-selector,
+  .m-drawer-body,
+  .m-category-tabs,
+  .m-apps-list,
+  .m-modal-card,
+  .m-modal-body,
+  .m-popup-card,
+  .m-ws-list,
+  .m-wizard-card,
+  .m-detect-grid,
+  pre,
+  code,
+  kbd,
+  samp,
+  textarea,
+  .m-code-block,
+  .m-log-viewer,
+  .m-terminal-output {
+    scrollbar-width: thin;
+    scrollbar-color: var(--m-scrollbar-thumb) var(--m-scrollbar-track);
+  }
+
+  .m-mode-selector,
+  .m-category-tabs {
+    scrollbar-color: var(--m-scrollbar-thumb) transparent;
+  }
 }
 
 /* WebKit / Chromium custom scrollbars */
@@ -116,6 +141,13 @@ body,
 *::-webkit-scrollbar {
   width: var(--m-scrollbar-width);
   height: var(--m-scrollbar-height);
+}
+
+::-webkit-scrollbar-button,
+*::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 ::-webkit-scrollbar-track,
@@ -155,6 +187,11 @@ body,
   background: transparent;
 }
 
+::-webkit-resizer,
+*::-webkit-resizer {
+  background: transparent;
+}
+
 /* Preformatted text, code blocks, logs & textareas */
 pre,
 code,
@@ -164,8 +201,6 @@ textarea,
 .m-code-block,
 .m-log-viewer,
 .m-terminal-output {
-  scrollbar-width: thin;
-  scrollbar-color: var(--m-scrollbar-thumb) var(--m-scrollbar-track);
   -webkit-overflow-scrolling: touch;
 }
 
@@ -363,8 +398,6 @@ textarea::-webkit-scrollbar-thumb:hover,
   overflow-x: auto;
   white-space: nowrap;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: var(--m-scrollbar-thumb) transparent;
   height: 38px;
   box-sizing: border-box;
 }
@@ -381,6 +414,7 @@ textarea::-webkit-scrollbar-thumb:hover,
 .m-mode-selector::-webkit-scrollbar-thumb {
   background: var(--m-scrollbar-thumb);
   border-radius: var(--m-radius-full);
+  border: none;
   transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -1331,8 +1365,6 @@ textarea::-webkit-scrollbar-thumb:hover,
   gap: 12px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: var(--m-scrollbar-thumb) var(--m-scrollbar-track);
 }
 
 .m-drawer-body::-webkit-scrollbar {
@@ -1400,8 +1432,6 @@ textarea::-webkit-scrollbar-thumb:hover,
   padding-bottom: 4px;
   flex-shrink: 0;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: var(--m-scrollbar-thumb) transparent;
 }
 
 .m-category-tabs::-webkit-scrollbar {
@@ -1416,6 +1446,7 @@ textarea::-webkit-scrollbar-thumb:hover,
 .m-category-tabs::-webkit-scrollbar-thumb {
   background: var(--m-scrollbar-thumb);
   border-radius: var(--m-radius-full);
+  border: none;
   transition: background-color 0.15s ease;
 }
 
@@ -1457,8 +1488,6 @@ textarea::-webkit-scrollbar-thumb:hover,
   overflow-y: auto;
   padding-right: 2px;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: var(--m-scrollbar-thumb) var(--m-scrollbar-track);
 }
 
 .m-apps-list::-webkit-scrollbar {
@@ -1571,6 +1600,7 @@ textarea::-webkit-scrollbar-thumb:hover,
   align-items: center;
   justify-content: center;
   padding: 16px;
+  overflow-y: auto;
 }
 
 .m-popup-backdrop.hidden {
@@ -1584,8 +1614,6 @@ textarea::-webkit-scrollbar-thumb:hover,
   max-height: 90dvh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: var(--m-scrollbar-thumb) var(--m-scrollbar-track);
   background: linear-gradient(145deg, #0f172a 0%, #080e1a 100%);
   border: 1.5px solid var(--m-hairline);
   border-radius: var(--m-radius-lg);
@@ -1680,6 +1708,7 @@ textarea::-webkit-scrollbar-thumb:hover,
   align-items: center;
   justify-content: center;
   padding: 16px;
+  overflow-y: auto;
 }
 
 .m-modal-backdrop.hidden {
@@ -1691,10 +1720,8 @@ textarea::-webkit-scrollbar-thumb:hover,
   max-width: 460px;
   max-height: 90vh;
   max-height: 90dvh;
-  overflow-y: auto;
+  overflow: hidden;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: var(--m-scrollbar-thumb) var(--m-scrollbar-track);
   background: linear-gradient(145deg, #0f172a 0%, #080e1a 100%);
   border: 1.5px solid var(--m-hairline);
   border-radius: var(--m-radius-lg);
@@ -1729,6 +1756,7 @@ textarea::-webkit-scrollbar-thumb:hover,
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .m-modal-title-wrap {
@@ -1761,9 +1789,11 @@ textarea::-webkit-scrollbar-thumb:hover,
   display: flex;
   flex-direction: column;
   gap: 10px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--m-scrollbar-thumb) var(--m-scrollbar-track);
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  padding-right: 2px;
 }
 
 .m-modal-body::-webkit-scrollbar {
@@ -1932,6 +1962,7 @@ textarea::-webkit-scrollbar-thumb:hover,
   justify-content: flex-end;
   gap: 8px;
   margin-top: 6px;
+  flex-shrink: 0;
 }
 
 .m-btn {
@@ -2119,8 +2150,6 @@ textarea::-webkit-scrollbar-thumb:hover,
   max-height: 180px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: var(--m-scrollbar-thumb) var(--m-scrollbar-track);
 }
 
 .m-ws-list::-webkit-scrollbar {
@@ -2135,6 +2164,7 @@ textarea::-webkit-scrollbar-thumb:hover,
 .m-ws-list::-webkit-scrollbar-thumb {
   background: var(--m-scrollbar-thumb);
   border-radius: var(--m-radius-full);
+  border: none;
   transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
@@ -2335,8 +2365,6 @@ textarea::-webkit-scrollbar-thumb:hover,
   max-height: 90dvh;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: var(--m-scrollbar-thumb) var(--m-scrollbar-track);
   gap: 16px;
 }
 
@@ -2480,8 +2508,6 @@ textarea::-webkit-scrollbar-thumb:hover,
   overflow-y: auto;
   padding: 2px;
   -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
-  scrollbar-color: var(--m-scrollbar-thumb) var(--m-scrollbar-track);
 }
 
 .m-detect-grid::-webkit-scrollbar {
@@ -2496,6 +2522,7 @@ textarea::-webkit-scrollbar-thumb:hover,
 .m-detect-grid::-webkit-scrollbar-thumb {
   background: var(--m-scrollbar-thumb);
   border-radius: var(--m-radius-full);
+  border: none;
   transition: background-color 0.15s ease, box-shadow 0.15s ease;
 }
 
