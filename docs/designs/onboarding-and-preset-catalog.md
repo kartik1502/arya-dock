@@ -3,7 +3,7 @@
 ## Status: APPROVED (EGM Review Consensus)
 * **Epic ID**: E4-1 (Host System Diagnostic Scanner & Smart Profile Seeder) & E4-3 (First-Run Interactive Onboarding Wizard & Preset Catalog)
 * **Target Schema**: Version 2 (`workspaces` array model)
-* **Synthesis Document**: [`docs/designs/reviews/onboarding_presets_synthesis_report.md`](file:///home/karthikulkarni/Documents/arya-dock/docs/designs/reviews/onboarding_presets_synthesis_report.md)
+* **Synthesis Document**: [`docs/designs/reviews/onboarding-presets/onboarding_presets_synthesis_report.md`](file:///home/karthikulkarni/Documents/arya-dock/docs/designs/reviews/onboarding-presets/onboarding_presets_synthesis_report.md)
 
 ---
 

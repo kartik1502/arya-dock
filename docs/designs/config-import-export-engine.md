@@ -5,7 +5,7 @@
 * **Status:** EGM Approved Architecture Specification
 * **Target Version:** Arya Dock v1.4.0 / Epic E2-4 (Configuration Backup, Import & Export Engine)
 * **Verification Harness:** Node.js HTTP & Concurrency Test Runner & Reticle v2 Flow Runner
-* **Review Synthesis:** [`docs/designs/reviews/config_import_export_synthesis_report.md`](./reviews/config_import_export_synthesis_report.md)
+* **Review Synthesis:** [`docs/designs/reviews/config-import-export/config_import_export_synthesis_report.md`](./reviews/config-import-export/config_import_export_synthesis_report.md)
 
 ---
 

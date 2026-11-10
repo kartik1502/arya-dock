@@ -211,13 +211,13 @@ Arya Dock provides layered defense-in-depth protection to safeguard the host wor
 
 For in-depth architecture, configuration, and customization guides, see the dedicated documentation:
 
-* 🔒 **[Security Model & Architecture Guide](docs/security-model.md)**: Pairing tokens, Origin header verification, Operator vs. Editor role separation, localhost proxy caveats, credential rotation lifecycle, and Content Security Policy.
-* 🛠️ **[Configuration Architecture & Persistence Design](docs/config-design.md)**: Ownership model, XDG Base Directory layout, path precedence, first-boot legacy migration, debounced saves, and backup rotation with auto-recovery.
-* ⚙️ **[Configuration & Environment Reference](docs/configuration.md)**: Complete reference of all environment variables (`HOST`, `PORT`, `CONFIG_PATH`, `AUTH_PATH`, `TERMINAL`, `ARYA_*`), CLI flags (`--rotate-credentials`, `--start`), and custom config paths.
-* 🎛️ **[Usage & Deck Customization Guide](docs/usage-guide.md)**: Navigation modes (M1 Dev, M2 Media), dynamic tile count adjustments (`+`/`−`), drag & drop application catalog, terminal execution modes, multi-client synchronization, and data-loss protection.
+* 🔒 **[Security Model & Architecture Guide](docs/architecture/security-model.md)**: Pairing tokens, Origin header verification, Operator vs. Editor role separation, localhost proxy caveats, credential rotation lifecycle, and Content Security Policy.
+* 🛠️ **[Configuration Architecture & Persistence Design](docs/architecture/config-design.md)**: Ownership model, XDG Base Directory layout, path precedence, first-boot legacy migration, debounced saves, and backup rotation with auto-recovery.
+* ⚙️ **[Configuration & Environment Reference](docs/guides/configuration.md)**: Complete reference of all environment variables (`HOST`, `PORT`, `CONFIG_PATH`, `AUTH_PATH`, `TERMINAL`, `ARYA_*`), CLI flags (`--rotate-credentials`, `--start`), and custom config paths.
+* 🎛️ **[Usage & Deck Customization Guide](docs/guides/usage-guide.md)**: Navigation modes (M1 Dev, M2 Media), dynamic tile count adjustments (`+`/`−`), drag & drop application catalog, terminal execution modes, multi-client synchronization, and data-loss protection.
 * 🎨 **[Motorsport Cockpit Design System](DESIGN.md)**: Design philosophy, pitch-black OLED canvas, container queries, and cockpit ergonomics.
-* 🔌 **[Protocol Specifications](docs/protocol-specs.md)**: WebSocket message types, JSON payloads, and network framing.
-* 🔭 **[Active Window Detection Spike](docs/active-window-spike.md)**: Investigation findings for desktop window focus tracking on GNOME Wayland and X11.
+* 🔌 **[Protocol Specifications](docs/architecture/protocol-specs.md)**: WebSocket message types, JSON payloads, and network framing.
+* 🔭 **[Active Window Detection Spike](docs/research/active-window-spike.md)**: Investigation findings for desktop window focus tracking on GNOME Wayland and X11.
 
 ---
 
@@ -227,13 +227,11 @@ For in-depth architecture, configuration, and customization guides, see the dedi
 ```text
 arya-dock/
 ├── config/                   # Default templates and local configuration
-├── docs/                     # In-depth architectural and configuration guides
-│   ├── config-design.md      # Configuration architecture, migration, and persistence
-│   ├── configuration.md      # Environment variables and CLI reference
-│   ├── security-model.md     # Security architecture, roles, and rotation
-│   ├── usage-guide.md        # Deck operation and tile customization
-│   ├── protocol-specs.md     # Reference protocol specification
-│   └── active-window-spike.md # Active window detection spike analysis
+├── docs/                     # In-depth architectural, operational, and design guides
+│   ├── architecture/         # Security, storage persistence, and protocol specifications
+│   ├── guides/               # User operation manuals and configuration reference
+│   ├── designs/              # Feature RFCs and categorized review archives
+│   └── research/             # Technical spikes and prototypes
 ├── lib/                      # Core backend services (auth, config, terminal, apps, ws, http)
 ├── platform/                 # Modular OS abstraction layer (Linux, Darwin, Fake)
 ├── public/                   # Frontend PWA (HTML, CSS, JS, manifest, Service Worker)

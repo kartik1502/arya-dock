@@ -5,7 +5,7 @@
 * **Status:** EGM Approved Architecture Specification
 * **Target Version:** Arya Dock v1.5.0 / Epic E6-1 (Folder & Sub-Deck Navigation Tiles)
 * **Verification Harness:** Node.js Unit & Concurrency Test Runner & Reticle v2 Flow Runner
-* **Review Synthesis:** [`docs/designs/reviews/folder_navigation_synthesis_report.md`](./reviews/folder_navigation_synthesis_report.md)
+* **Review Synthesis:** [`docs/designs/reviews/folder-navigation/folder_navigation_synthesis_report.md`](./reviews/folder-navigation/folder_navigation_synthesis_report.md)
 
 ---
 

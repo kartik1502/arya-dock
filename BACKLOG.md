@@ -326,12 +326,12 @@ Confusing for new users, and risky if someone "fixes" the labels by making them 
 ## #14 README / docs consistency and scope
 
 **Labels:** `docs` `low`  
-**Location:** `README.md`, `DESIGN.md`, `docs/protocol-specs.md`, last commit message
+**Location:** `README.md`, `DESIGN.md`, `docs/architecture/protocol-specs.md`, last commit message
 
 **Problem**  
 - README claims "sub-millisecond latency" and "zero battery drain"-style properties that aren't measurable/defensible over WebSocket + tethering.
 - The last commit says Motorsport references were sanitized, but the README and design system still lean heavily on them.
-- `docs/protocol-specs.md` documents a specific hardware device (VID/PID, HID++ packets) that this software-only project doesn't implement, with no explanation of why it's here.
+- `docs/architecture/protocol-specs.md` documents a specific hardware device (VID/PID, HID++ packets) that this software-only project doesn't implement, with no explanation of why it's here.
 - The project is Linux-specific (`.desktop` parsing, platform URL openers, audio/media controllers, specific terminals) but this isn't stated up front.
 
 **Hints**  
@@ -394,5 +394,5 @@ No tests exist. Also, current page is a single global, so two connected devices 
 ## Out of scope / ideas for later
 
 - Hot-reloading `profiles.json` when edited by hand.
-- Full Wayland/X11 active-window auto-profile switching in production (spike completed in `docs/active-window-spike.md`; platform adapters gracefully degrade with `activeWindow: false` until production tracking is enabled).
+- Full Wayland/X11 active-window auto-profile switching in production (spike completed in `docs/research/active-window-spike.md`; platform adapters gracefully degrade with `activeWindow: false` until production tracking is enabled).
 - Windows platform adapter support.

@@ -1,6 +1,6 @@
 # ⚙️ Arya Dock — Configuration & Environment Reference
 
-Arya Dock is configurable via environment variables and CLI arguments. Detailed architectural decisions and persistence specifications are documented in [docs/config-design.md](file:///home/karthikulkarni/Documents/arya-dock/docs/config-design.md).
+Arya Dock is configurable via environment variables and CLI arguments. Detailed architectural decisions and persistence specifications are documented in [`docs/architecture/config-design.md`](file:///home/karthikulkarni/Documents/arya-dock/docs/architecture/config-design.md).
 
 ---
 
